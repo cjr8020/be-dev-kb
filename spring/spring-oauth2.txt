@@ -1,0 +1,101 @@
+
+	OAuth 2.0 
+	*********
+
+Provider
+--------
+
+	responsible for exposing OAuth 2.0 protected resources.
+	providers configuration involves establishing that clients can access its
+	protected resources independently, or in behalf of a user.
+
+	providers manages and and verifies OAuth 2.0 tokens.
+	where applicable, the provider must also supply an interface for the user
+	to confirm that a client can be granted access to the protected resources.
+
+	Spring OAuth 2.0 Provider implementation
+
+	split between 
+
+		Authorization Service and
+		Resource Service
+
+	which can reside in the same application, or split across two applications.
+	multiple Resource Servers share an Authorization Service.
+
+	Token requests are handled by Spring MVC controller endpoints, and
+	access to protected resources is handled by standard Spring Security request
+	filters.
+
+	Authorization Server endpoints
+	------------------------------
+
+		AuthorizationEndpoint   
+
+			(default URL) /oauth/authorize
+
+		TokenEndpoint
+
+			(default URL) /oauth/token
+
+	Resource Server filter
+	---------------
+
+		OAuth2AuthenticationProcessingFilter
+
+			is required to implement an OAuth 2.0 Resource Server
+			used to load the Authentication for the request given an
+			authenticated access token.
+
+
+================================================================================
+
+Resource Server Configuration
+*****************************
+
+	serves resources protected by the OAuth2 token.
+
+	Spring OAuth provides a Spring Security authentication filter that 
+	implements the protection.  You can switch it on with 
+
+@EnableResourceServer
+
+	on a @Configuration class, and configure it (as necessary) using a 
+	`ResourceServerConfigurer`.
+
+	adds a filter of type `OAuth2AuthenticationProcessingFilter` automatically to
+	the Spring Security filter chain.
+
+	Here's what can be configured:
+
+	tokenService
+		the bean that defines the token services
+		(instance of ResourceServerTokenServices)
+
+	resourceId
+		the id for the resource (optional, but recommended and will be validated
+		by the Authn server if present).
+
+	other extension points for the resource server 
+		(e.g. tokenExtractor for extracting tokens from incoming requests)
+
+	request matchers for protected resources (defaults to plain "authenticated")
+
+	other customizations for the proteted resources permitted by the 
+		HttpSecurity configurer in Spring Security
+
+
+ResourceServerTokenServices
+
+	the other part of the contact with the Authn Server.
+
+	If the Resource Server and Authn Server are in the same app, and you use
+	`DefaultTokenServices`, then you don't have to do much - it implements all
+	the necessary interfaces so it is automatically consistent.
+
+	If your Resource Server is a separate application, then you have to make sure
+	you match the capabilities of the Authn Server and provide 
+	`ResourceServerTokenServices` that knows how to decode the tokens correctly.
+
+	
+
