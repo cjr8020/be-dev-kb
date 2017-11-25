@@ -2,6 +2,8 @@
 	OAuth 2.0 
 	*********
 
+http://projects.spring.io/spring-security-oauth/docs/oauth2.html
+
 Provider
 --------
 
@@ -97,5 +99,203 @@ ResourceServerTokenServices
 	you match the capabilities of the Authn Server and provide 
 	`ResourceServerTokenServices` that knows how to decode the tokens correctly.
 
-	
+
+
+================================================================================
+
+	Authorization Server Configuration
+	**********************************
+
+As you configure the Authn Server, you have to consider the grant type that the
+client is to use to obtain an access token from the end-user, e.g.:
+
+- authorization code
+- user credentials
+- refresh token
+
+@EnableAuthorizationServer annotation 
+	is used to configure the OAuth 2.0 Authn Server, together with any
+
+@Bean 
+	that implement AuthorizationServerConfigurer
+
+AuthorizationServerConfigurerAdapter
+	adapter implementation with empty methods.
+
+AuthorizationServerSecurityConfigurer
+	defines the security constraints on the token endpoint.
+
+AuthorizationServerEndpointsConfigurer
+	defines the authorization and token endpoints and the token services.
+
+
+
+	Client Details Service
+--------------------------------------------------------------------------------	
+
+ClientDetailsServiceConfigurer
+	a configurer that defines the client details service. 
+	Client details can be initialized, or you can just refer to an existing store.
+
+	a callback from your AuthorizationServerConfigurer
+	can be used to define an in-memory or JDBC implementation of the client
+	details service.  Important attributes of a client are:
+
+		- clientId (required)
+		- secret (required for trusted clients)
+		- scope 
+			scope to which client is limited.  
+			if undefined or empty (the default), the client is not limited by scope.
+		- authorizedGrantTypes (default: emtpy)
+			grant types that are authorized for the client to use.
+		- authorities
+			authorities granted to the client.
+
+
+	Here is an example of request 
+
+	`$ curl client:secret@localhost:8080/oauth/token -d grant_type=password -d username=user -d password=pwd`
+
+		where 
+			'client' is clientId
+			'secret' is client secret
+			sent via Authorization: Basic XXX header
+		and
+			grant_type
+			username
+			password
+		are sent as form parameters
+		along with Content-Type: application/x-www-form-urlencoded
+
+
+	To allow (untrusted) clients access to /oauth/token interface
+
+		https://stackoverflow.com/questions/35785628/spring-security-oauth-2-0-client-secret-always-required-for-authorization-code
+
+		Authenticating the client using the form parameters instead of basic auth 
+		is enabled using the allowFormAuthenticationForClients() method 
+		as shown in the code sample below.
+
+			class AuthorizationServerConfigurer extends AuthorizationServerConfigurerAdapter {
+
+			    @Override
+			    public void configure(AuthorizationServerSecurityConfigurer security) {
+			        security
+			                .tokenKeyAccess("permitAll()")
+			                .checkTokenAccess("isAuthenticated()")
+			                .allowFormAuthenticationForClients()
+			    }
+			}
+
+
+		The allowFormAuthenticationForClients() method triggers the addition of the ClientCredentialsTokenEndpointFilter which allows for authentication via form parameters.
+
+
+
+	JWT Token 
+--------------------------------------------------------------------------------	
+
+JwtAccessTokenConverter 
+	helper that translates between JWT encoded token values and OAuth authn
+	information (in both directions);
+	also acts as TokenEnhancer when tokens are granted.
+
+	JwtAccessTokenConverter can be used with a symmetric key to sign tokens:
+
+
+		@Bean
+		public JwtAccessTokenConverter accessTokenConverter() {
+			JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+			converter.setSigningKey(signingKey);
+			return converter;
+		}
+
+	or, it can be used with an asymmetyric key pair to sign tokens
+
+	http://www.baeldung.com/spring-security-oauth-jwt
+
+	1. generate the keys - a .jks file
+
+		keytool -genkeypair -alias mytest 
+                    -keyalg RSA 
+                    -keypass mypass 
+                    -keystore mytest.jks 
+                    -storepass mypass
+
+    2. export public key
+
+    	keytool -list -rfc --keystore mytest.jks | openssl x509 -inform pem -pubkey
+
+    3. We take only our Public key and copy it to our resource server src/main/resources/public.txt
+
+    	-----BEGIN PUBLIC KEY-----
+		MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgIK2Wt4x2EtDl41C7vfp
+		OsMquZMyOyteO2RsVeMLF/hXIeYvicKr0SQzVkodHEBCMiGXQDz5prijTq3RHPy2
+		/5WJBCYq7yHgTLvspMy6sivXN7NdYE7I5pXo/KHk4nz+Fa6P3L8+L90E/3qwf6j3
+		DKWnAgJFRY8AbSYXt1d5ELiIG1/gEqzC0fZmNhhfrBtxwWXrlpUDT0Kfvf0QVmPR
+		xxCLXT+tEe1seWGEqeOLL5vXRLqmzZcBe1RZ9kQQm43+a9Qn5icSRnDfTAesQ3Cr
+		lAWJKl2kcWU1HwJqw+dZRSZ1X4kEXNMyzPdPBbGmU6MHdhpywI7SKZT7mX4BDnUK
+		eQIDAQAB
+		-----END PUBLIC KEY-----
+
+	4. exclude the key file by the maven filtering process
+
+		<build>
+		    <resources>
+		        <resource>
+		            <directory>src/main/resources</directory>
+		            <filtering>true</filtering>
+		            <excludes>
+		                <exclude>*.jks</exclude>
+		            </excludes>
+		        </resource>
+		    </resources>
+		</build>
+
+	If we’re using Spring Boot, we need to make sure that our JKS file is added to application classpath via the Spring Boot Maven Plugin – addResources:
+
+		<build>
+	    <plugins>
+	        <plugin>
+	            <groupId>org.springframework.boot</groupId>
+	            <artifactId>spring-boot-maven-plugin</artifactId>
+	            <configuration>
+	                <addResources>true</addResources>
+	            </configuration>
+	        </plugin>
+	    </plugins>
+	</build>
+
+
+	5. Authorization Server
+
+		@Bean
+		public JwtAccessTokenConverter accessTokenConverter() {
+		    JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+		    KeyStoreKeyFactory keyStoreKeyFactory = 
+		      new KeyStoreKeyFactory(new ClassPathResource("mytest.jks"), "mypass".toCharArray());
+		    converter.setKeyPair(keyStoreKeyFactory.getKeyPair("mytest"));
+		    return converter;
+		}	
+
+
+	6. Resource Server
+
+		@Bean
+		public JwtAccessTokenConverter accessTokenConverter() {
+		    JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+		    Resource resource = new ClassPathResource("public.txt");
+		    String publicKey = null;
+		    try {
+		        publicKey = IOUtils.toString(resource.getInputStream());
+		    } catch (final IOException e) {
+		        throw new RuntimeException(e);
+		    }
+		    converter.setVerifierKey(publicKey);
+		    return converter;
+		}
+
+
+================================================================================
+
 

@@ -1,0 +1,53 @@
+
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+	
+		Spring Security Topics
+
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+================================================================================
+
+	Spring password encoding
+	************************
+
+BCryptPasswordEncoder
+---------------------
+
+	Implementation of PasswordEncoder that uses the BCrypt strong hashing function. 
+	
+	Clients can optionally supply a "strength" (a.k.a. log rounds in BCrypt) and 
+	a SecureRandom instance. The larger the strength parameter the more work will have to be done (exponentially) to hash the passwords. 
+
+	Strength: number of rounds
+
+		(default) 10
+		between 4 and 31
+
+	BCrypt will internally generate a random salt.
+
+	BCrypt generates a String of length 60.
+
+	Constructors:
+
+		BCryptPasswordEncoder() 
+		BCryptPasswordEncoder(int strength) 
+		BCryptPasswordEncoder(int strength, SecureRandom random) 	
+
+
+Older Implementations:
+
+	MD5PasswordEncoder and ShaPasswordEncoder use weaker algorithms and are now
+	deprecated.
+
+ShaPasswordEncoder
+------------------
+
+	requries a client to pass in a salt value when encoding.
+	BCrypt will internally generate a random salt instead.
+
+MD5PasswordEncorder
+-------------------
+
+
+================================================================================
