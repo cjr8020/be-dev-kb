@@ -298,4 +298,45 @@ JwtAccessTokenConverter
 
 ================================================================================
 
+	resource server response: 
+	Invalid token does not contain resource id (oauth2-resource)
+	************************************************************
+
+	https://stackoverflow.com/questions/28703847/how-do-you-set-a-resource-id-for-a-token
+
+You need to add configure(ResourceServerSecurityConfigurer) method to your 
+ResourceServerConfigurer.
+
+Example:
+
+	@Configuration
+	@EnableResourceServer
+	public class ResourceServer extends ResourceServerConfigurerAdapter{
+
+	    @Override 
+	    public void configure(HttpSecurity http) throws Exception {
+	         // @formatter:off
+	         http
+	         .requestMatchers().antMatchers("/bookmarks", "/bookmarks/**")    
+	         .and()
+	         .authorizeRequests().anyRequest().access("#oauth2.hasScope('write')");
+	         // @formatter:on
+	    }
+
+	    @Override
+	    public void configure(ResourceServerSecurityConfigurer resources) throws Exception {
+	         resources.resourceId(OAuth2Configuration.RESOURCE_ID);
+	    }
+
+	}
+
+If your token was genereated without and resource id, then set it to null:
+
+		@Override
+		public void configure(ResourceServerSecurityConfigurer resources) throws Exception {
+			resources.resourceId(null);  // needed if tokens do not contain resourceId
+		}
+
+================================================================================
+
 
