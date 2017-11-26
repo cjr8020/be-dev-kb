@@ -9,6 +9,7 @@
 ================================================================================
 
 	Jetty instead of Tomcat
+	***********************
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -26,5 +27,94 @@
 			<artifactId>spring-boot-starter-jetty</artifactId>
 		</dependency>
 
-		
+
+================================================================================
+
+	Typesafe configuration properties
+	*********************************
+
+https://docs.spring.io/spring-boot/docs/1.2.0.RELEASE/reference/htmlsingle/#boot-features-external-config-typesafe-configuration-properties
+
+
+	Using the @Value("${property}") annotation to inject configuration properties can sometimes be cumbersome, especially if you are working with multiple properties or your data is hierarchical in nature. Spring Boot provides an alternative method of working with properties that allows strongly typed beans to govern and validate the configuration of your application.
+
+	When the @EnableConfigurationProperties annotation is applied to your @Configuration, any beans annotated with @ConfigurationProperties will be automatically configured from the Environment properties. This style of configuration works particularly well with the SpringApplication external YAML configuration.
+
+# application.yml
+
+oauth:
+    signingKey: ASDGA$%ADFDASFSDFAG
+
+
+Option 1:  @Component/@ConfigurationProperties class + @Autowired
+Option 2:  @ConfigurationProperties class + @EnableConfigurationProperties(class) + @Autowired
+
+
+Option 1: @Component/@ConfigurationProperties class + @Autowired
+--------------------------------------------------------------------------------
+
+1. Create a @Component annotated with @ConfigurationProperties
+
+	@Component
+	@ConfigurationProperties(prefix = "oauth")
+	public class OAuthProperties {
+
+	  private String signingKey;
+
+	  public String getSigningKey() {
+	    return signingKey;
+	  }
+
+	  public void setSigningKey(String signingKey) {
+	    this.signingKey = signingKey;
+	  }
+
+	}
+
+2. Create a @Configuration and @Autowire
+
+	@Configuration
+	public class JwtConfiguration {
+
+	  @Autowired
+	  private OAuthProperties oAuthProperties;
+
+	  . . .
+	}
+
+
+Option 2: @ConfigurationProperties class + @EnableConfigurationProperties(class) + @Autowired
+--------------------------------------------------------------------------------
+
+1. Create a class with @ConfigurationProperties
+
+	@ConfigurationProperties(prefix = "oauth")
+	public class OAuthProperties {
+
+	  private String signingKey;
+
+	  public String getSigningKey() {
+	    return signingKey;
+	  }
+
+	  public void setSigningKey(String signingKey) {
+	    this.signingKey = signingKey;
+	  }
+
+	}
+
+2. Create a @Configuration class and @EnableConfigurationProperties(OAuthProperties.class)
+
+	@Configuration
+	@EnableConfigurationProperties(OAuthProperties.class)
+	public class JwtConfiguration {
+
+	  @Autowired
+	  private OAuthProperties oAuthProperties;
+
+	  . . .
+
+	}
+
+
 ================================================================================
