@@ -6,6 +6,8 @@ http://projects.spring.io/spring-security-oauth/docs/oauth2.html
 
 Other resources:
 https://github.com/nydiarra/springboot-jwt
+
+https://medium.com/@nydiarra/secure-a-spring-boot-rest-api-with-json-web-token-reference-to-angular-integration-e57a25806c50
 https://github.com/warumono-for-develop/spring-boot-oauth2-authorization-server-tutorial
 https://github.com/warumono-for-develop/spring-boot-oauth2-resource-server-tutorial
 
