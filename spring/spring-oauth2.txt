@@ -4,6 +4,14 @@
 
 http://projects.spring.io/spring-security-oauth/docs/oauth2.html
 
+Other resources:
+https://github.com/nydiarra/springboot-jwt
+https://github.com/warumono-for-develop/spring-boot-oauth2-authorization-server-tutorial
+https://github.com/warumono-for-develop/spring-boot-oauth2-resource-server-tutorial
+
+http://stytex.de/blog/2016/02/01/spring-cloud-security-with-oauth2/
+https://jugbd.org/2017/09/19/implementing-oauth2-spring-boot-spring-security/
+
 Provider
 --------
 

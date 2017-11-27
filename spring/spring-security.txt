@@ -249,3 +249,13 @@ MD5PasswordEncorder
 
 
 ================================================================================
+
+	Multiple HttpSecurity
+	*********************
+
+https://docs.spring.io/spring-security/site/docs/current/reference/html/jc.html#multiple-httpsecurity
+
+
+
+
+================================================================================
