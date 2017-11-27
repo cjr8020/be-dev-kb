@@ -8,6 +8,204 @@
 
 ================================================================================
 
+
+	Authorization
+	*************
+
+Method Security
+---------------
+
+In order to use Expression-Based Access Controls for method-level security
+we need to 
+
+@EnableWebSecurity
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+	
+
+
+	Expression-Based Access Control
+	*******************************
+
+allows complex boolean logic to be encapsulated in a single expression.
+
+Common biult-in expressions
+---------------------------
+
+	hasRole([role])
+		returns true if the current principal has the specified role.
+		by default, if the supplied role does not start with 'ROLE_' that prefix
+		will be added.
+		This can be customized by modifying
+
+			defaultRolePrefix on
+			DefaultWebSecurityExpressionHandler
+
+	hasAnyRole([role1,role2])
+		returns true if the current principal has any of the supplied roles
+		given a comma-separated list of strings.
+
+		ROLE_ ...
+
+	hasAuthority([authority])
+		returns true if the current principal has the specified authority.
+
+	hasAnyAuthority([authority1,authority2])
+
+
+		NOTE: 
+			a Role is a GrantedAuthority that starts with the prefix "ROLE_".
+			hasAuthority('ROLE_ADMIN') means the same as 
+			hasRole('ADMIN') b/c 'ROLE_' gets added automatically.
+
+			in Spring 4
+			@PreAuthorize("hasRole('XYZ')") == @PreAuthorize("hasAuthority('ROLE_XYZ')")
+
+
+
+	principal
+		allows direct access to the principal object representing the current
+		user.
+
+	authentication
+		allows direct access to the curernt Authentication object obtained from
+		SecurityContext
+
+	permitAll 	always evaluates to true
+	denyAll		always evaluates to false
+
+	isAnonymous()
+		true if current principal is anonymous
+
+	isRememberMe()
+		true if current principal is remember-me user
+
+	isAuthenticated()
+		true .. if not anonymous
+
+	isFullyAuthenticated()
+		true .. if the user is not anonymous or a remember-me user
+
+	hasPermission(Object target, Object permission)
+		true if the user has access to provided target for the given permission
+
+			hasPermission(domainObject, 'read')
+
+	hasPermission(Object targetId, String targetType, Object permission)
+
+			hasPermission(1, 'com.example.domain.Message', 'read')
+
+
+@Pre and @Post Annotations
+--------------------------
+
+	@PreAuthorize
+
+		most useful decides whether a method can actually be invoked or not.
+		e.g.:
+
+			@PreAuthorize("hasRole('USER')")
+			public void create(Contact contact);
+
+
+
+	@PostAuthorize
+
+
+
+
+================================================================================
+
+	Spring Expression Language (SpEL)
+	*********************************
+
+http://www.baeldung.com/spring-expression-language	
+
+supports querying and manipulating an object graph at runtime.
+it can be used with XML or annotation-based Spring configurations.
+
+	Arithmetic	+, -, *, /, %, ^, div, mod
+	Relational	<, >, ==, !=, <=, >=, lt, gt, eq, ne, le, ge
+	Logical	and, or, not, &&, ||, !
+	Conditional	?:
+	Regex	matches
+
+Examples
+
+Arithmetic Operators
+---------------------
+
+	@Value("#{19 + 1}") // Will inject 20
+	private double add; 
+	 
+	@Value("#{'String1 ' + 'string2'}") // Will inject "String1 string2"
+	private String addString; 
+
+
+Relational and Logical Operators
+--------------------------------
+
+	@Value("#{1 == 1}") // Will inject true
+	private boolean equal;
+	 
+	@Value("#{1 eq 1}") // Will inject true
+	private boolean equalAlphabetic;
+	 
+	@Value("#{1 != 1}") // Will inject false
+	private boolean notEqual;
+
+
+Logical Operators
+----------------
+
+	@Value("#{250 > 200 && 200 < 4000}") // Will inject true
+	private boolean and; 
+	 
+	@Value("#{250 > 200 and 200 < 4000}") // Will inject true
+	private boolean andAlphabetic;
+it can be used with XML or annotation-based Spring configurations.
+
+	Arithmetic	+, -, *, /, %, ^, div, mod
+	Relational	<, >, ==, !=, <=, >=, lt, gt, eq, ne, le, ge
+	Logical	and, or, not, &&, ||, !
+	Conditional	?:
+	Regex	matches
+
+Examples
+
+Arithmetic Operators
+---------------------
+
+	@Value("#{19 + 1}") // Will inject 20
+	private double add; 
+	 
+	@Value("#{'String1 ' + 'string2'}") // Will inject "String1 string2"
+	private String addString; 
+
+
+Relational and Logical Operators
+--------------------------------
+
+	@Value("#{1 == 1}") // Will inject true
+	private boolean equal;
+	 
+	@Value("#{1 eq 1}") // Will inject true
+	private boolean equalAlphabetic;
+	 
+	@Value("#{1 != 1}") // Will inject false
+	private boolean notEqual;
+
+
+Logical Operators
+----------------
+
+	@Value("#{250 > 200 && 200 < 4000}") // Will inject true
+	private boolean and; 
+	 
+	@Value("#{250 > 200 and 200 < 4000}") // Will inject true
+	private boolean andAlphabetic;
+
+================================================================================
+
 	Spring password encoding
 	************************
 
