@@ -413,6 +413,48 @@ If your token was genereated without and resource id, then set it to null:
 			resources.resourceId(null);  // needed if tokens do not contain resourceId
 		}
 
+		
+================================================================================
+
+	JWT 
+	***********
+
+Example
+
+	{
+	  "aud": [
+	    "test-oauth2-resourceid"
+	  ],
+	  "user_name": "john.doe",
+	  "scope": [
+	    "read",
+	    "write",
+	    "trust"
+	  ],
+	  "exp": 1511987503,
+	  "authorities": [
+	    "STANDARD_USER"
+	  ],
+	  "jti": "825d83bd-25b5-4e45-9683-09b01f4187e5",
+	  "client_id": "test-web-clientid"
+	}
+
+
+
+aud
+	the audience claim identifies the recipients that the JWT is intended for.	
+	each principal intended to process the JWT must identify itself with a
+	value in the audience claims
+
+jti
+	JWT	ID Claim (OPTIONAL)
+	provides a unique identifier for the JWT.
+	the identifier value MUST be assigned in a manner that ensures that 
+	there is a negligible probability that the same value will be accidentally
+	assigned to a different data object.
+	the "jti" claim can be used to prenent the JWT from being replayed.
+
+
 ================================================================================
 
 
