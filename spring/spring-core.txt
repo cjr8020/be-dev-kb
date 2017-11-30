@@ -1,0 +1,141 @@
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+	
+		Spring Core Topics
+
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+================================================================================
+
+	Scoped Proxy
+	************
+
+
+http://sanseeni.blogspot.com/2011/12/understanding-scoped-proxy-in-spring.html
+
+Let say there are two classes, namely SingletonBean and PrototypeBean class, where prototype bean reference is kept inside the singleton bean. And as the name suggests, SingletonBean is specified with "singleton" scope and "prototype" scope for PrototypeBean. 
+
+Now if we access the singleton bean using the application context, it will create single instance all times. However if we access the prototype bean reference using the singleton bean reference it will also show single instance all times because it has been wrapped inside the singleton bean, which is an expected behaviour under singleton pattern scenario. 
+
+But we specified the prototype scope in PrototypeBean and if we wanted to return a new PrototypeBean object every time when we access using the singleton reference(getPrototypeBean()),..
+
+then we need to specify the prototype bean additionally using
+
+	@Scope(value="prototype", proxyMode=ScopedProxyMode.TARGET_CLASS) 
+
+as annotation.
+
+Example:
+
+SingletonBean
+----------------------
+
+@Component
+@Scope(value="singleton")
+public class SingletonBean {
+
+	@Autowired
+	private PrototypeBean prototypeBean;
+
+	/**
+	 * 
+	 */
+	public SingletonBean() {
+	}
+
+	public PrototypeBean getPrototypeBean() { return prototypeBean;	}
+
+	public void setPrototypeBean(PrototypeBean prototypeBean) {
+		this.prototypeBean = prototypeBean;
+	}
+
+}
+
+PrototypeBean
+-------------------------
+
+@Component
+@Scope(value="prototype", proxyMode=ScopedProxyMode.TARGET_CLASS)
+public class PrototypeBean {
+
+	/**
+	 * 
+	 */
+	public PrototypeBean() {}
+
+}
+
+When we test these beans after wiring them using component-scan, we
+find below results:
+
+SingletonBean singletonBean = (SingletonBean)container.getBean("singletonBean");
+System.out.println("singleton instance :"+singletonBean); //container.bean.SingletonBean@2200d5
+System.out.println("prototype instance :"+singletonBean.getPrototypeBean()); //container.bean.PrototypeBean@df1832
+
+singletonBean = (SingletonBean)container.getBean("singletonBean");
+System.out.println("singleton instance :"+singletonBean); //container.bean.SingletonBean@2200d5
+System.out.println("prototype instance :"+singletonBean.getPrototypeBean());//container.bean.PrototypeBean@ad8659
+
+
+================================================================================
+
+	Create a request scoped bean at runtime
+	****************************************
+
+UserDetails POJO needs to be created at runtime per request ...
+
+	public class UserDetails {
+
+	    private String name;
+
+	    // getter / setter ... 
+
+	    public UserDetails(String name) {
+	        this.name = name;
+	    }
+	}
+
+Here is the factory class .. 
+
+
+	@Configuration
+	public class UserFactory {
+
+	    @Bean
+	    @Scope(value = "request", proxyMode = ScopedProxyMode.TARGET_CLASS) 
+	    public UserDetails createUserDetails() {
+	        // this method should be called on every request
+	        String name = SecurityContextHolder.getContext()
+	                        .getAuthentication().getPrincipal(); // get some user details, just an example (I am aware of Principal)
+
+	        // construct a complex user details object here
+	        return new UserDetails(name);
+	    }
+	}
+
+... and this is the class where the UserDetails instance should be injected:
+
+
+	@RestController
+	@RequestMapping(value = "/api/something")
+	public class MyResource {
+
+		/* 
+		 * UserDetails here is a scoped proxy
+		 */ 
+    	@Autowired
+    	private UserDetails userDetails;	
+
+	    @RequestMapping(method = RequestMethod.GET)
+	    @ResponseBody
+	    public List<String> getSomething() {
+
+	        // the userdetails should be injected here per request
+	        // do something
+	    }
+	}
+
+
+
+
+================================================================================
