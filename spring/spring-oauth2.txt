@@ -374,6 +374,78 @@ JwtAccessTokenConverter
 
 ================================================================================
 
+
+	Resource Server JWT validation
+	******************************
+
+JWT can be validated on the resource server side using either
+
+	(a) symmetric key 
+or 
+	(b) asymmetric key 
+
+signing.
+
+This is configurable in the JwtAccessTokenConverter both on the 
+Authn and Resource server:
+
+authn server
+------------
+
+  @Bean
+  public JwtAccessTokenConverter accessTokenConverter() {
+    JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+    converter.setSigningKey(signingKey);
+    return converter;
+  }
+
+resource server
+---------------
+
+  @Bean
+  public JwtAccessTokenConverter accessTokenConverter() {
+    JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+    converter.setSigningKey(oAuthProperties.getSigningKey());
+    converter.setAccessTokenConverter( new JwtConverter() ); // get JWT claims
+    return converter;
+  }
+	
+with (b) asymmetric key
+see ( http://www.baeldung.com/spring-security-oauth-jwt ) example above.
+
+
+authn server
+------------
+
+	@Bean
+	public JwtAccessTokenConverter accessTokenConverter() {
+	    JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+	    KeyStoreKeyFactory keyStoreKeyFactory = 
+	      new KeyStoreKeyFactory(new ClassPathResource("mytest.jks"), "mypass".toCharArray());
+	    converter.setKeyPair(keyStoreKeyFactory.getKeyPair("mytest"));
+	    return converter;
+	}
+
+resource server
+---------------
+
+	@Bean
+	public JwtAccessTokenConverter accessTokenConverter() {
+	    JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+	    Resource resource = new ClassPathResource("public.txt");
+	    String publicKey = null;
+	    try {
+	        publicKey = IOUtils.toString(resource.getInputStream());
+	    } catch (final IOException e) {
+	        throw new RuntimeException(e);
+	    }
+	    converter.setVerifierKey(publicKey);
+	    return converter;
+	}
+
+
+================================================================================
+
 	resource server response: 
 	Invalid token does not contain resource id (oauth2-resource)
 	************************************************************
