@@ -5,6 +5,7 @@
 http://projects.spring.io/spring-security-oauth/docs/oauth2.html
 
 Other resources:
+https://medium.com/@nydiarra/secure-a-spring-boot-rest-api-with-json-web-token-reference-to-angular-integration-e57a25806c50
 https://github.com/nydiarra/springboot-jwt
 
 https://medium.com/@nydiarra/secure-a-spring-boot-rest-api-with-json-web-token-reference-to-angular-integration-e57a25806c50
@@ -525,6 +526,14 @@ jti
 	there is a negligible probability that the same value will be accidentally
 	assigned to a different data object.
 	the "jti" claim can be used to prenent the JWT from being replayed.
+
+exp
+	Expiration Time Claim (OPTIONAL)
+	the "exp" claim identifies the expiration time on or after which the JWT
+	MUST NOT be accepted for processing.
+	Implementors MAY provide for some small leeway, usually no mnore than a 
+	few minutes, to account for clock skew.
+	Its value MUST be a number containing a NumericDate value.
 
 
 ================================================================================
