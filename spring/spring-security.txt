@@ -259,3 +259,17 @@ https://docs.spring.io/spring-security/site/docs/current/reference/html/jc.html#
 
 
 ================================================================================
+
+	Spring Security with Dropwizard
+	*******************************
+
+https://stackoverflow.com/questions/22980509/integrating-dropwizard-with-spring-security	
+
+Spring Security is really just a glorified ServletFilter that you can add to the Dropwizard application.
+
+DW 0.7.0 and above:
+
+FilterRegistration.Dynamic filterRegistration = environment.servlets().addFilter("springSecurityFilterChain", DelegatingFilterProxy.class);
+filterRegistration.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/*");
+
+================================================================================
