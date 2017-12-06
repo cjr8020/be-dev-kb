@@ -1,0 +1,82 @@
+
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+	
+		Spring Actuator
+
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+
+How to use basic security for management endproints e.g. /health
+and use different user credentials from the application controler endpoint security?
+--------------------------------------------------------------------------------
+
+Q: application controller security:
+
+	security.user.name=user
+	security.user.password=password
+
+How can I use 
+
+	management.security.user.name 
+
+instead?
+
+
+A:
+https://stackoverflow.com/questions/23252128/spring-boot-management-end-points-basic-security
+
+
+Spring security has a "global" AuthenticationManager configured in @Bean
+instances of type GlobalAuthenticationConfigurerAdapter.
+
+This AuthenticationManager is the one that is configured by the
+
+	security.user.*
+
+properties, unless you set security.basic.enabled=false
+
+The global AuthenticationManager is also attached to the management endpoints 
+by default., and it is the parent of any "local" AuthenticationMangers defined
+in WebSecurityConfigurationAdapters (they are all ProviderManagers).
+
+If you want different user accounts for management endpoints and application
+endpoints, you have (at least) two choices:
+
+1. Define a local AM for your application endpoints in WebSecurityConfigurationAdapter
+and ensure that the management endpoints are not covered by that filter.
+	this is easy, since it's what you get without thinking very much and just 
+	by adding AuthenticationManagerBuilder to your WebSecurityconfigurationAdapter
+	(as long as it is ordered carefully in relation to the filter that secures
+	the management endpoints.)
+
+2. Use the global AM (or indeed another local one) for applciation endpoints and
+reconfigure the security for the management endpoints
+
+	e.g. set "security.basic.enabled=false" and add your own WebSecurityConfigurerAdapter
+	covering the management endpoints.
+	this might be more work, and duplicates some of the Boot defaults, but at least
+	you will know what you're getting.
+
+
+
+A: https://github.com/spring-projects/spring-boot/issues/6070
+
+@Autowired
+  protected void configure(AuthenticationManagerBuilder auth) {
+    auth.authenticationEventPublisher(new DefaultAuthenticationEventPublisher(applicationEventPublisher));
+    //... add dao authentication provider, even UserDetailsService exposed as bean
+    // then add InMemory auth here
+    addInMemoryAuthenticationProvider(auth);
+  }
+
+  private void addInMemoryAuthenticationProvider(AuthenticationManagerBuilder auth) {
+    try {
+      auth.inMemoryAuthentication()
+          .withUser(securityProperties.getUser().getName())
+          .password(securityProperties.getUser().getPassword())
+          .roles(securityProperties.getUser().getRole().stream().toArray(String[]::new));
+    } catch (Exception ex) {
+      throw new IllegalStateException("Cannot add InMemory users!", ex);
+    }
+  }

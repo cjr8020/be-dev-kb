@@ -139,3 +139,52 @@ Here is the factory class ..
 
 
 ================================================================================
+
+	ConfigurationProperties
+	***********************
+https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#configuration-metadata-nested-properties
+
+server
+  name: blah
+  host:
+    ip: 127.0.0.1
+    port: 8080
+
+
+@ConfigurationProperties(prefix="server")
+public class ServerProperties {
+
+    private String name;
+
+    private Host host;
+
+    // ... getter and setters
+
+    private static class Host {
+
+        private String ip;
+
+        private int port;
+
+        // ... getter and setters
+
+    }
+
+}
+
+If you don't want to use inner classes then you can annotate the fields with @NestedConfigurationProperty.
+
+@ConfigurationProperties(prefix="server")
+public class DatabaseProperties {
+
+    @NestedConfigurationProperty
+    private Host host; // Host is defined somewhere else
+
+}
+
+This will indicated that Host is defined somewhere else but should be treated 
+as if it were nested.
+
+
+
+================================================================================
