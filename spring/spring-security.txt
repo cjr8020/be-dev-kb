@@ -8,6 +8,60 @@
 
 ================================================================================
 
+	SecurityAutoConfiguration
+	*************************
+
+The default security configuration is implement in SecurityAutoConfiguration 
+and in the classes imported from there
+
+SpringBootWebSecurityConfiguration 
+	for web security
+
+AuthenticationManagerConfiguration 
+	for authentication confiration which is also relevant in non-web apps.
+
+To switch off the default web application security configuraiton completely,
+you can add a bean with @EnableWebSecurity (this does not disable the authn manager
+or Actuator's security).
+
+To customize it, you normally use external properties and beans of type 
+WebSecurityConfigurerAdapter.
+
+	note: If you add @EnableWebSecurity and also disable Actuator security, you will get the default form-based login for the entire application unless you add a custom WebSecurityConfigurerAdapter.
+
+
+
+================================================================================
+
+	@Order(SecurityProperties.ACCESS_OVERRIDE_ORDER)
+	************************************************
+
+Purpose: 
+	to override the access rules without changing any autoconfigured features,
+	add a @Bean of type WebSecurityConfigurerAdapter with
+	@Order(SecurityProperties.ACCESS_OVERRIDE_ORDER)
+
+
+	This takes higher priority, so you must use it if you want to override
+	default rules for all end points.
+
+	You can see how the values are set if you open the ManagementServerProperties
+	class
+
+	In SecurityProperties
+
+		int ACCESS_OVERRIDE_ORDER = SecurityProperties.BASIC_AUTH_ORDER - 2; // 39
+		int BASIC_AUTH_ORDER = Ordered.LOWEST_PRECEDENCE - 5; // 41
+
+	In ManagementServerProperties
+
+		int BASIC_AUTH_ORDER = SecurityProperties.BASIC_AUTH_ORDER - 5; // 36
+		int ACCESS_OVERRIDE_ORDER = ManagementServerProperties.BASIC_AUTH_ORDER - 1; // 35
+
+	In the comment, 39 means 21474839, I've omitted the first 6 digits for readability.
+
+================================================================================
+
 
 	Authorization
 	*************
