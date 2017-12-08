@@ -8,6 +8,59 @@
 
 ================================================================================
 
+	SpringBoot Security
+	*******************
+
+If Spring Security is on the classpath then web applications will be secure by default with ‘basic’ authentication on all HTTP endpoints. 
+
+To add method-level security to a web application you can also add @EnableGlobalMethodSecurity with your desired settings.
+
+The default AuthenticationManager has a single user (‘user’ username and random password, printed at INFO level when the application starts up):
+
+	Using default security password: 78fa095d-3f4c-48b1-ad50-e24c31d5cf35
+
+
+
+================================================================================
+
+	Formatting Java Time with SpringBoot using Jackson
+	**************************************************
+
+https://touk.pl/blog/2016/02/12/formatting-java-time-with-spring-boot-using-json/
+
+add 
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+      <version>2.9.2</version>
+    </dependency>
+
+appliation.yml:
+
+	spring.jackson.serialization.write_dates_as_timestamps: false
+
+
+Custom formatting
+
+	@JsonFormat(pattern = "dd::MM::yyyy")
+	private final LocalDate localDate;
+
+	@JsonFormat(pattern = "KK:mm a")
+	private final LocalTime localTime;
+
+now you get
+
+{  
+   "version":2,
+   "localDate":"01::01::2016",
+   "localTime":"10:24 AM",
+   "localDateTime":"2016-01-01T10:24",
+   "zonedDateTime":"2016-01-01T10:24:00+01:00"
+}
+
+================================================================================
+
 	Jetty instead of Tomcat
 	***********************
 
