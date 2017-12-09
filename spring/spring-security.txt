@@ -135,7 +135,292 @@ Common biult-in expressions
 	@PostAuthorize
 
 
+================================================================================
 
+	AuthenticationEntryPoint
+	************************
+
+https://docs.spring.io/spring-security/site/docs/3.0.x/reference/technical-overview.html
+
+	Authentication in a Web Application
+
+
+Consider a typical web application's authentication process:
+
+	1. You visit the home page, and click on a link.
+
+	2. A request goes to the server, and the server decides that you've asked for a protected resource.
+
+	3. As you're not presently authenticated, the server sends back a response indicating that you must authenticate. The response will either be an HTTP response code, or a redirect to a particular web page.
+
+	4. Depending on the authentication mechanism, your browser will either redirect to the specific web page so that you can fill out the form, or the browser will somehow retrieve your identity (via a BASIC authentication dialogue box, a cookie, a X.509 certificate etc.).
+
+	5. The browser will send back a response to the server. This will either be an HTTP POST containing the contents of the form that you filled out, or an HTTP header containing your authentication details.
+
+	6. Next the server will decide whether or not the presented credentials are valid. If they're valid, the next step will happen. If they're invalid, usually your browser will be asked to try again (so you return to step two above).
+
+	7. The original request that you made to cause the authentication process will be retried. Hopefully you've authenticated with sufficient granted authorities to access the protected resource. If you have sufficient access, the request will be successful. Otherwise, you'll receive back an HTTP error code 403, which means "forbidden".
+
+Spring Security has distinct classes responsible for most of the steps described above. The main participants (in the order that they are used) are the ExceptionTranslationFilter, an AuthenticationEntryPoint and an “authentication mechanism”, which is responsible for calling the AuthenticationManager which we saw in the previous section.
+
+	ExceptionTranslationFilter
+	--------------------------
+ExceptionTranslationFilter is a Spring Security filter that has responsibility for detecting any Spring Security exceptions that are thrown. Such exceptions will generally be thrown by an AbstractSecurityInterceptor, which is the main provider of authorization services.
+
+
+	AuthenticationEntryPoint
+	------------------------
+
+The AuthenticationEntryPoint is responsible for step three in the above list. 
+
+As you can imagine, each web application will have a default authentication strategy (well, this can be configured like nearly everything else in Spring Security, but let's keep it simple for now). 
+
+Each major authentication system will have its own AuthenticationEntryPoint implementation, which typically performs one of the actions described in step 3.
+
+
+	Spring Security Entry Point
+
+http://sunilkumarpblog.blogspot.com/2016/01/spring-security-entry-point-and-role.html
+
+1. when user logs in by providing credentials, spring filter will eval
+user creds with the help of UserDetails service provider.
+
+2. If user is authn successfully, then spring filter will invoke success handler.
+Otherwise failure handler.
+
+3. If success, then success handler will redirect to page based on rules.
+   If failure, then failure handler will redirect to access denied page.
+
+4. If user not logged in, Spring Security handles request with the concept of 
+   an Entry Point - for any request, the application entry point will redirect
+   to the login page.
+
+
+
+
+
+https://docs.spring.io/spring-security/site/docs/3.0.x/reference/core-web-filters.html
+
+The AuthenticationEntryPoint will be called if the user requests a secure HTTP resource but they are not authenticated. An appropriate AuthenticationException or AccessDeniedException will be thrown by a security interceptor further down the call stack, triggering the commence method on the entry point. 
+
+This does the job of presenting the appropriate response to the user so that authentication can begin. The one we've used here is LoginUrlAuthenticationEntryPoint, which redirects the request to a different URL (typically a login page). The actual implementation used will depend on the authentication mechanism you want to be used in your application.
+	
+
+================================================================================
+
+	Multiple Entry Points
+	*********************
+
+http://www.baeldung.com/spring-security-multiple-entry-points
+
+SOURCE: https://github.com/eugenp/tutorials/blob/master/spring-security-mvc-boot/src/main/java/org/baeldung/multipleentrypoints/MultipleEntryPointsSecurityConfig.java
+
+
+
+Spring Security support the definition of multiple HTTP elements in configurations.
+
+When using Java configuration, the way to define multiple security realms is to have multiple @Configuration classes that extend the WebSecurityConfigurerAdapter base class – each with its own security configuration. 
+
+These classes can be static and placed inside the main config.
+
+The main motivation for having multiple entry points in one application is if there are different types of users that can access different portions of the application.
+
+Let’s define a configuration with three entry points, each with different permissions and authentication modes:
+
+* one for administrative users using HTTP Basic Authentication
+* one for regular users that use form authentication
+* and one for guest users that do not require authentication
+
+Admin user entry point:
+
+	The entry point defined for administrative users secures URLs of the form /admin/** to only allow users with a role of ADMIN and requires HTTP Basic Authentication with an entry point of type BasicAuthenticationEntryPoint that is set using the authenticationEntryPoint() method:
+
+		@Configuration
+		@Order(1)
+		public static class App1ConfigurationAdapter extends WebSecurityConfigurerAdapter {
+		 
+		    @Override
+		    protected void configure(HttpSecurity http) throws Exception {
+		        http.antMatcher("/admin/**")
+		            .authorizeRequests().anyRequest().hasRole("ADMIN")
+		            .and().httpBasic().authenticationEntryPoint(authenticationEntryPoint());
+		    }
+		 
+		    @Bean
+		    public AuthenticationEntryPoint authenticationEntryPoint(){
+		        BasicAuthenticationEntryPoint entryPoint = 
+		          new BasicAuthenticationEntryPoint();
+		        entryPoint.setRealmName("admin realm");
+		        return entryPoint;
+		    }
+		}
+
+The @Order annotation on each static class indicates the order in which the configurations will be considered to find one that matches the requested URL. The order value for each class must be unique.
+
+
+
+User Entry Point
+
+	Configuration for URLs of the form /user/** that can be accessed by regular users with a USER role using form authentication:
+
+		@Configuration
+		@Order(2)
+		public static class App2ConfigurationAdapter extends WebSecurityConfigurerAdapter {
+		 
+		    protected void configure(HttpSecurity http) throws Exception {
+		        http.antMatcher("/user/**")
+		            .authorizeRequests().anyRequest().hasRole("USER")
+		            .and()
+		            // formLogin configuration
+		            .and()
+		            .exceptionHandling()
+		            .defaultAuthenticationEntryPointFor(
+		              loginUrlauthenticationEntryPointWithWarning(),
+		              new AntPathRequestMatcher("/user/private/**"))
+		            .defaultAuthenticationEntryPointFor(
+		              loginUrlauthenticationEntryPoint(), 
+		              new AntPathRequestMatcher("/user/general/**"));
+		    }
+		}
+
+	As we can see, another way of defining entry points, besides the authenticationEntryPoint() method, is to use the defaultAuthenticationEntryPointFor() method. This can define multiple entry points that match different conditions based on a RequestMatcher object.
+
+	The RequestMatcher interface has implementations based on different types of conditions, such as matching path, media type or regexp. In our example, we have used the AntPathRequestMatch to set two different entry points for URLs of the forms /user/private/** and /user/general/**.
+
+	Next, we need to define the entry points beans in the same static configuration class:
+
+		@Bean
+		public AuthenticationEntryPoint loginUrlauthenticationEntryPoint(){
+		    return new LoginUrlAuthenticationEntryPoint("/userLogin");
+		}
+		         
+		@Bean
+		public AuthenticationEntryPoint loginUrlauthenticationEntryPointWithWarning(){
+		    return new LoginUrlAuthenticationEntryPoint("/userLoginWithWarning");
+		}
+
+	The main point here is how to set up these multiple entry points – not necessarily the implementation details of each one.
+
+	In this case, the entry points are both of type LoginUrlAuthenticationEntryPoint, and use different login page URL: /userLogin for a simple login page and /userLoginWithWarning for a login page that also displays a warning when attempting to access the /user/ private URLs.
+
+	This configuration will also require defining the /userLogin and /userLoginWithWarning MVC mappings and two pages with a standard login form.
+
+	For the form authentication, it’s very important to remember that any URL necessary for the configuration, such as the login processing URL also needs to follow the /user/** format or be otherwise configured to be accessible.
+
+	Both of the above configurations will redirect to a /403 URL if a user without the appropriate role attempts to access a protected URL.
+
+	Be careful to use unique names for the beans even if they are in different static classes, otherwise one will override the other.
+
+
+Guest Entry Point
+
+	Finally, let’s define the third configuration for URLs of the form /guest/** that will allow all types of users, including unauthenticated ones:
+
+		@Configuration
+		@Order(3)
+		public static class App3ConfigurationAdapter extends WebSecurityConfigurerAdapter {
+		 
+		    protected void configure(HttpSecurity http) throws Exception {
+		        http.antMatcher("/guest/**").authorizeRequests().anyRequest().permitAll();
+		    }
+		}
+
+
+Example Source:
+--------------------------------------------------------------------------------
+
+package org.baeldung.multipleentrypoints;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+@Configuration
+@EnableWebSecurity
+public class MultipleEntryPointsSecurityConfig {
+
+    @Bean
+    public UserDetailsService userDetailsService() throws Exception {
+        InMemoryUserDetailsManager manager = new InMemoryUserDetailsManager();
+        manager.createUser(User.withUsername("user").password("userPass").roles("USER").build());
+        manager.createUser(User.withUsername("admin").password("adminPass").roles("ADMIN").build());
+        return manager;
+    }
+
+    @Configuration
+    @Order(1)
+    public static class App1ConfigurationAdapter extends WebSecurityConfigurerAdapter {
+
+        @Override
+        protected void configure(HttpSecurity http) throws Exception {
+            //@formatter:off
+            http.antMatcher("/admin/**")
+                .authorizeRequests().anyRequest().hasRole("ADMIN")
+                .and().httpBasic().authenticationEntryPoint(authenticationEntryPoint())    
+                .and().exceptionHandling().accessDeniedPage("/403");
+            //@formatter:on
+        }
+        
+        @Bean
+        public AuthenticationEntryPoint authenticationEntryPoint(){
+            BasicAuthenticationEntryPoint entryPoint = new  BasicAuthenticationEntryPoint();
+            entryPoint.setRealmName("admin realm");
+            return entryPoint;
+        }
+    }
+
+    @Configuration
+    @Order(2)
+    public static class App2ConfigurationAdapter extends WebSecurityConfigurerAdapter {
+
+        protected void configure(HttpSecurity http) throws Exception {
+            
+            //@formatter:off
+            http.antMatcher("/user/**")
+                .authorizeRequests().anyRequest().hasRole("USER")              
+                .and().formLogin().loginProcessingUrl("/user/login")
+                .failureUrl("/userLogin?error=loginError").defaultSuccessUrl("/user/myUserPage")
+                .and().logout().logoutUrl("/user/logout").logoutSuccessUrl("/multipleHttpLinks")
+                .deleteCookies("JSESSIONID")
+                .and().exceptionHandling()
+                .defaultAuthenticationEntryPointFor(loginUrlauthenticationEntryPointWithWarning(),  new AntPathRequestMatcher("/user/private/**"))
+                .defaultAuthenticationEntryPointFor(loginUrlauthenticationEntryPoint(), new AntPathRequestMatcher("/user/general/**"))
+                .accessDeniedPage("/403")
+                .and().csrf().disable();
+            //@formatter:on
+        }
+        
+        @Bean
+        public AuthenticationEntryPoint loginUrlauthenticationEntryPoint(){
+            return new LoginUrlAuthenticationEntryPoint("/userLogin");
+        }
+        
+        @Bean
+        public AuthenticationEntryPoint loginUrlauthenticationEntryPointWithWarning(){
+            return new LoginUrlAuthenticationEntryPoint("/userLoginWithWarning");
+        }
+    }
+
+    @Configuration
+    @Order(3)
+    public static class App3ConfigurationAdapter extends WebSecurityConfigurerAdapter {
+
+        protected void configure(HttpSecurity http) throws Exception {
+            http.antMatcher("/guest/**").authorizeRequests().anyRequest().permitAll();
+        }
+    }
+
+}		
 
 ================================================================================
 
