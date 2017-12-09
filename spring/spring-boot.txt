@@ -15,9 +15,110 @@ If Spring Security is on the classpath then web applications will be secure by d
 
 To add method-level security to a web application you can also add @EnableGlobalMethodSecurity with your desired settings.
 
+
+	Default SpringBoot Security
+	***************************
+
 The default AuthenticationManager has a single user (‘user’ username and random password, printed at INFO level when the application starts up):
 
 	Using default security password: 78fa095d-3f4c-48b1-ad50-e24c31d5cf35
+
+
+
+	Override Default SpringBoot Security
+	************************************
+
+You can provide a WebSecurityconfigurerAdapter with 
+
+  @Override
+  public void configure(AuthenticationManagerBuilder auth) throws Exception {
+  	. . .
+  }
+
+  @Override
+  public void configure(HttpSecurity http) throws Exception {
+  	. . .
+  }
+
+doesn't matter! - Default SrpingBoot Security will still be in effect.
+
+You need to annotate your WebSecurityConfigurerAdapter with @EnableWebSecurity
+
+
+	@Order(SecurityProperties.ACCESS_OVERRIDE_ORDER)
+	@Configuration
+	@EnableWebSecurity
+	public class ApplicationEndpointSecurity extends WebSecurityConfigurerAdapter {
+
+	  @Override
+	  public void configure(AuthenticationManagerBuilder auth) throws Exception {
+	  	. . .
+	  }
+
+	  @Override
+	  public void configure(HttpSecurity http) throws Exception {
+	  	. . .
+	  }
+
+	}
+
+
+and now those overrides will take effect.
+
+
+NOTE: on ManagementServerProperties
+		-----------------------------
+
+If you provide a @Configuration with 
+
+	@Order(ManagementServerProperties.ACCESS_OVERRIDE_ORDER)
+
+it WILL override the Default SpringBoot Security, but for the Management
+endpoint ONLY!!!
+
+
+	/**
+	 * Management Endpoint Configuration.
+	 */
+	@Configuration
+	@Order(ManagementServerProperties.ACCESS_OVERRIDE_ORDER)
+	public class ManagementEndpointConfiguration extends WebSecurityConfigurerAdapter {
+
+	  private static final Logger log = LoggerFactory.getLogger(ManagementEndpointConfiguration.class);
+
+	  /* management.security.user.name */
+	  @Value("${management.security.user.name}")
+	  private String name;
+
+	  /* management.security.user.password */
+	  @Value("${management.security.user.password}")
+	  @NestedConfigurationProperty
+	  private String password;
+
+	  @Override
+	  protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+
+	    auth
+	        .inMemoryAuthentication()
+	        .withUser(name)
+	        .password(password)
+	        .roles("ACTUATOR");
+	  }
+
+	  @Override
+	  protected void configure(HttpSecurity http) throws Exception {
+	    http
+	        .authorizeRequests()
+	        .anyRequest()
+	        .authenticated()
+	        .and()
+	        .httpBasic();
+	  }
+	}
+
+
+
+
 
 
 
