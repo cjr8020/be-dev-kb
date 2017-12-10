@@ -5,6 +5,42 @@
 
 	@@@@@@@@@@@@@@@@@@@
 
+Resources
+
+multiple authentication mechanisms in a single app using java config
+https://stackoverflow.com/questions/25794680/multiple-authentication-mechanisms-in-a-single-app-using-java-config
+
+multiple security entry points
+http://www.baeldung.com/spring-security-multiple-entry-points
+https://github.com/eugenp/tutorials/blob/master/spring-security-mvc-boot/src/main/java/org/baeldung/multipleentrypoints/MultipleEntryPointsSecurityConfig.java
+
+@Order
+https://stackoverflow.com/questions/45529743/ordersecurityproperties-access-override-order-vs-managementserverproperties-a
+
+Multiple HttpSecurity
+https://docs.spring.io/spring-security/site/docs/current/reference/html/jc.html
+
+
+================================================================================
+
+	SpringBoot 2.0 M4 Security Changes
+	**********************************
+
+https://spring.io/blog/2017/09/15/security-changes-in-spring-boot-2-0-m4
+
+Until Spring Boot 1.x, the default auto-configuration secured all of the application endpoints using basic authentication. If actuator was on the classpath, there was a separate security configuration that applied to the actuator endpoints. The way these two auto-configurations would turn on and off was completely independent. Because of this, users wanting to provide custom security found themselves fighting ordering issues with WebSecurityConfigurerAdapters.
+
+Additionally, for actuator endpoints, the effects of the management.security.enabled flag based on whether Spring Security was on the classpath or not was quite confusing.
+
+There were a number of properties under security.* and management.security.* that were applicable only to the auto-configuration provided by Spring Boot. For example, if security.basic.enabled was set to false, setting security.sessions would have absolutely no effect and this turned out to be quite misleading.
+
+	Improvements in 2.0
+	-------------------
+
+Default Configuration
+
+
+
 
 ================================================================================
 
@@ -23,6 +59,17 @@ The default AuthenticationManager has a single user (‘user’ username and ran
 
 	Using default security password: 78fa095d-3f4c-48b1-ad50-e24c31d5cf35
 
+
+	Order
+	*****
+
+Default Security Configuration Order: 100
+
+if you want to apply a resource server filter chain for '/oauth/***', 
+you need to specify order as follows:
+
+(1) : [DEFAULT] (= 100)
+(2) : 99 or under (e.g: security.oauth2.resource.filter-order=99)
 
 
 	Override Default SpringBoot Security
@@ -64,6 +111,23 @@ You need to annotate your WebSecurityConfigurerAdapter with @EnableWebSecurity
 
 
 and now those overrides will take effect.
+
+	Purpose of @EnableWebSecurity
+
+Apparently to turn off the default and define your own.
+
+
+From SpringBoot docs:  
+
+https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/
+
+	To switch off the default web application security configuration completely you can add a bean with @EnableWebSecurity (this does not disable the authentication manager configuration or Actuator’s security). To customize it you normally use external properties and beans of type WebSecurityConfigurerAdapter (e.g. to add form-based login).
+
+	If you add @EnableWebSecurity and also disable Actuator security, you will get the default form-based login for the entire application unless you add a custom WebSecurityConfigurerAdapter.
+
+	If you define a @Configuration with @EnableWebSecurity anywhere in your application it will switch off the default webapp security settings in Spring Boot (but leave the Actuator’s security enabled). To tweak the defaults try setting properties in security.* (see SecurityProperties for details of available settings) and SECURITY section of Common application properties.
+
+
 
 
 NOTE: on ManagementServerProperties
@@ -269,6 +333,38 @@ Option 2: @ConfigurationProperties class + @EnableConfigurationProperties(class)
 	  . . .
 
 	}
+
+
+================================================================================
+
+	Maven resource filtering
+	************************
+
+If you are inheriting from the spring-boot-starter-parent POM, the default filter token of the maven-resources-plugins has been changed from ${*} to @ (i.e. @maven.token@ instead of ${maven.token}) to prevent conflicts with Spring-style placeholders. If you have enabled maven filtering for the application.properties directly, you may want to also change the default filter token to use other delimiters.
+
+{
+  "claims-intake-api.version" : "@project.version@",
+  "build.timestamp" : "@timestamp@"
+}
+
+  <build>
+    <resources>
+      <!-- resource supporting version info -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>${version.info.file}</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <excludes>
+          <exclude>${version.info.file}</exclude>
+        </excludes>
+      </resource>
+    <resources>
 
 
 ================================================================================
