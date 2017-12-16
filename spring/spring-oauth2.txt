@@ -538,4 +538,66 @@ exp
 
 ================================================================================
 
+	Custom Request Matcher for ResourceServerConfigurerAdapter
+	**********************************************************
+
+to only process requests containing Bearer tokens
+
+@EnableResourceServer
+//@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class OAuthResourceServerConfiguration extends ResourceServerConfigurerAdapter {
+
+  @Value("${oauth.resourceId}")
+  private String resourceId;
+
+  @Autowired
+  private TokenStore tokenStore;
+
+  @Autowired
+  private JwtAccessTokenConverter accessTokenConverter;
+
+  @Autowired
+  private ResourceServerTokenServices tokenServices;
+
+
+  @Override
+  public void configure(HttpSecurity http) throws Exception {
+    http
+        .requestMatcher(new OAuthRequestedMatcher())
+        .authorizeRequests()
+          .anyRequest().authenticated()
+        .and()
+          .sessionManagement()
+          .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        .and()
+          .csrf().disable()
+        .exceptionHandling()
+          .authenticationEntryPoint(
+            (request, response, exception) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+        )
+    ;
+  }
+
+  @Override
+  public void configure(ResourceServerSecurityConfigurer resources) throws Exception {
+    resources.tokenServices(tokenServices);
+//    resources.resourceId(null);  // needed if tokens do not contain resourceId
+    resources.resourceId(resourceId);  // needed if tokens contain resourceId
+  }
+
+  private static class OAuthRequestedMatcher implements RequestMatcher {
+    public boolean matches(HttpServletRequest request) {
+      String auth = request.getHeader("Authorization");
+      // Determine if the client request contained an OAuth Authorization
+      boolean haveOauth2Token = (auth != null) && auth.startsWith("Bearer");
+      boolean haveAccessToken = request.getParameter("access_token") != null;
+      return haveOauth2Token || haveAccessToken;
+    }
+  }
+
+}
+
+
+================================================================================
+
 

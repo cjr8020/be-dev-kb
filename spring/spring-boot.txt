@@ -47,6 +47,31 @@ Default Configuration
 	SpringBoot Security
 	*******************
 
+
+***************************************
+* Keys to different security schemes applied to different parts of your app
+* 
+* 1. create separate Spring security @Configurations where each one will 
+*    configure just one authentication mechanism
+*
+* 2. each configuration should  specify the URIs it covers
+*
+* 3. @Configurations need to be ordered.
+*
+* 4. The @Configurations that need to be ordered are the ones extending
+*    ResourceServerConfigurerAdatper and WebSecurityConfigurerAdapter.
+*    The classes containing these `protected static classes` are not really
+*    @Configurations themselves
+* 5. The @Configuration without the @Order annotation is considered last -
+*    this is your fallback or fallthru or .. 
+*    This could be your resource server config with "/**" pattern matching while
+*    higher order configurations could apply alt. authn mechanisms to specific
+*    paths like "/actuator/**"
+* 6. Use `http.antMatcher(...)` which can be confused with 
+*        `http.authorizeRequests().antMatchers(...)` but it's different.
+
+
+
 If Spring Security is on the classpath then web applications will be secure by default with ‘basic’ authentication on all HTTP endpoints. 
 
 To add method-level security to a web application you can also add @EnableGlobalMethodSecurity with your desired settings.

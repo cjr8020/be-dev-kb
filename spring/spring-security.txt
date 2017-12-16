@@ -32,6 +32,45 @@ WebSecurityConfigurerAdapter.
 
 ================================================================================
 
+	HttpSecurity.antMatcher(...) vs http.authorizeRequests().antMatchers(..)
+	************************************************************************
+
+http.antMatcher("/api/**")
+
+	HttpSecurity.antMatcher()
+		changes the default request matcher for the HttpSecurity instance to
+		an AntPathRequestMatcdher from AnyRequestMatcher
+
+http.authorizeRequests().antMatchers("/api/user/**", "/api/ticket/**", "/index")
+
+	ExpressionUrlAuthorizationConfigurer.ExpressionInterceptUrlRegistry.antMatchers()
+		is used for applying authz rules to a subset of endpoints associated
+		with the current HttpSecurity instance
+
+Example: 
+
+here, basic auth is disabled for all endpoints matching "/api/**".
+Additionally, endpoints matching "/api/user/**" and "/api/ticket/**" will require
+the request's Authentication to contain ROLE_USER.
+
+However, when user accesses "/index" they will be presented with basic auth
+challenge.  Once authenticated, the user will be granted access regardless of
+whether or not they have ROLE_USER.  This is because the .antMatcher("/api/**")
+is  limiting the scope of the ENTIRE HttpSecurity instance to that specific
+matcher.
+
+	http
+		.antMatcher("/api/**")
+		.httpBasic()
+			.diable()
+		.authorizeRequests()
+		.antMatchers("/api/user/**", "/api/ticket/**", "/index")
+			.hasRole("ROLE_USER");
+
+
+
+================================================================================
+
 
 	Authorization
 	*************
@@ -627,6 +666,66 @@ URL’s that start with /api/.
 		}
 	}
 
+
+================================================================================
+
+	Debug Spring Security Filter Chain
+	**********************************
+
+1. logging
+
+logging:
+  file: logs/claims-intake-api-service.log
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(18971){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+    file: "%d %-5level [%thread] %logger : %msg%n"
+  level:
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+
+2. security debug
+
+@EnableWebSecurity(debug = true)
+
+
+************************************************************
+
+Request received for GET '/blah':
+
+org.apache.catalina.connector.RequestFacade@43084931
+
+servletPath:/draft-claims
+pathInfo:null
+headers: 
+content-type: application/json
+cache-control: no-cache
+postman-token: da6591f2-addc-4e85-9d3e-3147de9dff52
+authorization: Basic YXBpdXNlcjphcGlwYdfasdfd29yZA==
+user-agent: PostmanRuntime/7.1.1
+accept: */*
+host: localhost:9013
+accept-encoding: gzip, deflate
+connection: keep-alive
+
+
+Security filter chain: [
+  WebAsyncManagerIntegrationFilter
+  SecurityContextPersistenceFilter
+  HeaderWriterFilter
+  LogoutFilter
+  OAuth2AuthenticationProcessingFilter
+  RequestCacheAwareFilter
+  SecurityContextHolderAwareRequestFilter
+  AnonymousAuthenticationFilter
+  SessionManagementFilter
+  ExceptionTranslationFilter
+  FilterSecurityInterceptor
+]
+
+
+************************************************************
+
+note: no BasicAuthenticationFilter in the above chain ..
 
 ================================================================================
 
