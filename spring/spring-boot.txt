@@ -470,3 +470,197 @@ public class PropertiesLogger {
 
 
 ================================================================================
+
+	Handlers
+	********
+http://anilkc.me/spring-boot-application-spring-security-custom-handlers/
+
+
+Custom Login Success Handler
+-------------------------------
+
+	onAuthenticationSuccess() method is invoked only when the authentication is 
+	successful.
+
+@Component
+public class CustomLoginSuccessfulHandler implements AuthenticationSuccessHandler {
+
+  @Override
+  public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+      throws IOException, ServletException {
+
+    response.setStatus(HttpStatus.OK.value());
+    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setContentType("application/json");
+    response.setCharacterEncoding("UTF-8");
+    JSONObject jsonResponse = new JSONObject();
+    jsonResponse.put("message", "Login Successful");
+    response.getWriter().write(jsonResponse.toString());
+  }
+
+}
+
+	this returns JSON object in response.
+
+
+Custom login failure handler
+-------------------------------
+
+	This method is invoked when the login fails. On failure, this method writes proper message in the response object. We are returning HTTP status 400 in case of failed authentication.
+
+@Component
+public class CustomLoginFailureHandler implements AuthenticationFailureHandler {
+
+  @Override
+  public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception)
+      throws IOException, ServletException {
+    
+    response.setStatus(HttpStatus.BAD_REQUEST.value());
+    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setCharacterEncoding("UTF-8");
+    JSONObject jsonResponse = new JSONObject();
+    jsonResponse.put("message", "Invalid Credentials");
+    response.getWriter().write(jsonResponse.toString());
+  }
+
+}
+
+
+Custom authentication entry point
+------------------------------------
+
+	This handler is invoked if the user tries to access the secured resource without authentication. 
+
+	Please note, this handler avoids Spring Security to redirect to login page. If you want user to be redirected to login page when user is not authenticated and tries to access secured resources, redirect to your login page or your resource. You can avoid this AuthenticationEntryPoint all together to get Spring default login page. 
+
+	The commence method just returns the 403 HTTP status when this handler is invoked.
+
+
+@Component
+public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
+
+
+  @Override
+  public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
+      throws IOException, ServletException {
+    response.sendError(HttpStatus.FORBIDDEN.value(), HttpStatus.FORBIDDEN.toString());
+  }
+
+}
+
+Custom Access Denied Handler
+-------------------------------
+
+	When the authenticated user with certain role attempts to access the resource which isn’t available for that user then in that case, this handler is invoked. 
+
+	This handler implements AccessDeniedHandler which has handle method. I have implemented this method to return HTTP 403 status with custom message.
+
+@Component
+public class CustomAccessDeniedHandler implements AccessDeniedHandler {
+
+  @Override
+  public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException)
+      throws IOException, ServletException {
+    response.setStatus(HttpStatus.FORBIDDEN.value());
+    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setCharacterEncoding("UTF-8");
+    JSONObject jsonResponse = new JSONObject();
+    jsonResponse.put("message", "Access Denied");
+    response.getWriter().write(jsonResponse.toString());
+  }
+
+}
+
+Logout successful handler
+-----------------------------
+
+this handler returns logout successful message. This handler is invoked when the logout process is successful.
+
+@Component
+public class CustomLogoutSuccessfulHandler implements LogoutSuccessHandler {
+
+  @Override
+  public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+      throws IOException, ServletException {
+
+    response.setStatus(HttpStatus.OK.value());
+    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setCharacterEncoding("UTF-8");
+    JSONObject jsonResponse = new JSONObject();
+    jsonResponse.put("message", "Logout Successful");
+    response.getWriter().write(jsonResponse.toString());
+  }
+
+}
+
+WebSecurityConfig
+--------------------------------------
+
+@Configuration
+@EnableWebSecurity
+public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+
+
+  @Autowired
+  private CustomLoginSuccessfulHandler loginSuccessfulHandler;
+
+  @Autowired
+  private CustomLoginFailureHandler loginFailureHandler;
+
+  @Autowired
+  private CustomLogoutSuccessfulHandler logoutSuccessfulHandler;
+
+  @Autowired
+  private CustomAccessDeniedHandler customAccessDeniedHandler;
+
+  @Autowired
+  private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+
+  @Bean
+  @Override
+  public AuthenticationManager authenticationManagerBean() throws Exception {
+    return super.authenticationManagerBean();
+  }
+
+  @Override
+  protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+  //@formatter:off
+    auth.inMemoryAuthentication()
+                .withUser("user").password("password").roles("USER")
+                .and()
+                .withUser("admin").password("password").roles("ADMIN");
+  // @formatter:on
+
+  }
+
+  @Override
+  protected void configure(HttpSecurity http) throws Exception {
+
+  //@formatter:off
+      http
+      .csrf().disable()
+          .formLogin()
+              .loginProcessingUrl("/auth/login")
+              .successHandler(loginSuccessfulHandler)
+              .failureHandler(loginFailureHandler)
+          .and()
+              .logout()
+              .logoutUrl("/auth/logout")
+              .logoutSuccessHandler(logoutSuccessfulHandler)
+          .and()
+            .authorizeRequests()
+            .antMatchers("/auth/login").permitAll()
+            .antMatchers("/secure/admin").access("hasRole('ADMIN')")
+            .anyRequest().authenticated()
+           .and()
+             .exceptionHandling().accessDeniedHandler(customAccessDeniedHandler)
+             .authenticationEntryPoint(customAuthenticationEntryPoint)
+          .and()
+            .anonymous()
+              .disable();
+  // @formatter:on
+  }
+  
+}
+
+================================================================================

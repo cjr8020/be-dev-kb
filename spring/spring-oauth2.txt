@@ -15,6 +15,9 @@ https://github.com/warumono-for-develop/spring-boot-oauth2-resource-server-tutor
 http://stytex.de/blog/2016/02/01/spring-cloud-security-with-oauth2/
 https://jugbd.org/2017/09/19/implementing-oauth2-spring-boot-spring-security/
 
+
+================================================================================
+
 Provider
 --------
 
@@ -59,6 +62,16 @@ Provider
 			is required to implement an OAuth 2.0 Resource Server
 			used to load the Authentication for the request given an
 			authenticated access token.
+
+		OAuth filter order:   SystemProperties.ACCESS_OVERRIDE_ORDER - 1
+
+			this places it after the actuator endpoints but before the basic
+			authentication filter chain.
+			
+			Prior to Spring Boot 1.5.0 it was 3 
+			(security.oauth2.resoure.filter-order=3)
+
+
 
 
 ================================================================================
@@ -173,8 +186,123 @@ public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter
 
 --------------------------------------------------------------------------------
 
+	Multiple Entry Points
+	*********************
+
+Objective:
+1. have /actuator endpoint secured with Basic Auth
+2. Resource Server is a fall-though default security config.
+3. higher-order HttpSecurity can be provided 
 
 
+Actuator entry point with priority Order(1)
+-------------------------------------------
+
+
+  @Order(1)
+  @Configuration
+  public static class ActuatorSecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+    @Bean
+    AuthenticationEntryPoint authenticationEntryPoint() {
+      BasicAuthenticationEntryPoint entryPoint = new BasicAuthenticationEntryPoint();
+      entryPoint.setRealmName("actuator realm");
+      return entryPoint;
+    }
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+      //@formatter:off
+      http
+          .antMatcher("/actuator/**")
+          .authorizeRequests()
+          .anyRequest().hasRole(ACTUATOR_SECURITY_ROLE)
+          .and()
+          .httpBasic()
+          .authenticationEntryPoint(authenticationEntryPoint());
+      //@formatter:on
+    }
+  }	
+
+Resource Server entry point at default Order level 
+--------------------------------------------  
+
+OAuth filter order:   SystemProperties.ACCESS_OVERRIDE_ORDER - 1
+
+	this places it after the actuator endpoints but before the basic
+	authentication filter chain.
+
+Resource Server HttpSecurity has antMatcher pattern of "/**"
+
+
+@Configuration
+@EnableWebSecurity(debug = true)
+@EnableResourceServer
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class OAuthResourceServerConfiguration extends ResourceServerConfigurerAdapter {
+
+  @Value("${oauth.resourceId}")
+  private String resourceId;
+
+  @Autowired
+  private TokenStore tokenStore;
+
+  @Autowired
+  private JwtAccessTokenConverter accessTokenConverter;
+
+  @Autowired
+  private ResourceServerTokenServices tokenServices;
+
+
+  @Override
+  public void configure(HttpSecurity http) throws Exception {
+    http
+        .antMatcher("/**")
+        .authorizeRequests()
+          .anyRequest().authenticated()
+        .and()
+          .sessionManagement()
+          .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        .and()
+          .csrf().disable()
+        .exceptionHandling()
+          .authenticationEntryPoint(
+            (request, response, exception) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+        )
+    ;
+  }
+
+  @Override
+  public void configure(ResourceServerSecurityConfigurer resources) throws Exception {
+    resources.tokenServices(tokenServices);
+//    resources.resourceId(null);  // needed if tokens do not contain resourceId
+    resources.resourceId(resourceId);  // needed if tokens contain resourceId
+  }
+
+
+}
+
+
+Override can be added with @Order(Ordered.HIGHEST_PRECEDENCE)
+--------------------------------------------------------------
+
+This entry point will override the above two
+provided the antMatcher pattern is matched:
+
+
+@Order(Ordered.HIGHEST_PRECEDENCE)
+@Configuration
+public class HelloWorldWebSecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+  @Override
+  protected void configure(HttpSecurity http) throws Exception {
+    http
+        .antMatcher("/helloworld/**")
+        .authorizeRequests()
+        .anyRequest()
+        .permitAll();
+  }
+}
 
 
 

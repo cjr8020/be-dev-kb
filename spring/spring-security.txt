@@ -32,6 +32,153 @@ WebSecurityConfigurerAdapter.
 
 ================================================================================
 
+	Spring Security Filter Ordering
+	-------------------------------
+
+http://anilkc.me/understanding-spring-security-filter-chain/
+
+The order that filters are defined in the chain is very important. Irrespective of which filters you are actually using, the order should be as follows
+
+
+Security filter chain: [
+  WebAsyncManagerIntegrationFilter
+  SecurityContextPersistenceFilter
+  HeaderWriterFilter
+  CsrfFilter
+  LogoutFilter
+  BasicAuthenticationFilter
+  RequestCacheAwareFilter
+  SecurityContextHolderAwareRequestFilter
+  AnonymousAuthenticationFilter
+  SessionManagementFilter
+  ExceptionTranslationFilter
+  FilterSecurityInterceptor
+]
+
+
+ChannelProcessingFilter, 
+	because it might need to redirect to a different protocol
+
+SecurityContextPersistenceFilter, 
+	so a SecurityContext can be set up in the SecurityContextHolder at the beginning of a web request, and any changes to the SecurityContext can be copied to the HttpSession when the web request ends (ready for use with the next web request)
+
+ConcurrentSessionFilter, 
+
+	because it uses the SecurityContextHolder functionality and needs to update the SessionRegistry to reflect ongoing requests from the principal
+
+Authentication processing mechanisms – 
+
+	UsernamePasswordAuthenticationFilter, 
+	CasAuthenticationFilter, 
+	BasicAuthenticationFilter 
+	etc 
+		so that the SecurityContextHolder can be modified to contain a valid Authentication request token
+
+SecurityContextHolderAwareRequestFilter, 
+	if you are using it to install a Spring Security aware HttpServletRequestWrapper into your servlet container
+
+JaasApiIntegrationFilter, 
+	if a JaasAuthenticationToken is in the SecurityContextHolder this will process the FilterChain as the Subject in the JaasAuthenticationToken
+
+RememberMeAuthenticationFilter, 
+	so that if no earlier authentication processing mechanism updated the SecurityContextHolder, and the request presents a cookie that enables remember-me services to take place, a suitable remembered Authentication object will be put there
+
+AnonymousAuthenticationFilter, 
+	so that if no earlier authentication processing mechanism updated the SecurityContextHolder, an anonymous Authentication object will be put there
+
+	http.anonymous().disable()
+		would disable this filter
+
+ExceptionTranslationFilter, 
+	to catch any Spring Security exceptions so that either an HTTP error response can be returned or an appropriate AuthenticationEntryPoint can be launched
+
+FilterSecurityInterceptor, 
+	to protect web URIs and raise exceptions when access is denied
+
+
+Adding custom filters
+-----------------------
+
+HttpSecurity.addFilter(...)
+
+	addFilter
+		must be an instance or extend one of the filters provided by Spring
+
+	addFilterAfter
+		allows adding a Filter after one of the known Filter classes
+
+
+	addFilterAt
+		add at the location of the specified filter
+
+
+	addFilterBefore
+		allows adding a Filter before one of the known Filter classes.
+
+
+FilterRegistrationBean
+--------------------------
+to register the filter and order the filter inside security filter chain in @configuration class.
+
+	@Bean
+	FilterRegistrationBean myFilterRegistration () {
+	      FilterRegistrationBean filterRegistrationBean = new FilterRegistrationBean();
+	      filterRegistrationBean.setOrder(4);
+	      filterRegistrationBean.setFilter(new CustomSecureFilter());
+	      filterRegistrationBean.setUrlPatterns(Arrays.asList("/secure/*"));
+	      return filterRegistrationBean;
+	}
+
+While doing this we just have to make sure the we keep track of spring security filter chain order so that we can apply our filter before or after security filter chain. security.filter-order=0 is the default property in application.properties. We can change the value of this property such that our custom filter has precedence over spring security filter. In the above example, order is set to 4 which we can take precedence if we set security.filter-order=5.
+
+
+Authentication Filter
+------------------------------
+
+responsible to intercept and delegate the authentication process to AuthenticationManager. 
+
+UsernamePasswordAuthenticationFilter, CasAuthenticationFilter, BasicAuthenticationFilter all do the same thing however the way they process the authentication flow is different. 
+
+The underlying idea if to delegate the authentication process to AutheticationManager.
+This is the main interface behind spring authn.
+
+public interface AuthenticationManager {
+  Authentication authenticate(Authentication authentication) throws AuthenticationException;
+}
+
+the authenticate() method does one of three things:
+
+	1) authenticates returning a fully populated Authentication object (including granted authorities) if successful. 
+
+	2) throws AuthenticationException if something goes wrong. Exception must be one of three: DisabledException (for disabled account), LockedException (for locked account), BadCredentialsException (for invalid credentials). 
+
+	3) returns null if it can’t decide to authenticate.
+
+One of the main job of AuthenticationManager is to delegate authentication flow to AuthenticationProvider when the correct Authentication object is found.
+
+
+AuthenticationProvider
+----------------------------
+
+	authenticates the user using UserDetailsService. 
+
+	Of course, we can implement our custom authentication provider the way we want to authenticate our user. Thus, we can have multiple AuthenticationProvider in our application which may follow different way of authentication. 
+
+	One application may have more than one authentication providers. In Spring Security, ProviderManager matches the right AuthenticationProvider as per the provided Authentication object. 
+
+
+
+================================================================================
+
+OAuth filter order:   SystemProperties.ACCESS_OVERRIDE_ORDER - 1
+
+	this places it after the actuator endpoints but before the basic
+	authentication filter chain.
+	Prior to Spring Boot 1.5.0 it was 3 (security.oauth2.resoure.filter-order=3)
+
+
+================================================================================
+
 	HttpSecurity.antMatcher(...) vs http.authorizeRequests().antMatchers(..)
 	************************************************************************
 
