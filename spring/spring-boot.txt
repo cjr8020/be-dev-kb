@@ -664,3 +664,32 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 }
 
 ================================================================================
+
+	Import @Configurations from library
+	***********************************
+
+some library
+---------------
+
+	@Configuration // allows to import this class
+	@ComponentScan // Scan for beans and other configuration classes
+	public class SomeLibrary {
+
+	    // no main needed here
+	
+	}
+
+app using the library
+---------------------
+
+	@SpringBootApplication
+	@Import(SomeLibrary.class) // import the library
+	public class OtherApplication {
+
+	    // just put your standard main in this class
+	
+	}
+
+
+================================================================================
+
