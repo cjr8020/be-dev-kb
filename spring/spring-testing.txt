@@ -236,3 +236,29 @@ Spring Boot 1.4 offers extended assertions that you can use to check JSON marsha
 
 
 ================================================================================
+
+	SpringBoot Testing with Security Enabled
+	****************************************
+
+https://stackoverflow.com/questions/37817599/spring-boot-1-4-testing-with-security-enabled
+
+Spring Security provides a @WithMockUser annotation that can be used to indicate that a test should be run as a particular user:
+
+	@Test
+	@WithMockUser(username = "test", password = "test", roles = "USER")
+	public void withMockUser() throws Exception {
+	    this.mockMvc.perform(get("/")).andExpect(status().isOk());
+	}
+
+Alternatively, if you're using basic authentication, you could send the required Authorization header:
+
+	@Test
+	public void basicAuth() throws Exception {
+	    this.mockMvc
+	            .perform(get("/").header(HttpHeaders.AUTHORIZATION,
+	                    "Basic " + Base64Utils.encodeToString("user:secret".getBytes())))
+	            .andExpect(status().isOk());
+	}
+
+
+================================================================================
