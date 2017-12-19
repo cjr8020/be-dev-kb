@@ -262,3 +262,96 @@ Alternatively, if you're using basic authentication, you could send the required
 
 
 ================================================================================
+
+	security tests that need more research
+
+@RunWith(SpringRunner.class)
+@SpringBootTest(classes = {
+    TypicalSpringBootRestService.class,
+    WebSecurityConfiguration.class,
+    JwtConfiguration.class,
+    OAuthResourceServerConfiguration.class
+},
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+//@Import({
+//    WebSecurityConfiguration.class,
+//    JwtConfiguration.class,
+//    OAuthResourceServerConfiguration.class})
+@TestPropertySource(
+    properties = {
+        // application endpoint configuration
+        "server.context-path=/test-app",
+        "oauth.resourceId=test-oauth2-resourceid",
+        "oauth.signingKey=MaYzkSjmkzPC57L",
+        // disable all management endpoints except health
+        "endpoints.enabled=true",
+        "health.enabled=true",
+        // change context path for management operations
+        "management.context-path=/actuator",
+        "management.port=60081",
+        "management.security.enabled=true",
+        "management.security.user.name=monitor",
+        "management.security.user.password=secret",
+        "logging.file=sfg-security-tests-debug.log",
+        "level.org.springframework.web=DEBUG",
+        "org.springframework.security=DEBUG"
+    }
+)
+public class TypicalRestServiceSecurityTest {
+
+  @LocalServerPort
+  private int appEndpointPort;
+
+  @Value("${local.management.port}")
+  private int mgtEndpointPort;
+
+  @Autowired
+  private TestRestTemplate testRestTemplate;
+
+  @Autowired
+  private WebApplicationContext wac;
+
+  private MockMvc mockMvc;
+
+  @Before
+  public void setup() {
+//    this.mockMvc = MockMvcBuilders.webAppContextSetup(this.wac).addFilter(springSecurityFilterChain).build();
+    this.mockMvc = MockMvcBuilders
+        .webAppContextSetup(this.wac)
+        .apply(SecurityMockMvcConfigurers.springSecurity())
+        .build();
+  }
+
+  @Test
+  public void whenActuatorEndpoint__without_user__then401() throws Exception {
+    ResponseEntity<Map> entity = this.testRestTemplate.getForEntity(
+        "http://localhost:" + this.mgtEndpointPort + "/actuator",
+        Map.class
+    );
+    then(entity.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+  }
+
+  @Test
+  @WithMockUser(username = "monitor", password = "wrongpassword")
+  public void whenActuatorEndpoint__with_user_wrong_password__then401() throws Exception {
+    ResponseEntity<Map> entity = this.testRestTemplate.getForEntity(
+        "http://localhost:" + this.mgtEndpointPort + "/actuator",
+        Map.class
+    );
+    then(entity.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+  }
+
+  @Test
+  @WithMockUser(username = "monitor", password = "secret", roles = {"ACTUATOR"})
+  public void whenActuatorEndpoint__with_user__thenOk() throws Exception {
+//    this.mockMvc
+//        .perform(MockMvcRequestBuilders.get("/actuator"))
+//        .andExpect(status().isOk());
+    ResponseEntity<Map> entity = this.testRestTemplate
+//        .withBasicAuth("monitor", "secret")
+        .getForEntity("http://localhost:" + this.mgtEndpointPort + "/actuator", Map.class);
+    then(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
+  }
+
+
+================================================================================
