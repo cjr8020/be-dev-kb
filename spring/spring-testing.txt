@@ -1,0 +1,238 @@
+	**************************
+
+		springboot testing
+
+	**************************
+
+Don’t forget to also add @RunWith(SpringRunner.class) to your test, otherwise the annotations will be ignored.	
+
+
+spring-boot-starter-test
+------------------------
+
+JUnit — The de-facto standard for unit testing Java applications.
+Spring Test & Spring Boot Test — Utilities and integration test support for Spring Boot applications.
+AssertJ — A fluent assertion library.
+Hamcrest — A library of matcher objects (also known as constraints or predicates).
+Mockito — A Java mocking framework.
+JSONassert — An assertion library for JSON.
+JsonPath — XPath for JSON.
+
+
+Testing springboot applications
+--------------------------------
+
+A Spring Boot application is just a Spring ApplicationContext.
+
+	SpringApplication
+
+One thing to watch out for though is that the external properties, logging and other features of Spring Boot are only installed in the context by default if you use SpringApplication to create it.
+
+	@SpringBootTest
+
+Spring Boot provides a @SpringBootTest annotation which can be used as an alternative to the standard spring-test @ContextConfiguration annotation when you need Spring Boot features. The annotation works by creating the ApplicationContext used in your tests via SpringApplication.
+
+	webEnvironment
+
+example
+
+
+	@RunWith(SpringRunner.class)
+	@SpringBootTest(webEnvironment=WebEnvironment.RANDOM_PORT)
+	public class MyTest {
+	    // ...
+	}
+
+here is what's happening:
+
+ - @RunWith(SpringRunner.class) tells JUnit to run using Spring’s testing support. SpringRunner is the new name for SpringJUnit4ClassRunner, it’s just a bit easier on the eye.
+
+ - @SpringBootTest is saying “bootstrap with Spring Boot’s support” (e.g. load application.properties and give me all the Spring Boot goodness)
+
+ - If we want to load a specific configuration, we can use the classes attribute of @SpringBootTest. In this example, we’ve omitted "classes" which means that the test will first attempt to load @Configuration from any inner-classes, and if that fails, it will search for your primary @SpringBootApplication class.
+
+ - "properties"
+
+ 	The @SpringBootTest annotation also has a properties attribute that can be used to specify any additional properties that should be defined in the Environment. Properties are now loaded in the exact same way as Spring’s regular @TestPropertySource annotation.
+
+
+================================================================================	
+
+MOCK
+	loads a WebApplicationContext and provides a mock servlet environment.
+	Embedded servlet containers are not started when using this annotation.
+
+	If servlet APIs are not on your classpath, this mode will transparently
+	fallback to creating a regular non-web ApplicationContext.
+
+RANDOM_PORT
+	loads an EmbeddedWebApplicationContext and provides a real servlet environment.
+	embedded servlet containers are started and listen on a random port.
+
+
+DEFINED_PORT
+	loads an EmbeddedWebApplicationContext and provides a real servlet environment.
+	embedded servlet containers are started and listening on a defined port
+	(either application.properties or default 8080)
+
+NONE
+	load an ApplicationContext using SpringApplication but does not provide ANY
+	servlet environment (mock or otherwise)
+
+================================================================================
+
+	@TestPropertySource
+	*******************
+
+https://www.codeday.top/2017/10/06/48886.html	
+
+class-level annotation that is used to specify which properties files should be loaded when running the test class.
+
+Test property sources have the highest precedence than all other properties sources. That means Test source will override all other properties.
+
+
+	@RunWith(SpringRunner.class)
+	@ContextConfiguration(classes = AppConfig.class)
+	@TestPropertySource("classpath:test.properties")
+	public class ReportServiceTests {
+	  @Autowired
+	  private ReportService reportService;
+
+	  @Test
+	  public void testReportSubscriber() {
+	      String s = reportService.getReportSubscriber();
+	      System.out.println(s);
+	      Assert.assertEquals("theDeveloper@example.com", s);
+	  }
+	}
+
+inline option
+
+	@TestPropertySource(
+	        properties = {
+	                "spring.jpa.hibernate.ddl-auto=create-drop",
+	                "liquibase.enabled=false"
+	        }
+	)
+	@RunWith(SpringJUnit4ClassRunner.class)
+	@SpringApplicationConfiguration(Application.class)
+	public class ApplicationTest{
+
+	    // ...
+
+	}
+
+
+loading different yml file
+
+
+	@TestPropertySource(locations="classpath:test.yml")
+	@RunWith(SpringJUnit4ClassRunner.class)
+	@SpringApplicationConfiguration(Application.class)
+	public class ApplicationTest{
+
+	    // ...
+
+	}
+
+
+using @ActiveProfiles annotation
+
+
+	@RunWith(SpringJUnit4ClassRunner.class)
+	@SpringApplicationConfiguration(classes = Application.class)
+	@ActiveProfiles("somename")
+	public class MyIntTest{
+
+		// ...
+
+	}
+
+You can see we are using @ActiveProfiles annotation and we are passing the somename as the value.
+
+Create a file called application-somename.yml and and the test will load this file.
+
+================================================================================
+
+
+@Transactional
+
+	If your test is @Transactional, it will rollback the transaction at the end of each test method by default. However, as using this arrangement with either RANDOM_PORT or DEFINED_PORT implicitly provides a real servlet environment, HTTP client and server will run in separate threads, thus separate transactions. Any transaction initiated on the server won’t rollback in this case.
+
+
+@TestConfiguration
+
+	If you want to customize the primary configuration, you can use a nested @TestConfiguration class.
+
+	Unlike a nested @Configuration class which would be used instead of a your application’s primary configuration,
+
+	a nested @TestConfiguration class will be used in addition to your application’s primary configuration.
+
+ 	@TestConfiguration can be used on an inner class of a test to customize the primary configuration. 
+
+ 	When placed on a top-level class, @TestConfiguration indicates that classes in src/test/java should not be picked up by scanning. 
+
+
+@WebMvcTest
+
+	To test Spring MVC controllers are working as expected you can use the @WebMvcTest annotation.
+
+	@WebMvcTest will auto-configure the Spring MVC infrastructure and limit scanned beans to @Controller, @ControllerAdvice, @JsonComponent, Filter, WebMvcConfigurer and HandlerMethodArgumentResolver.
+
+	Regular @Component beans will not be scanned when using this annotation.
+
+	Often @WebMvcTest will be limited to a single controller and used in combination with @MockBean to provide mock implementations for required collaborators.
+
+================================================================================
+
+	Mocking and Spying
+	******************
+
+With Spring Boot 1.4 you can easily create a Mockito mocks that can replace an existing bean, or create a new one:
+
+	@RunWith(SpringRunner.class)
+	@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+	public class SampleTestApplicationWebIntegrationTests {
+
+	    @Autowired
+	    private TestRestTemplate restTemplate;
+
+	    @MockBean
+	    private VehicleDetailsService vehicleDetailsService;
+
+	    @Before
+	    public void setup() {
+	        given(this.vehicleDetailsService.
+	            getVehicleDetails("123")
+	        ).willReturn(
+	            new VehicleDetails("Honda", "Civic"));
+	    }
+
+	    @Test
+	    public void test() {
+	        this.restTemplate.getForEntity("/{username}/vehicle", 
+	            String.class, "sframework");
+	    }
+	}
+
+================================================================================
+
+	JSON Assertions
+	***************
+
+If you use the spring-boot-starter-test POM to import test dependencies, starting with 1.4 you will get the excellent AssertJ library. 
+
+	AssertJ
+
+AssertJ provides a fluent assertion API that replaces JUnit’s somewhat basic org.junit.Assert class. If you’ve not seen it before, a basic AssertJ call looks something like this:
+
+assertThat(library.getName()).startsWith("Spring").endsWith("Boot");
+
+
+	JSONassert
+
+Spring Boot 1.4 offers extended assertions that you can use to check JSON marshaling and unmarshalling.
+
+
+
+================================================================================
