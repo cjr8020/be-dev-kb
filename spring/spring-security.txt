@@ -889,3 +889,105 @@ FilterRegistration.Dynamic filterRegistration = environment.servlets().addFilter
 filterRegistration.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/*");
 
 ================================================================================
+
+	Jasypt (Java Simplified Encryption)
+	******
+
+http://www.jasypt.org/cli.html	
+
+Install
+---------
+
+	download dist and extract.
+
+DEFAULT_ALGORITHM 
+
+      The default algorithm to be used if none specified: PBEWithMD5AndDES.	
+
+
+Encrypting
+----------
+
+$ ./encrypt.sh input="This is my message to be encrypted" password=MYPAS_WORD
+
+
+Decrypting
+-----------
+
+$ ./decrypt.sh input="k1AwOd5XuW4VfPQtEXEdVlMnaNn19hivMbn1G4JQgq/jArjtKqryXksYX4Hl6A0e" password=MYPAS_WORD
+
+
+
+Encrypting properties in SpringBoot  YAML flies
+-------------------------------------------------
+
+http://www.ru-rocker.com/2017/01/13/spring-boot-encrypting-sensitive-variable-properties-file/
+
+
+1. add the library to your pom
+
+	<dependency>
+	  <groupId>com.github.ulisesbocchio</groupId>
+	  <artifactId>jasypt-spring-boot-starter</artifactId>
+	  <version>1.7</version>
+	</dependency>
+
+2. configure algorithm and encryption key
+
+	jasypt:
+	  encryptor:
+	    algorithm: PBEWithMD5AndDES
+	    password: secretkey
+
+
+3. generate encrypted text
+
+	java -cp org/jasypt/jasypt/1.9.2/jasypt-1.9.2.jar org.jasypt.intf.cli.JasyptPBEStringEncryptionCLI input="RageAgainstTheMachine" password=secretkey algorithm=PBEWithMD5AndDES
+
+	----ENVIRONMENT-----------------
+
+	Runtime: Oracle Corporation Java HotSpot(TM) 64-Bit Server VM 25.25-b02
+
+	----ARGUMENTS-------------------
+
+	algorithm: PBEWithMD5AndDES
+	input: RageAgainstTheMachine
+	password: secretkey
+
+	----OUTPUT----------------------
+
+	VMAckVUvHhbiEpU1pG4JuFyc3WWR5CJ8FkRTmpcZoow=
+
+
+4. set encrypted value
+
+variable:
+  secret-var: ENC(VMAckVUvHhbiEpU1pG4JuFyc3WWR5CJ8FkRTmpcZoow=)
+
+
+5. create a test spring bean
+
+@Component
+public class MyBean {
+
+	@Value("${variable.secret-var}")
+	private String mySecretVar;
+	
+	public void printVariable(){
+		System.out.println("============================================");
+		System.out.format("My secret variable is: %s\n", mySecretVar);
+		System.out.println("============================================");
+	}
+}
+
+
+6. run the program
+
+public static void main(String[] args) {
+	ConfigurableApplicationContext context = SpringApplication.run(JasyptApplication.class, args);
+	MyBean bean = context.getBean(MyBean.class);
+	bean.printVariable();
+}
+
+
+================================================================================
