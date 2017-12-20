@@ -921,7 +921,10 @@ $ ./decrypt.sh input="k1AwOd5XuW4VfPQtEXEdVlMnaNn19hivMbn1G4JQgq/jArjtKqryXksYX4
 Encrypting properties in SpringBoot  YAML flies
 -------------------------------------------------
 
-http://www.ru-rocker.com/2017/01/13/spring-boot-encrypting-sensitive-variable-properties-file/
+https://github.com/ulisesbocchio/jasypt-spring-boot
+
+Simply adding the starter jar jasypt-spring-boot-starter to your classpath if using @SpringBootApplication or @EnableAutoConfiguration will enable encryptable properties across the entire Spring Environment.
+
 
 
 1. add the library to your pom
@@ -929,40 +932,54 @@ http://www.ru-rocker.com/2017/01/13/spring-boot-encrypting-sensitive-variable-pr
 	<dependency>
 	  <groupId>com.github.ulisesbocchio</groupId>
 	  <artifactId>jasypt-spring-boot-starter</artifactId>
-	  <version>1.7</version>
+	  <version>1.17</version>
 	</dependency>
 
-2. configure algorithm and encryption key
+2. add the following to your YAML config
 
 	jasypt:
 	  encryptor:
-	    algorithm: PBEWithMD5AndDES
 	    password: secretkey
 
 
 3. generate encrypted text
 
-	java -cp org/jasypt/jasypt/1.9.2/jasypt-1.9.2.jar org.jasypt.intf.cli.JasyptPBEStringEncryptionCLI input="RageAgainstTheMachine" password=secretkey algorithm=PBEWithMD5AndDES
-
-	----ENVIRONMENT-----------------
-
-	Runtime: Oracle Corporation Java HotSpot(TM) 64-Bit Server VM 25.25-b02
-
-	----ARGUMENTS-------------------
-
-	algorithm: PBEWithMD5AndDES
-	input: RageAgainstTheMachine
-	password: secretkey
-
-	----OUTPUT----------------------
-
-	VMAckVUvHhbiEpU1pG4JuFyc3WWR5CJ8FkRTmpcZoow=
+	>bin\encrypt.bat input="secret" password="masterpassword"
 
 
 4. set encrypted value
 
 variable:
   secret-var: ENC(VMAckVUvHhbiEpU1pG4JuFyc3WWR5CJ8FkRTmpcZoow=)
+
+
+5. Create a custom encryptor
+
+
+For custom configuration of the encryptor and the source of the encryptor password you can always define your own StringEncryptor bean in your Spring Context, and the default encryptor will be ignored.
+
+
+	  @Value("${jasypt.encryptor.password}")
+	  private String jasyptEncryptorPassword;
+
+	  /**
+	   * Bean for decrypting encrypted password. Password encryption/decryption uses a master password
+	   * that is stored as environment variable.
+	   */
+	  @Bean(name = "jasyptStringEncryptor")
+	  public StringEncryptor stringEncryptor() throws IOException {
+	    PooledPBEStringEncryptor encryptor = new PooledPBEStringEncryptor();
+	    EnvironmentPBEConfig config = new EnvironmentPBEConfig();
+	    encryptor.setConfig(config);
+	    config.setPassword(jasyptEncryptorPassword);
+	    config.setAlgorithm("PBEWithMD5AndDES");
+	    config.setKeyObtentionIterations("1000");
+	    config.setPoolSize("1");
+	    config.setProviderName("SunJCE");
+	    config.setSaltGeneratorClassName("org.jasypt.salt.RandomSaltGenerator");
+	    return encryptor;
+	  }
+
 
 
 5. create a test spring bean
@@ -983,11 +1000,15 @@ public class MyBean {
 
 6. run the program
 
-public static void main(String[] args) {
-	ConfigurableApplicationContext context = SpringApplication.run(JasyptApplication.class, args);
-	MyBean bean = context.getBean(MyBean.class);
-	bean.printVariable();
-}
+	@SpringBootApplication
+	public class JasyptTestApplication {
+		
+		public static void main(String[] args) {
+			ConfigurableApplicationContext context = SpringApplication.run(JasyptTestApplication.class, args);
+			MyBean bean = context.getBean(MyBean.class);
+			bean.printVariable();
+		}
+	}
 
 
 ================================================================================
