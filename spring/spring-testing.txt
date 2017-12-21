@@ -6,6 +6,70 @@
 
 Don’t forget to also add @RunWith(SpringRunner.class) to your test, otherwise the annotations will be ignored.	
 
+================================================================================
+
+	using Spring Profiles to run against separate DataSource
+	********************************************************
+
+Define a DataSource bean for the test profile in a @Configuration class
+that will be loaded by the test
+
+
+	@Configuration
+	@EnableJpaRepositories(basePackages = {
+	  "org.baeldung.repository",
+	  "org.baeldung.boot.repository"
+	})
+	@EnableTransactionManagement
+	public class H2TestProfileJPAConfig {
+	 
+	    @Bean
+	    @Profile("test")
+	    public DataSource dataSource() {
+	        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+	        dataSource.setDriverClassName("org.h2.Driver");
+	        dataSource.setUrl("jdbc:h2:mem:db;DB_CLOSE_DELAY=-1");
+	        dataSource.setUsername("sa");
+	        dataSource.setPassword("sa");
+	 
+	        return dataSource;
+	    }
+	     
+	    // configure entityManagerFactory
+	    // configure transactionManager
+	    // configure additional Hibernate properties
+	}
+	
+
+Then, in the JUnit test class, we need to specify that we want to use the test profile by adding the @ActiveProfiles annotation:
+
+
+	@RunWith(SpringRunner.class)
+	@SpringBootTest(classes = {
+	  Application.class, 
+	  H2TestProfileJPAConfig.class})
+	@ActiveProfiles("test")
+	public class SpringBootProfileIntegrationTest {
+	    // ...
+	}
+
+
+================================================================================
+
+	running active profile with maven
+	*********************************
+
+	$ mvn clean test -Dspring.profiles.active=h2-test
+
+
+Profiles vs Parameterized Test
+
+	The approach with parameterized test may not work in this case, because profile has to be specified before Spring boots up its context. In this case when you run parameterized integration test the context will be already booted up before test runner starts running your test. Also JUnit's parameterized tests were invented for other reasons (running unit tests with different data series).
+
+	EDIT: Also one more thing - when you decide to use @RunWith(Parameterized.class) you wont be able to use different runner. In many cases (if not all if it comes to integration testing) you want to specify different runner, like SpringRunner.class - with parameterized test you wont be able to do it.
+
+
+================================================================================
 
 spring-boot-starter-test
 ------------------------
