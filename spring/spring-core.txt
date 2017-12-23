@@ -7,6 +7,24 @@
 
 ================================================================================
 
+	@ComponentScan with basePackageclasses
+	**************************************
+
+Type-safe alternative to basePackages() for specifying the packages to
+scan for annotated components.  The package of each class specified will be scanned.
+Consider creating a special no-op marker class or interface in each package that serves no purpose other than being referenced by this attribute.
+
+	By type-safe, you can't make any mistakes with the String value of the name of the package. If you specify an incorrect class, it will fail at compile time.
+
+E.g. 
+@ComponentScan(basePackageClasses = Controllers.class)
+
+When you specify basePackageClasses, Spring will scan the package (and subpackages) of the classes you specify. This is a nice trick with no-op classes/interfaces like Controllers, Services, etc. Put all your controllers in one package containing the Controllers class and specify your Controllers class in the basePackageClasses. Spring will pick them all up.
+
+
+
+================================================================================
+
 	Scoped Proxy
 	************
 
