@@ -188,3 +188,56 @@ as if it were nested.
 
 
 ================================================================================
+
+	Constructor Inejection
+	**********************
+
+https://spring.io/blog/2016/03/04/core-container-refinements-in-spring-framework-4-3	
+
+configuration creating beans	
+
+	@Configuration
+	public class Config {
+	 
+	    @Bean
+	    public Engine engine() {
+	        return new Engine("v8", 5);
+	    }
+	 
+	    @Bean
+	    public Transmission transmission() {
+	        return new Transmission("sliding");
+	    }
+	}
+
+component requiring beans
+
+	@Component
+	public class Car {
+	 
+	    @Autowired
+	    public Car(Engine engine, Transmission transmission) {
+	        this.engine = engine;
+	        this.transmission = transmission;
+	    }
+	}
+
+Spring will encounter our Car class while doing a package scan and will initialize its instance by calling the @Autowired annotated constructor.
+
+Instances of Engine and Transmission will be obtained by calling @Bean annotated methods of the Config class.
+
+
+
+	As of Spring 4.3, classes with a single constructor can omit the @Autowired annotation.
+	On top of that, also starting with 4.3, constructor-based injection can be leveraged in @Configuration annotated classes. 
+
+	https://spring.io/blog/2016/03/04/core-container-refinements-in-spring-framework-4-3
+
+
+Finally, obtain car from ApplicationContext:	
+
+	ApplicationContext context = new AnnotationConfigApplicationContext(Config.class);
+	Car car = context.getBean(Car.class);
+
+
+================================================================================
