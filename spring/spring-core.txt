@@ -317,3 +317,126 @@ Spring's @Service and @Repository stereotype annotations are specializations of
  }
 
 ================================================================================
+
+	BeanDefinitionRegistryPostProcessor
+	***********************************
+	BeanDefinition
+	**************
+	BeanDefinitionRegistry
+	**********************
+
+If client code needs to register objects which are not managed  by Spring
+container, then we will need to work with an instance of BeanDefinition.
+
+A Spring application can register a BeanDefinition by using the following
+method of BeanDefinitionRegistry:
+
+	 void registerBeanDefinition(String beanName, BeanDefinition beanDefinition)
+
+BeanDefinition 
+	describes a bean instance
+	has setter methods which can be used to programmatically set the 
+	Spring specific characteristics to a bean, e.g.
+		BeanDefintition #setScope(String scope)
+
+
+BeanDefinitionRegistryPostProcessor
+-----------------------------------------------------
+http://www.logicbig.com/tutorials/spring-framework/spring-core/bean-definition/
+
+@see note on PriorityOrdered
+
+
+It allows for the registration of bean definitions. It's method postProcessBeanDefinitionRegistry is called before BeanFactoryPostProcessor#postProcessBeanFactory. 
+This interface is more focused on the BeanDefinition registration rather than general purpose BeanFactoryPostProcessor.
+
+	When we a have Spring managed application, we want to let Spring manage all of our beans. Beside the regular way of creating beans with known solutions like Annotated beans, Java Configuration and XML Configuration, there is also a way in which we can create our own BeanDefinition.
+
+	With a BeanDefinitionRegistryPostProcessor it is possible to create a specific post processor which can add BeanDefinitions to the BeanDefinitionRegistry.
+	It differs from the BeanPostProcessor, which only has hooks for Bean Initialization (construction of your POJO), where the BeanDefinitionRegistryPostProcessor has a hook on the BeanDefinitionRegistry. This gives us the ability to define our own BeanDefinition.
+
+1. first we create a BeanDefinitionRegistryPostProcessor implementation.
+
+2. we implement the required method postProcessBeanDefinitionRegistry(..)
+
+3. The defined BeanDefinition s will be picked up by the ApplicationContext.
+
+
+@Component
+public class LogicServiceRegistryPostProcessor 
+        implements BeanDefinitionRegistryPostProcessor {
+ 
+    @Override
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry)
+            throws BeansException {
+ 
+        RootBeanDefinition beanDefinition = 
+                new RootBeanDefinition(MyServiceImpl.class); //The service implementation
+        serviceDefinition.setTargetType(MyService.class); //The service interface
+        serviceDefinition.setRole(BeanDefinition.ROLE_APPLICATION);
+        registry.registerBeanDefinition("myBeanName", beanDefinition );
+    }
+}
+
+
+
+Using BeanFactoryPostProcessor
+---------------------------------------------------
+
+BeanFactoryPostProcessor allows client code to customize bean definitions.
+
+BeanFactoryPostProcessor.postProcessBeanFactory() is called by Spring
+startup process just after all bean definitions have been loaded, but no
+beans have been initialized yet.
+
+	@Configuration
+	public class MyConfig {
+	  @Bean
+	  MyConfigBean myConfigBean () {
+	      return new MyConfigBean();
+	  }
+	}
+
+	public class MyConfigBean implements BeanFactoryPostProcessor {
+
+	  @Override
+	  public void postProcessBeanFactory (
+	            ConfigurableListableBeanFactory beanFactory)
+	            throws BeansException {
+
+	      GenericBeanDefinition bd = new GenericBeanDefinition();
+	      bd.setBeanClass(MyBean.class);
+	      bd.getPropertyValues().add("strProp", "my string property");
+
+	      ((DefaultListableBeanFactory) beanFactory)
+	                .registerBeanDefinition("myBeanName", bd);
+	  }
+	}
+
+	public class MyBean {
+	  private String strProp;
+
+	  public void setStrProp (String strProp) {
+	      this.strProp = strProp;
+	  }
+
+	  public void doSomething () {
+	      System.out.println("from MyBean:  " + strProp);
+	  }
+	}
+
+	public class BeanFactoryPostProcessorExample {
+
+	  public static void main (String[] args) {
+	      AnnotationConfigApplicationContext context =
+	                new AnnotationConfigApplicationContext(MyConfig.class);
+	      MyBean bean = context.getBean(MyBean.class);
+	      bean.doSomething();
+	  }
+	}
+
+Output
+	from MyBean:  my string property
+	WARNING: @Bean method MyConfig.myConfigBean is non-static and returns an object assignable to Spring's BeanFactoryPostPro
+
+================================================================================
