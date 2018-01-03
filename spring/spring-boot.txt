@@ -44,6 +44,52 @@ Default Configuration
 
 ================================================================================
 
+	Structure Spring Boot application
+	*********************************
+
+Locate your main application class in root package above all other classes.
+
+@EnableAutoConfiguration is often placed in your main class, and is implicitly
+defines a base "search package" for certain items.
+E.g. if you're wiring a JPA application, the package of the @EnableAutoConfiguration class will be used to search for @Entity items. 
+
+Using root package allows the @ComponentScan annotation to be used without 
+needed to specify a "basePackage" attribute.
+
+Typical layout:
+
+com
+ +- example
+     +- myproject
+         +- Application.java //@SpringBootApplication
+         |
+         +- domain
+         |   +- Customer.java
+         |   +- CustomerRepository.java
+         |
+         +- service
+         |   +- CustomerService.java
+         |
+         +- web
+             +- CustomerController.java
+
+
+package com.example.myproject;
+
+@Configuration
+@EnableAutoConfiguration
+@ComponentScan
+public class Application {
+
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+
+}
+
+
+================================================================================
+
 	SpringBoot Security
 	*******************
 

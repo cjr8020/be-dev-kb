@@ -259,3 +259,61 @@ Finally, obtain car from ApplicationContext:
 
 
 ================================================================================
+
+	@Component @Service @Controller @Repository
+	*******************************************
+
+| Annotation | Meaning                                             |
++------------+-----------------------------------------------------+
+| @Component | generic stereotype for any Spring-managed component |
+| @Repository| stereotype for persistence layer                    |
+| @Service   | stereotype for service layer                        |
+| @Controller| stereotype for presentation layer (spring-mvc)      |
+
+
+@Component 
+ is a generic stereotype for any Spring-managed component.
+ is equivalent to
+
+	<bean> 
+
+@Repository
+@Service
+@Controller
+ a specializations of @Component for more specific use cases
+ in persistence, service and presentation layers.
+
+Therefore, you can annotate your component classes with @Component, but by annotating them with @Repository, @Service, or @Controller instead, your classes are more properly suited for processing by tools or associating with aspects. For example, these stereotype annotations make ideal targets for pointcuts.
+
+Thus, if you are choosing between using @Component or @Service for your service layer, @Service is clearly the better choice. Similarly, as stated above, @Repository is already supported as a marker for automatic exception translation in your persistence layer.
+
+================================================================================
+
+	@ComponentScan
+	**************
+An equivalent for Spring XML's <context:component-scan/> is provided with the @ComponentScan annotation.
+
+Spring's @Service and @Repository stereotype annotations are specializations of
+@Component and are therefore candidates for component scanning.
+
+// search the com.company package for @Component classes   
+	@Configuration
+	@ComponentScan("com.company") 
+	public class Config {
+	}
+
+   
+ "basePackageClasses"
+ --------------------------------
+
+ The basePackageClasses attribute is the type-safe alternative to basePackages() in order to specify the packages to scan for the annotated components. The package of each specified class will be scanned.
+
+ This will ensure that even when the package is renamed or moved, the component scan would work as expected.
+
+
+ @ComponentScan(basePackageClasses = ApplicationController.class)     
+ public class SomeApplication {
+ 	// ... 
+ }
+
+================================================================================
