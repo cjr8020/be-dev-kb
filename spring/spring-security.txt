@@ -320,6 +320,137 @@ Common biult-in expressions
 
 	@PostAuthorize
 
+================================================================================
+
+	Method Level Security exception handling
+	****************************************
+
+
+@PreAuthorize Access Denied ErrorHandling in Spring Security
+------------------------------------------------------------
+
+https://stackoverflow.com/questions/43439181/errorhandling-in-spring-security-for-preauthorize-accessdeniedexception-returns
+
+Q: customize the error handling in a Spring 4 Rest application so it should return a HTTP Code 401 rather a Server Error 500 in case the check in @PreAuthorize annotation in my controller fails.
+
+
+    http
+		. . .
+        .and()
+          .csrf().disable()
+          .exceptionHandling()
+          .authenticationEntryPoint(
+            (request, response, exception) -> response
+                .sendError(HttpServletResponse.SC_UNAUTHORIZED)
+        )
+    ;
+
+or AuthenticationEntryPoint
+   ------------------------
+
+@Component
+public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
+    @Override
+    public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException ) throws IOException, ServletException {       
+    response.setContentType("application/json");
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.getOutputStream().println("{ \"error\": \"" + authException.getMessage() + "\" }");
+   }
+}
+
+
+AuthenticationFailureHandler
+------------------------------
+
+public class JWTAuthenticationFailureHandler implements AuthenticationFailureHandler {
+    @Override
+    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
+    response.sendError(401, (new StringBuilder()).append("Authentication Failed: ").append(exception.getMessage()).toString());
+    }
+}
+
+
+A: came to the conclusion that the error handling for @PreAuthorize and authentication uses different concepts. The only way is to use in spring 3.2 the new concept of a generic error handler with @ControllerAdvice and @ExceptionHandler annotation. So you can reuse the error handler class.
+
+AuthenticationEntryPoint + @ControllerAdvice + @ExceptionHandler
+-----------------------------------------------------------------
+
+@Component
+@ControllerAdvice
+public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
+  @Override
+  public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException ) throws IOException, ServletException {    
+    response.setContentType("application/json");
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.getOutputStream().println("{ \"error\": \"" + authException.getMessage() + "\" }");
+  }
+
+  @ExceptionHandler(value = { AccessDeniedException.class })
+  public void commence(HttpServletRequest request, HttpServletResponse response, AccessDeniedException ex ) throws IOException {
+    response.setContentType("application/json");
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.getOutputStream().println("{ \"error\": \"" + ex.getMessage() + "\" }");
+  }
+}
+
+
+
+handle AccessDeniedException with a filter added to filter chain
+-----------------------------------------------------------------
+
+https://stackoverflow.com/questions/45317638/how-to-catch-accessdeniedexception-in-spring-boot-rest-api
+
+exception occurs before it even reaches controllers, so it has to be handled in filter chain.
+
+public class AccessDeniedExceptionFilter extends OncePerRequestFilter {
+
+    @Override
+    public void doFilterInternal(HttpServletRequest req, HttpServletResponse res, 
+                                FilterChain fc) throws ServletException, IOException {
+        try {
+            fc.doFilter(request, response);
+        } catch (AccessDeniedException e) {
+         // log error if needed here then redirect
+     RequestDispatcher requestDispatcher = 
+             getServletContext().getRequestDispatcher(redirecturl);
+     requestDispatcher.forward(request, response);
+
+    }
+}
+
+Add this filter to filter chain in
+
+protected void configure(HttpSecurity http) throws Exception {
+	http
+		....
+		.addFilterAfter(new AccessDeniedExceptionFilter(), SecurityContextPersistenceFilter.class);
+}
+
+
+There is some discussion as to where in the security filter chain this filter is 
+to be added:
+
+Security filter chain: [
+  WebAsyncManagerIntegrationFilter
+  SecurityContextPersistenceFilter
+  HeaderWriterFilter
+  LogoutFilter
+  OAuth2AuthenticationProcessingFilter
+  RequestCacheAwareFilter
+  SecurityContextHolderAwareRequestFilter
+  AnonymousAuthenticationFilter
+  SessionManagementFilter
+  ExceptionTranslationFilter
+  FilterSecurityInterceptor
+]
+
+but once added, you can see it in the chain and that the doFilterInternal() method
+is firing.
+
+This did not help with catching AccessDeniedException in a Dropwizard service 
+with Spring security however.
+
+
 
 ================================================================================
 
@@ -887,6 +1018,62 @@ DW 0.7.0 and above:
 
 FilterRegistration.Dynamic filterRegistration = environment.servlets().addFilter("springSecurityFilterChain", DelegatingFilterProxy.class);
 filterRegistration.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/*");
+
+
+	Handle AccessDeniedException caused by @PreAuthorize
+	****************************************************
+
+See this example:
+https://github.com/jacek99/dropwizard-spring-di-security-onejar-example/blob/master/src/main/java/com/github/jacek99/myapp/exception/mapper/AccessDeniedExceptionMapper.java
+
+
+
+This exception could not be handled either by 
+Spring's @ControllerAdvice + @ExceptionHandler, nor by custom security filter.
+
+This has to be hanled by a JAX-RX  ExceptionMapper registered with Jersey.
+
+with Spring:
+
+Service/Appliation run() method:
+---------------------------------
+
+    //resources
+    Map<String, Object> resources = ctx.getBeansWithAnnotation(Path.class);
+    for (Map.Entry<String, Object> entry : resources.entrySet()) {
+      environment.jersey().register(entry.getValue());
+    }
+
+ExceptionMapper class itself:
+------------------------------
+
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.ext.ExceptionMapper;
+import javax.ws.rs.ext.Provider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Component;
+
+@Component
+@Provider
+public class AccessDeniedExceptionMapper implements ExceptionMapper<AccessDeniedException> {
+
+  private static final Logger log = LoggerFactory.getLogger(AccessDeniedExceptionMapper.class);
+
+  @Override
+  public Response toResponse(AccessDeniedException exception) {
+      log.info("Security exception",exception);
+      return Response.status(Status.UNAUTHORIZED)
+          .entity(new OperationError(null,null,null,"Access denied"))
+          .type(MediaType.APPLICATION_JSON).build();
+
+  }
+}
+
+
 
 ================================================================================
 

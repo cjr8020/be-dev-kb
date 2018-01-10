@@ -1,0 +1,3329 @@
+
+    *******************
+
+        Dropwizard
+
+    *******************
+
+Major versions
+
+1.1.1
+
+  Jersey 2.5.1
+  ------------
+  
+    had to include @Path both at class and method level:
+    otherwise, resources were not matched
+
+    @Path("/")
+    public class SomeResource {
+
+      @Path("/hello-world")
+      public Response someMethod()
+
+      @Path("/hello-world-caps")
+      public Response someMethod()      
+    }
+
+    Root resource classes are POJOs (Plain Old Java Objects) that are 
+      1. annotated with @Path 
+      2. have at least one method annotated with @Path or 
+         a resource method designator annotation such as @GET, @PUT, @POST, @DELETE.
+
+    see: https://stackoverflow.com/questions/39238821/jersey-path-annotation-mandatory-at-class-level
+
+    Slashes (/)
+
+      Also note - slashes make no difference.
+      A @Path value may or may not begin with a '/', it makes no difference. Likewise, by default, a @Path value may or may not end in a '/', it makes no difference, and thus request URLs that end or do not end in a '/' will both be matched.
+
+
+  Request Logger
+  ---------------
+
+    you can use the same requestLog but you will need to add `type`
+
+      requestLog:
+        type: classic
+        timeZone: UTC
+        appenders: []
+
+
+
+
+0.9.2
+
+    Notes:
+      JDBI version 2.63.1 bundled with 0.9.2 does not play nice with java 8
+      LocalDateTime and friends.
+
+      see JDBI KB for more.
+
+==============================================================================
+
+NOTE:
+
+0.8.x uses Jersey 2.x
+
+
+
+==============================================================================
+
+	logging settings
+	****************
+
+#
+## Logging settings
+#
+logging:
+
+  # The default level of all loggers. Can be OFF, ERROR, WARN, INFO, DEBUG, TRACE, or ALL.
+  level: INFO
+  loggers:
+    "org.springframework.web": DEBUG
+    "org.springframework.security": DEBUG
+
+  appenders:
+    - type: console
+      threshold: DEBUG
+      target: stderr
+
+    - type: file
+      threshold: DEBUG
+      logFormat: "%-6level [%d{ISO8601}] [%t] %logger{5} - %X{code} %msg %n"
+      currentLogFilename: ./logs/dropwizard-hello-world.log
+      archivedLogFilenamePattern: ./logs/dropwizard-hello-world-%d.log.gz
+      archive: true
+      archivedFileCount: 5
+
+
+
+==============================================================================
+
+    DW 9  Simple Server vs Default Server
+    *************************************
+
+Simple Server
+-------------
+ A single-connector implementation of {@link ServerFactory}, suitable for PaaS deployments (e.g., Heroku) where applications are limited to a single, runtime-defined port. A startup script can override the port via {@code -Ddw.server.connector.port=$PORT}.
+
+ Since Simple server has only one endpoint, both application and admin share the same port, but have different contexts:
+
+server:
+  type: simple
+  applicationContextPath: /application
+  adminContextPath: /admin
+  connector:
+    type: http
+    port: 8080
+
+
+ applicationContextPath     /application
+    The context path of the application servlets, including Jersey.
+    E.g.
+        /application/users/1234
+
+ adminContextPath           /admin
+ The context path of the admin servlets, including metrics and tasks.
+
+        /admin/metrics
+
+Default Server
+--------------
+The default implementation of {@link ServerFactory}, which allows for multiple sets of application and admin connectors, all running on separate ports. Admin connectors use a separate thread pool to keep the control and data planes separate(ish).
+
+
+server:
+  adminMinThreads: 1
+  adminMaxThreads: 64
+  adminContextPath: /
+  applicationContextPath: /
+  applicationConnectors:
+    - type: http
+      port: 8080
+    - type: https
+      port: 8443
+      keyStorePath: example.keystore
+      keyStorePassword: example
+      validateCerts: false
+  adminConnectors:
+    - type: http
+      port: 8081
+    - type: https
+      port: 8444
+      keyStorePath: example.keystore
+      keyStorePassword: example
+      validateCerts: false
+
+
+==============================================================================
+
+  HTTPS configuration for member-update-service
+  *********************************************
+
+Notes:
+- this is a partial template, i.e. note {{}} variable placeholder for XLDeploy
+- certAlias was not needed (I have one key in the keystore.jks)
+
+
+server:
+  applicationConnectors:
+    - type: https
+      port: {{MDH_MEMBER_UPDATE_APP_PORT}}
+      keyStorePath: /var/apps/shared/keystores/identity/keystore.jks
+      keyStorePassword: ${enc:ljPR6rgibko5PC1oIZ31QiNvEwjcbtMuxLvroXMrWvoUWrulReIshCSJygttf8OJNp44PoYF8w==}
+      keyStoreType: JKS
+      keyStoreProvider: SUN
+      trustStoreType: JKS
+      trustStorePath: /var/apps/shared/keystores/truststore/truststore.jks
+      trustStorePassword: ${enc:OMmMsOYv4eK0M2DqPJDQjyPsQxu5k3KZ34lCyA1c5TynX1eH7do5zbpvZr5e7JjRW6Qt/Guj}
+      trustStoreType: JKS
+      trustStoreProvider: SUN
+      validateCerts: false
+      #certAlias: pdxlmicni001.standard.com
+      validatePeers: false
+      # supportedProtocols: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2]
+      supportedProtocols: [SSLv2Hello, TLSv1.2]
+      excludedProtocols: [SSLv3]
+      needClientAuth: false
+      wantClientAuth: false
+  adminConnectors:
+    - type: http
+      port: {{MDH_MEMBER_UPDATE_ADMIN_PORT}}
+  requestLog:
+    timeZone: UTC
+    appenders:
+      - type: file
+        # same as logging.appender.file
+        currentLogFilename: {{POJO_LOG_LOCATION}}/{{POJO_NODE}}/{{MDH_MEMBER_UPDATE_SERVICE_NAME}}.log
+        # archiving is configured in the file appender, so disable here
+        archive: false
+
+database:
+  driverClass: oracle.jdbc.driver.OracleDriver
+  user: {{MDH_MEMBER_UPDATE_DB_USER}}
+  password: {{MDH_MEMBER_UPDATE_DB_USER_PASSWORD}}
+  url: {{MDH_MEMBER_UPDATE_DB_URL}}
+  properties:
+    charSet: UTF-8
+  maxWaitForConnection: 1s
+  validationQuery: "/* Oracle DB Health Check */ SELECT 1 FROM DUAL"
+  validationQueryTimeout: 3s
+  minSize: 8
+  maxSize: 32
+  logAbandonedConnections: true
+  logValidationErrors: true
+  checkConnectionWhileIdle: true
+  checkConnectionOnBorrow: true
+  checkConnectionOnConnect: true
+  checkConnectionOnReturn: false
+  evictionInterval: 10s
+  validationInterval: 30s
+  minIdleTime: 1 minute
+
+auth:
+  systemUserName: {{MDH_MEMBER_UPDATE_AUTH_USER}}
+  systemUserPassword: {{MDH_MEMBER_UPDATE_AUTH_USER_PASSWORD}}
+
+# Logging settings.
+logging:
+
+  # The default level of all loggers. Can be OFF, ERROR, WARN, INFO, DEBUG, TRACE, or ALL.
+  level: INFO
+
+  appenders:
+    - type: file
+      threshold: INFO
+      logFormat: "%-6level [%d{HH:mm:ss.SSS}] [%t] %logger{5} - %X{code} %msg %n"
+      currentLogFilename: {{POJO_LOG_LOCATION}}/{{POJO_NODE}}/{{MDH_MEMBER_UPDATE_SERVICE_NAME}}.log
+      archivedLogFilenamePattern: {{POJO_LOG_LOCATION}}/{{POJO_NODE}}/{{MDH_MEMBER_UPDATE_SERVICE_NAME}}-%d.log.gz
+      archivedFileCount: 5
+      timeZone: UTC
+
+
+
+
+
+
+==============================================================================
+
+    Tuning HTTP connectors
+    **********************
+
+
+
+
+    acceptorThreads and selectorThreads
+    -----------------------------------
+
+https://groups.google.com/forum/#!topic/dropwizard-user/sNWZ3ZSY25Q
+
+    Take a look at the Jetty metrics for your service, that might indicate a problem. The only thing that I can think of might be that your acceptorThreads (default: 1) may not be able to feed Jetty with connections fast enough to saturate 16 threads. This would likely be the case if you have endpoints that take very little time to execute, and a very high throughput of requests.
+
+
+http://viswamitra.github.io/blog/2015/01/31/those-threads-in-dropwizard/
+
+- Selector Threads will be initialized first, and then if your configuration allows for more, acceptor threads will be created.
+
+- Number of selector threads will be equal to number of cores of your system, and acceptor threads will be (number of cores)/2, unless otherwise specified.
+
+- It is not recommended to hardwire acceptorThreads and selectorThread configuration values, unless you know what you are doing.
+
+- Rule of thumb is leave the thread configuration to default, and default max thread value is 1024.
+
+- The right number of acceptor threads is defined by the connection open/close rate. More the rate, more acceptors we want.
+
+- If the server is busy, (100K or more connections at a time), it is better to use more selectors to even out the connection load amongst selectors, each selector has a limit of 64k connections.
+
+
+
+
+
+==============================================================================
+
+    config as env var
+    *****************
+
+If you wanted to pass the config file value via env var, you could do:
+
+    public static void main(String[] args) throws Exception {
+        new Main().run(new String[]{"server", System.getProperty("dropwizard.config")});
+    }
+
+
+Then, you would start the application as:
+
+    > java -Ddropwizard.config=blah.yml -jar my-dropwizard-service-1.0.jar
+
+Note: this also takes care of "server" argument.
+
+==============================================================================
+
+    applicationContextPath
+    **********************
+
+The context path of the application servlets, including Jersey.
+
+    default:
+
+        for "simple" server type: /application
+        for "default" type      : /
+
+
+
+
+    rootPath
+    ********
+
+default: /* - the URL pattern relative to applicationContextPath
+
+You can move your applications to a sub-URL:
+
+server:
+  rootPath: /api/
+
+NOTE: if you use "simple" server configuration:
+
+server:
+  type: simple
+  applicationContextPath: /application
+
+.. then rootPath is calculated reative to applicationContextPath. so in the example above, your API will accessible from /application/api
+
+
+==============================================================================
+
+Building/Packaging
+******************
+
+build your Dropwizard services as “fat” JAR files-single .jar files which contain all of the .class files required to run your service. This allows you to build a single deployable artifact which you can promote from your staging environment to your QA environment to your production environment without worrying about differences in installed libraries. To start building our Hello World service as a fat JAR, we need to configure a Maven plugin called maven-shade. In the <build><plugins> section of your pom.xml file, add this:
+
+
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-shade-plugin</artifactId>
+    <version>1.6</version>
+    <configuration>
+        <createDependencyReducedPom>true</createDependencyReducedPom>
+        <filters>
+            <filter>
+                <artifact>*:*</artifact>
+                <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                </excludes>
+            </filter>
+        </filters>
+    </configuration>
+    <executions>
+        <execution>
+            <phase>package</phase>
+            <goals>
+                <goal>shade</goal>
+            </goals>
+            <configuration>
+                <transformers>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                        <mainClass>com.example.helloworld.HelloWorldService</mainClass>
+                    </transformer>
+                </transformers>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+
+
+** Warning **
+
+If your application has a dependency which must be signed (e.g., a JCA/JCE provider or other trusted library), you have to add an exclusion to the maven-shade-plugin configuration for that library and include that JAR in the classpath.
+
+
+Versioning YOUR JARs
+********************
+
+Dropwizard can also use the project version if it’s embedded in the JAR’s manifest as the Implementation-Version. To embed this information using Maven, add the following to the <build><plugins> section of your pom.xml file:
+
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-jar-plugin</artifactId>
+    <version>2.3.2</version>
+    <configuration>
+        <archive>
+            <manifest>
+                <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+            </manifest>
+        </archive>
+    </configuration>
+</plugin>
+
+
+Manifest-Version: 1.0
+Implementation-Title: dropwizard-getting-started
+Implementation-Version: 0.0.1-SNAPSHOT
+Implementation-Vendor-Id: com.yammer.dropwizard
+Build-Jdk: 1.7.0_03
+Built-By: CRaiskin
+Created-By: Apache Maven
+Main-Class: com.example.helloworld.HelloWorldService
+Archiver-Version: Plexus Archiver
+
+
+Running
+*******
+
+$ java -jar application.jar server /path/to/config.yaml
+
+
+
+C:\Users\craiskin\Workspace\Juno\Prototyping\dropwizard-getting-started>java -jar target\dropwizard-getting-started-0.0.1-SNAPSHOT.jar
+usage: java -jar dropwizard-getting-started-0.0.1-SNAPSHOT.jar
+       [-h] [-v] {server} ...
+
+positional arguments:
+  {server}               available commands
+
+optional arguments:
+  -h, --help             show this help message and exit
+  -v, --version          show the service version and exit
+
+
+http://localhost:9080
+
+HTTP ERROR 404
+
+Problem accessing /. Reason:
+
+    Not Found
+
+
+http://localhost:9080/hello-world
+
+    {"id":1,"content":"Hello, Stranger!"}
+
+
+http://localhost:9080/hello-world?name=Successful+Dropwizard+User
+
+
+
+http://localhost:9081
+
+Operational Menu
+
+Metrics
+Ping
+Threads
+Healthcheck
+
+healthcheck:
+
+* deadlocks: OK
+* template: OK
+
+template here is the result of your TemplateHealthCheck, which unsurprisingly passed. deadlocks is a built-in health check which looks for deadlocked JVM threads and prints out a listing if any are found.
+
+
+==============================================================================
+
+    Dropwizard and Spring
+    *********************
+
+Option 1: nhuray-dropwizard-spring
+**********************************
+
+https://github.com/nhuray/dropwizard-spring/blob/master/README.md
+
+
+This approach uses SpringBundle to create your Spring application context.
+
+    public class HelloApp extends Service<HelloAppConfiguration> {
+
+        private static final String CONFIGURATION_FILE = "src/test/resources/hello/hello.yml";
+
+        public static void main(String[] args) throws Exception {
+          new HelloApp().run(new String[]{"server", CONFIGURATION_FILE});
+        }
+
+        @Override
+        public void initialize(Bootstrap<HelloAppConfiguration> bootstrap) {
+          // register configuration, environment and placeholder
+          bootstrap.addBundle(new SpringBundle(applicationContext(), true, true, true));
+        }
+
+        @Override
+        public void run(HelloAppConfiguration configuration, Environment environment) throws Exception {
+          // doing nothing
+        }
+
+
+        private ConfigurableApplicationContext applicationContext() throws BeansException {
+          AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+          context.scan("com.package.with.annotated.classes");  // *** This is important ***
+          return context;
+        }
+    }
+
+The SpringBundle class use the application context to initialize Dropwizard environment including health checks, resources, providers, tasks and managed.
+
+Moreover the SpringBundle class register :
+
+a ConfigurationPlaceholderConfigurer to resolve Dropwizard configuration as Spring placeholders (For example : ${http.port}).
+
+the Dropwizard configuration with the name dw to retrieve complex configuration with Spring Expression Language (For example : #{dw.httpConfiguration}).
+
+the Dropwizard environment with the name dwEnv to retrieve complex configuration with Spring Expression Language (For example : #{dwEnv.validator}).
+
+
+
+    /**
+     * Be sure to indicate which package(s) to scan
+     * @return
+     * @throws BeansException
+     */
+    private ConfigurableApplicationContext applicationContext() throws BeansException
+    {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+        context.scan("com.go2uti.oneworld.gi.service");
+        context.scan("com.go2uti.oneworld.healthcheck");
+        return context;
+    }
+
+
+
+
+
+Option 2: hsmspring-dropwizard
+******************************
+
+
+http://brianoneill.blogspot.com/2012/05/dropwizard-and-spring-sort-of.html
+
+
+in all of Dropwizard's beautiful simplicity, sometimes you need a little bit more.  You might need a JMS connection, JPA access to a database, or a scheduled job.  Dropwizard has simple facilities for some of the same functions (e.g. JDBI), but if you need capabilities beyond that, it is sometimes best to fall back on tried and true (and incredibly popular) frameworks like Spring.
+
+For JMS, Spring JMS is simple and rock solid.
+For JPA, Spring Hibernate takes the pain out of ORM. (or at least most of it)
+For scheduling, Spring + Quartz is great.
+For workflow, I've even become a fan of Activiti, which also has Spring integration.
+
+
+==============================================================================
+
+    Spring Yaml
+    ***********
+
+https://gist.github.com/dsyer/2051955
+
+/**
+ * Cloud Foundry 2012.02.03 Beta
+ * Copyright (c) [2009-2012] VMware, Inc. All Rights Reserved.
+ *
+ * This product is licensed to you under the Apache License, Version 2.0 (the "License").
+ * You may not use this product except in compliance with the License.
+ *
+ * This product includes a number of subcomponents with
+ * separate copyright notices and license terms. Your use of these
+ * subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ */
+package org.cloudfoundry.identity.uaa.config;
+
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.factory.FactoryBean;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.util.StringUtils;
+import org.yaml.snakeyaml.Yaml;
+
+/**
+ * Factory for Java Properties that reads from a YAML source. YAML is a nice human-readable format for configuration,
+ * and it has some useful hierarchical properties. It's more or less a superset of JSON, so it has a lot of similar
+ * features. The Properties created by this factory have nested paths for hierarchical objects, so for instance this
+ * YAML
+ *
+ * <pre>
+ * environments:
+ *   dev:
+ *     url: http://dev.bar.com
+ *     name: Developer Setup
+ *   prod:
+ *     url: http://foo.bar.com
+ *     name: My Cool App
+ * </pre>
+ *
+ * is transformed into these Properties:
+ *
+ * <pre>
+ * environments.dev.url=http://dev.bar.com
+ * environments.dev.name=Developer Setup
+ * environments.prod.url=http://foo.bar.com
+ * environments.prod.name=My Cool App
+ * </pre>
+ *
+ * Lists are represented as comma-separated values (useful for simple String values) and also as property keys with
+ * <code>[]</code> dereferencers, for example this YAML:
+ *
+ * <pre>
+ * servers:
+ * - dev.bar.com
+ * - foo.bar.com
+ * </pre>
+ *
+ * becomes java Properties like this:
+ *
+ * <pre>
+ * servers=dev.bar.com,foo.bar.com
+ * servers[0]=dev.bar.com
+ * servers[1]=foo.bar.com
+ * </pre>
+ *
+ * @author Dave Syer
+ *
+ */
+public class YamlPropertiesFactoryBean implements FactoryBean<Properties> {
+
+    private static final Log logger = LogFactory.getLog(YamlPropertiesFactoryBean.class);
+
+    private Resource resource = new ByteArrayResource(new byte[0]);
+
+    private boolean ignoreResourceNotFound = false;
+
+    private Map<String, String> keyReplacements = new HashMap<String, String>();
+
+    /**
+     * A map of key replacements. Values in the target whose keys start with a key in this map will be re-added to the
+     * output properties with the alternative key stem given by the value in this map. E.g.
+     *
+     * <pre>
+     * environments.dev.url=http://dev.bar.com
+     * environments.dev.name=Developer Setup
+     * environments.prod.url=http://foo.bar.com
+     * environments.prod.name=My Cool App
+     * </pre>
+     *
+     * when mapped with <code>keyReplacements = {"environments.prod": "environment"}</code> would end up as
+     *
+     * <pre>
+     * environment.url=http://foo.bar.com
+     * environment.name=My Cool App
+     * environments.dev.url=http://dev.bar.com
+     * environments.dev.name=Developer Setup
+     * environments.prod.url=http://foo.bar.com
+     * environments.prod.name=My Cool App
+     * </pre>
+     *
+     * @param keyReplacements the keyReplacements to set
+     */
+    public void setKeyReplacements(Map<String, String> keyReplacements) {
+        this.keyReplacements = keyReplacements;
+    }
+
+    /**
+     * @param ignoreResourceNotFound the flag value to set
+     */
+    public void setIgnoreResourceNotFound(boolean ignoreResourceNotFound) {
+        this.ignoreResourceNotFound = ignoreResourceNotFound;
+    }
+
+    /**
+     * @param resource the resource to set
+     */
+    public void setResource(Resource resource) {
+        this.resource = resource;
+    }
+
+    @Override
+    public Properties getObject() {
+        Yaml yaml = new Yaml();
+        Properties properties = new Properties();
+        try {
+            if (logger.isDebugEnabled()) {
+                logger.debug("Loading properties from " + resource);
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) yaml.load(resource.getInputStream());
+            assignProperties(properties, map, null);
+        }
+        catch (IOException e) {
+            if (ignoreResourceNotFound) {
+                if (logger.isWarnEnabled()) {
+                    logger.warn("Could not load properties from " + resource + ": " + e.getMessage());
+                }
+            }
+            else {
+                throw new IllegalStateException(e);
+            }
+        }
+        return properties;
+    }
+
+    @Override
+    public Class<?> getObjectType() {
+        return Properties.class;
+    }
+
+    @Override
+    public boolean isSingleton() {
+        return true;
+    }
+
+    private void assignProperties(Properties properties, Map<String, Object> input, String path) {
+        for (Entry<String, Object> entry : input.entrySet()) {
+            String key = entry.getKey();
+            if (StringUtils.hasText(path)) {
+                if (key.startsWith("[")) {
+                    key = path + key;
+                }
+                else {
+                    key = path + "." + key;
+                }
+            }
+            Object value = entry.getValue();
+            if (value instanceof String) {
+                addWithReplacement(properties, key, value);
+            }
+            else if (value instanceof Map) {
+                // Need a compound key
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) value;
+                assignProperties(properties, map, key);
+            }
+            else if (value instanceof Collection) {
+                // Need a compound key
+                @SuppressWarnings("unchecked")
+                Collection<Object> collection = (Collection<Object>) value;
+                addWithReplacement(properties, key, StringUtils.collectionToCommaDelimitedString(collection));
+                int count = 0;
+                for (Object object : collection) {
+                    assignProperties(properties, Collections.singletonMap("[" + (count++) + "]", object), key);
+                }
+            }
+            else {
+                addWithReplacement(properties, key, value == null ? "" : value);
+            }
+        }
+    }
+
+    protected void addWithReplacement(Properties props, String key, Object value) {
+        String name = key;
+        for (String stem : keyReplacements.keySet()) {
+            if (name.startsWith(stem)) {
+                name = name.replace(stem, keyReplacements.get(stem));
+                if (name.startsWith(".")) {
+                    name = name.substring(1);
+                }
+            }
+        }
+        props.put(name, value);
+    }
+
+}
+
+
+
+==============================================================================
+
+
+    Running DW without Jetty (without being a web service)
+    ******************************************************
+
+Some opinions
+
+https://groups.google.com/forum/?fromgroups#!topic/dropwizard-user/gSmLCOw1CO8
+
+I believe people have asked about this before. I imagine you can use the 'server' command with a simple rest status API, saving yourself some small effort. Or you could create your own ManagedCommand and avoid the HTTP server startup altogether. There are a few examples out there of non-http (or non-http-centric dw apps) if you need more guidance.
+
+http://blog.tech.renttherunway.com/?p=60
+https://groups.google.com/forum/?fromgroups#!topic/dropwizard-user/r6tdtwSaoZU
+https://groups.google.com/forum/?fromgroups#!topic/dropwizard-user/WmDjhWsms8I
+
+
+Provide your own commands for a DW service.
+
+See dropwizard-ci
+
+
+Option 1:
+
+    Create a custom
+
+        CustomService
+
+            public abstract class CustomService<T extends UberConfiguration> extends Service<T>
+
+
+        CustomServer
+
+            public class CustomServer extends HandlerWrapper implements Attributes
+
+
+        CustomServerCommand
+
+            public class CustomServerCommand<T extends UberConfiguration> extends EnvironmentCommand<T>
+
+
+        CustomServerFactory
+
+==============================================================================
+
+    logFormat log format customization
+    **********************************
+
+logging.console.logFormat, logging.file.logFormat, logging.syslog.logFormat.
+
+
+
+# Logging settings.
+logging:
+
+  # The default level of all loggers. Can be OFF, ERROR, WARN, INFO,
+  # DEBUG, TRACE, or ALL.
+  level: INFO
+
+  # Logger-specific levels.
+  loggers:
+
+    # Sets the level for 'com.example.app' to DEBUG.
+    com.example.app: DEBUG
+
+  # Settings for logging to stdout.
+  console:
+
+
+    # A custom Logback format string.
+    logFormat: null
+
+
+  # Settings for logging to a file.
+  file:
+
+    # A custom Logback format string.
+    logFormat: null
+
+
+
+
+  # Settings for logging to syslog.
+  syslog:
+
+    # A custom Logback format string.
+    logFormat: null
+
+
+** Note: there is also logging of request
+------------------------------------------------
+
+  # HTTP request log settings.
+  requestLog:
+
+    # Settings for logging to stdout.
+    console:
+
+      # If true, log requests to stdout.
+      enabled: true
+
+      # The time zone in which dates should be displayed.
+      timeZone: UTC
+
+      # A custom Logback format string.
+      logFormat: null
+
+
+    # Settings for logging to a file.
+    file:
+
+      # If true, log requests to a file.
+      enabled: false
+
+      # The time zone in which dates should be displayed.
+      timeZone: UTC
+
+      # A custom Logback format string.
+      logFormat: null
+
+    # Settings for logging to syslog.
+    syslog:
+
+      # If true, log requests to syslog.
+      enabled: false
+
+      # The hostname of the syslog server to which statements will
+      # be sent.
+      #
+      # N.B.: If this is the local host, the local syslog instance
+      # will need to be configured to listen on an inet socket, not
+      # just a Unix socket.
+      host: localhost
+
+      # The syslog facility to which statements will be sent.
+      #
+      # Can be one of: {AUTH, AUTHPRIV, DAEMON, CRON, FTP, LPR,
+      # KERN, MAIL, NEWS, SYSLOG, USER, UUCP, LOCAL0, LOCAL1,
+      # LOCAL2, LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7}.
+      facility: local0
+
+      # The time zone in which dates should be displayed.
+      timeZone: UTC
+
+      # A custom Logback format string.
+      logFormat: null
+
+==============================================================================
+
+    can I turn off requestLog?
+
+
+The requestLog property is now configured under the server property. And it looks like the enabled property has been removed. You can get around this by setting an empty appenders list. Try something like this:
+
+server:
+  applicationConnectors:
+  - type: http
+    port: 9000
+  adminConnectors:
+  - type: http
+    port: 9001
+  requestLog:
+    appenders: []
+
+
+
+==============================================================================
+
+    How do I consume JSON
+    **********************
+
+http://stackoverflow.com/questions/20129556/how-to-process-a-json-payload-with-drop-wizard
+
+Q:
+    I have a simple class called Thing
+
+    public class Thing {
+      private int id
+      private String name
+      //getters, setters, constructor
+    }
+
+    The request would look something like this:
+
+    curl -i -d '{"thing": {"id": 11, "name": "foobar"}}' http://localhost:8080/thing/{username}
+
+    But I can't figure out how to process the json request. This is what my method looks like:
+
+    @Path("/thing/{username}")
+    @POST
+    public Thing add(@PathParam("username") String username) {
+      //how can I process the JSON payload sent and convert it to Thing object?
+    }
+
+A:
+    Check out Jackson [http://jackson.codehaus.org/]
+
+        ObjectMapper mapper = new ObjectMapper();
+        Thing impl = mapper.readValue(username, Thing.class);
+
+    As long as username is valid JSON and maps to Thing, this should work.
+
+    Note: You may have to annotate the class members or methods of Thing. For example in my case I had to manage circular references using com.fasterxml.jackson.annotation.JsonManagedReference. But you can read up about this and other annotations in the API documentation.
+
+
+
+
+==============================================================================
+
+    Testing Dropwizard
+    ******************
+
+
+http://www.dropwizard.io/manual/testing.html
+
+    dropwizard-testing
+    *******************
+
+The dropwizard-testing module provides you with some handy classes for testing your representation classes and resource classes.
+
+It also provides a JUnit rule for full-stack testing of your entire app.
+
+
+
+
+How to start/stop programmatically.
+-----------------------------------
+
+You can start the service in new thread, once the test ends the service will shutdown automatically.
+
+However, starting in dropwizard 0.6.2 the dropwizard-testing module contains a junit rule exactly for this use case.
+
+Usage of this rule will look something like this:
+
+
+Class MyTest {
+
+    @ClassRule
+    public static TestRule testRule = new DropwizardServiceRule<MyConfiguration>(MyService.class,
+                    Resources.getResource("service.yml").getPath()));
+
+    @Test
+    public void someTest(){
+    ....
+
+
+==============================================================================
+
+    dropwizard-junit
+    ****************
+
+https://github.com/federecio/dropwizard-junit
+
+
+
+==============================================================================
+
+    How to suppress Warning when no REST endpoints are added
+    ********************************************************
+
+    The ResourceConfig instance does not contain any root resource classes.
+
+Add environment.setJerseyServletContainer(null); to your run method.
+
+
+    @Override
+    public void run(ContainerEntityServiceConfiguration configuration, Environment environment) throws Exception
+    {
+        // no REST endpoints
+        environment.setJerseyServletContainer(null);
+
+        // publishing SOAP endpoint
+        jaxWsBundle.publishEndpoint("/ContainerEntityService", new ContainerEntityServiceImpl());
+    }
+
+
+
+==============================================================================
+
+    banner ASCII art
+    ****************
+
+banner.txt in src/main/resources
+
+http://patorjk.com/software/taag/
+
+==============================================================================
+
+    dropwizard with SSL
+    *******************
+
+http://simoncurd.com/2013/09/12/dropwizard-with-ssl/
+
+If you’re looking to build a web service in Java, Dropwizard is a great place to start. Unfortunately the docs aren’t explicit on how to configure SSL and the example project (for version 0.6.2) doesn’t cover it
+This is how I did it:
+
+1. Put the example keystore from here into the root of your project.
+
+2. Make sure your configuration file includes the following:
+
+http:
+    port: 9443
+    adminPort: 9081
+    adminUsername: admin
+    adminPassword: admin
+    rootPath: /service/*
+    connectorType: nonblocking+ssl
+    ssl:
+        keyStore: ./ssl/server.p12
+        keyStorePassword: password
+        keyStoreType: PKCS12
+        trustStore: ./ssl/truststore.jks
+        trustStorePassword: password
+        needClientAuth: true
+        wantClientAuth: true
+
+
+
+==============================================================================
+
+    push notifications
+    ******************
+
+https://groups.google.com/forum/#!topic/dropwizard-user/9AzM3OXpb_E
+
+Q:
+    Anybody have strong recommendations for a push solution that pairs well with dropwizard? I think Ryan mentioned that several of the Yammer dropwizard services power push notifications.
+
+    I'm using angular.js on the front end and simple restful requests for the main app functionality, but of course now I need push notifications. Need fairly broad browser support so the solution needs to at least provide a fallback from web sockets.
+
+A:
+    We're using this on the one and only service we have that uses push…
+
+    http://cometd.org/documentation/cometd-java
+
+    Coda wrote a thing about it a few years back:
+
+    http://eng.yammer.com/our-realtime-future/
+
+
+A:
+    I used Atmosphere Framework:
+
+    http://async-io.org/
+
+
+A:  We are using vert.x for the websocket/realtime part of our stack.  It provides a SockJS server which is great for browser compatibility.
+
+We have an early version of our dropwizard host for vert.x services @ https://github.com/sagedevices/dropwizard-sage
+
+==============================================================================
+
+    sending email notifications
+    ***************************
+
+Take a look at using the SMTPAppender in logback:
+
+http://logback.qos.ch/manual/appenders.html#SMTPAppender
+
+
+
+
+==============================================================================
+
+    Using Metrics
+    *************
+
+http://metrics.codahale.com/
+
+
+Meters
+------
+
+    A meter measures the rate of events over time (e.g. "requests per second").
+    In addition to the mean rate, meters also track 1-, 5-, and 15-minute
+    moving averages:
+
+    "jv.dropwizard.metrics.resources.HelloWorldResource.sayHello-Metered" : {
+      "count" : 2,
+      "m15_rate" : 9.113322819495603E-6,
+      "m1_rate" : 0.0012856985534787301,
+      "m5_rate" : 0.0012912410042465303,
+      "mean_rate" : 0.0035980782931173674,
+      "units" : "events/second"
+    }
+
+Timers
+------
+
+    A timer measures both the rate that a particular piece of code is called
+    and the distribution of its duration.
+
+    "jv.dropwizard.metrics.resources.HelloWorldResource.sayHello-Timed" : {
+      "count" : 25,
+      "max" : 5.75126E-4,
+      "mean" : 1.5707772E-4,
+      "min" : 8.161E-5,
+      "p50" : 9.854900000000001E-5,
+      "p75" : 1.3127E-4,
+      "p95" : 5.686583E-4,
+      "p98" : 5.75126E-4,
+      "p99" : 5.75126E-4,
+      "p999" : 5.75126E-4,
+      "stddev" : 1.4277442386608793E-4,
+      "m15_rate" : 0.29214136208452807,
+      "m1_rate" : 0.02472669639003956,
+      "m5_rate" : 0.0701283191435803,
+      "mean_rate" : 0.014439793939001471,
+      "duration_units" : "seconds",
+      "rate_units" : "calls/second"
+    },
+
+
+Standard deviation
+------------------
+
+In statistics and probability theory, the standard deviation (SD) shows how much variation or dispersion from the average exists.
+
+A low standard deviation indicates that the data points tend to be very close to the mean (aka expected value);
+a high standard deviation indicates that the data points are spread out over a large range of values.
+
+
+
+Normal distribution:
+
+Percentiles represent the area under the normal curve, increasing from left to right.
+Each standard deviation represents a fixed percentile.  Thus, rounding to two decimal places,
+-3 is 0.13th percentile
+-2 is 2.28th percentile
+-1 is 15.87th
+
+0  is 50th percentile
+
++1 is 84.13th percentile
++2    97.72nd
++3    99.87th.
+
+This is known as 68 - 95 - 99.7 rule or the three-sigma rule.
+
+In statistics, the 68-95-99.7 rule (three-sigma) rule states that nearly all values lie within three standard deviations of the mean in a normal distribution.
+
+
+==============================================================================
+
+this creates or returns the metrics, basically every metric is only created once and registered in a registry
+
+
+    package de.spinscale.dropwizard.jobs;
+
+    import com.yammer.metrics.Metrics;
+    import com.yammer.metrics.core.Counter;
+    import com.yammer.metrics.core.Timer;
+    import com.yammer.metrics.core.TimerContext;
+    import org.quartz.JobExecutionContext;
+    import org.quartz.JobExecutionException;
+
+    public abstract class Job implements org.quartz.Job {
+
+        private final Timer timer;
+
+        public Job() {
+            timer = Metrics.defaultRegistry().newTimer(getClass(), getClass().getName());
+        }
+
+        @Override
+        public void execute(JobExecutionContext context) throws JobExecutionException {
+            TimerContext timerContext = timer.time();
+            try {
+                doJob();
+            } finally {
+                timerContext.stop();
+            }
+        }
+
+        public abstract void doJob();
+    }
+
+or
+
+
+ //this creates or returns the metrics, basically every metric is only created once and registered in a registry
+    private final Timer timerCanMakeHold =
+                Metrics.newTimer(MyClass.class, "METRICNAME", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+
+        final TimerContext timerContex = timerCanMakeHold.time();
+        try{
+             doSomeWork()//this is what you are timing
+        }finally{
+            timerContex.stop();
+        }
+
+==============================================================================
+
+    More than one metric
+    ********************
+
+Tried to put more than one metric annotation for the same resource and got
+
+"name is already used for a different type of metric"
+
+
+A:
+    What is happening is the generated name for both of the meters is "showAll", and metrics doesn't allow two different meters to have the same name. In order to use more than one of @Metered, @Timed or @Counted on a method it is necessary to manually specify a name for one or both of the meters. (@ExceptionMetered is the exception to this rule as its naming strategy appends "-exceptions")
+
+    @Counted(name="showAll-counted")
+    @Timed(name="showAll-timed")
+    public ResponseEntity<TaskResource> showAll() {
+        return null;
+    }
+
+
+==============================================================================
+
+    JMXReporter
+    ***********
+
+http://metrics.codahale.com/getting-started/#reporting-via-jmx
+
+
+**** Warning ***
+We don’t recommend that you try to gather metrics from your production environment. JMX’s RPC API is fragile and bonkers. For development purposes and browsing, though, it can be very useful.
+
+
+
+
+To be able to access metrics via VisualVM or another JMX-based tool, two things need to happen:
+
+1. activate JXM for this JVM. E.g.:
+
+    java -Dcom.sun.management.jmxremote.port=%JMX_PORT% -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -jar target\dropwizard-metrics-test-0.0.1-SNAPSHOT.jar server config.yml
+
+2. add JMXReporter
+
+
+    Option 1
+    --------
+
+    private MetricRegistry metricRegistry;
+    .
+    .
+    .
+    @Override
+    public void initialize(Bootstrap<HelloWorldConfiguration> bootstrap) {
+        metricRegistry = bootstrap.getMetricRegistry();
+    }
+
+    @Override
+    public void run(HelloWorldConfiguration configuration, Environment environment) throws Exception {
+        .
+        .
+        final JmxReporter reporter = JmxReporter.forRegistry(metricRegistry).build();
+        reporter.start();
+    }
+
+
+    Option 2
+    --------
+
+Another way of getting JmxReporter enabled -- is to ensure that the reporter also runs using the server lifecycle:
+
+
+    public class JmxMetricsManaged implements Managed {
+        private final JmxReporter reporter;
+
+        public JmxMetricsManaged(Environment environment) {
+            reporter = JmxReporter.forRegistry(environment.metrics()).build();
+        }
+
+        @Override
+        public void start() throws Exception {
+            reporter.start();
+        }
+
+        @Override
+        public void stop() throws Exception {
+            reporter.stop();
+        }
+    }
+
+Then in the application:
+
+
+    @Override
+    public void run(final MyServiceConfiguration configuration, final Environment environment)
+    throws Exception {
+        environment.lifecycle().manage(new JmxMetricsManaged(environment));
+    }
+
+
+
+NOTE: as of 0.7.0, YML-based config does not work for JMXReporter:
+
+https://groups.google.com/forum/#!topic/dropwizard-user/8zRejdu0Txk
+
+
+#
+## Metrics
+#
+metrics:
+  reporters:
+    - type: jmx
+
+==============================================================================
+
+    HTTP Reporter
+    *************
+
+http://metrics.codahale.com/getting-started/#reporting-via-http
+
+==> metrics-servlet is already wired to /metrics on the admin port
+
+https://groups.google.com/forum/#!topic/dropwizard-user/A-f-Nktn1LM
+
+http://localhost:9081/metrics?pretty=true
+
+    "jv.dropwizard.metrics.resources.HelloWorldResource.sayHello-Timed" : {
+      "count" : 25,
+      "max" : 5.75126E-4,
+      "mean" : 1.5707772E-4,
+      "min" : 8.161E-5,
+      "p50" : 9.854900000000001E-5,
+      "p75" : 1.3127E-4,
+      "p95" : 5.686583E-4,
+      "p98" : 5.75126E-4,
+      "p99" : 5.75126E-4,
+      "p999" : 5.75126E-4,
+      "stddev" : 1.4277442386608793E-4,
+      "m15_rate" : 0.29214136208452807,
+      "m1_rate" : 0.02472669639003956,
+      "m5_rate" : 0.0701283191435803,
+      "mean_rate" : 0.014439793939001471,
+      "duration_units" : "seconds",
+      "rate_units" : "calls/second"
+    },
+
+you don't need to include
+
+
+
+==============================================================================
+
+    OAuth2
+    ******
+
+Added OAuth support to Gary Rowe's DropWizard OpenID sample
+https://github.com/kenyee/dropwizard-oauth-openid
+
+http://gary-rowe.com/agilestack/2012/12/12/dropwizard-with-openid/
+
+==============================================================================
+
+    OAuth2.0 Provider Sample Dropwizard Application
+    ***********************************************
+
+small sample dropwizard application with a (in-memory) OAuth2 provider.
+
+    https://github.com/oharsta/university-foo
+
+
+To test the application you will need an OAuth2 client. The
+
+    https://github.com/OpenConext/Mujina/tree/master/mujina-sp
+
+application can be used to test the OAuth provider in this application. Fire up mujina-sp and point your browser to:
+
+    http://localhost:9090/social/social-queries.shtml
+
+The OAuth2 configuration for the university-foo application is:
+
+OAuth key:          university-client-key
+OAuth secret:       university-client-secret
+AccessToken URL:    http://localhost:8080/v1/token
+Authorization URL:  http://localhost:8080/v1/authorize
+API Request:        http://localhost:8080/v1/student/{identifier}
+API Request:        http://localhost:8080/v1/student/@me
+
+To authenticate an user the identifiers foo1...10 can be used with a fake password. The placeholder help page can be found at:
+
+http://localhost:8080/v1/help
+
+
+==============================================================================
+
+    Dropwizard and Spring Security
+    ******************************
+
+==============================================================================
+
+    Deploying a servlet programmatically with Jetty
+    ***********************************************
+
+http://stackoverflow.com/questions/10738816/deploying-a-servlet-programmatically-with-jetty
+
+Q:
+
+java.lang.IllegalStateException: No WebApplicationContext found: no ContextLoaderListener registered?
+
+
+A:
+    The key step I was missing was
+
+        context.addEventListener(new ContextLoaderListener());
+
+    which loads the Spring context.
+
+    In dropwizard service:
+
+        AnnotationConfigWebApplicationContext ctx = new AnnotationConfigWebApplicationContext();
+        ctx.setParent(springContext);
+        ctx.refresh();
+        ctx.registerShutdownHook();
+        ctx.start();
+        environment.addServletListeners(new SpringContextLoaderListener(ctx));
+
+
+==============================================================================
+
+    Custom Method Annotation
+    ************************
+
+    How to decorate REST methods
+    ****************************
+
+
+http://stackoverflow.com/questions/19785001/custom-method-annotation-using-jerseys-abstracthttpcontextinjectable-not-workin
+
+Also @see
+https://groups.google.com/forum/#!searchin/dropwizard-user/request$20logging/dropwizard-user/g65whPUBmxo/Mm584fPjN2QJ
+https://gist.github.com/ryankennedy/6688601
+
+Q:
+    I want to restrict some methods if they are being accessed in a non-secure manner. I'm creating a @Secure annotation that checks whether or not the request was sent over secure channels. However, I cannot create a method injectable that captures the HttpContext of the request.
+
+
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD})
+public @interface Secure {
+
+}
+
+public class SecureProvider<T> implements InjectableProvider<Secure, AbstractResourceMethod> {
+    @Override
+    public ComponentScope getScope() {
+        return ComponentScope.PerRequest;
+    }
+
+    @Override
+    public Injectable<?> getInjectable(ComponentContext componentContext,
+                                       Secure annotation,
+                                       AbstractResourceMethod method) {
+        return new SecureInjectable();
+    }
+}
+
+public class SecureInjectable<T> extends AbstractHttpContextInjectable<T> {
+    @Override
+    public T getValue(HttpContext context) {
+        // validation here
+
+        return null;
+    }
+}
+
+I'm using the Dropwizard framework, so initialization of the Providers should be as easy as:
+
+    environment.addProvider(new SessionRestrictedToProvider<>(new SessionAuthenticator(), "MySession"));
+    environment.addProvider(new SecureProvider<>());
+    environment.setSessionHandler(new SessionHandler());
+
+
+Usage:
+
+@Resource
+@Path("/account")
+public class AccountResource {
+    @GET
+    @Path("/test_secure")
+    @Secure
+    public Response isSecure() {
+        return Response.ok().build();
+    }
+}
+
+
+At this point I'm assuming that a HttpContext Injectable doesn't work on a method, but I'm at a loss as to what other options I could utilize to implement this annotation.
+
+
+A:
+
+    If you don't want to use AOP, I think you can do this by implementing ResourceMethodDispatchProvider and ResourceMethodDispatchAdapter.
+
+
+public class CustomDispatchProvider implements ResourceMethodDispatchProvider {
+
+ResourceMethodDispatchProvider provider;
+
+CustomDispatchProvider(ResourceMethodDispatchProvider provider)
+{
+    this.provider = provider;
+}
+
+@Override
+public RequestDispatcher create(AbstractResourceMethod abstractResourceMethod) {
+    System.out.println("creating new dispatcher for " + abstractResourceMethod);
+
+    RequestDispatcher defaultDispatcher = provider.create(abstractResourceMethod);
+    if (abstractResourceMethod.getMethod().isAnnotationPresent(Secure.class))
+        return new DispatcherDecorator(defaultDispatcher);
+    else
+        return defaultDispatcher;
+}
+
+@Provider
+public static class CustomDispatchAdapter implements ResourceMethodDispatchAdapter
+{
+
+    @Override
+    public ResourceMethodDispatchProvider adapt(ResourceMethodDispatchProvider provider) {
+        return new CustomDispatchProvider(provider);
+    }
+
+}
+
+public static class DispatcherDecorator implements RequestDispatcher
+{
+    private RequestDispatcher dispatcher;
+
+    DispatcherDecorator(RequestDispatcher dispatcher)
+    {
+        this.dispatcher = dispatcher;
+    }
+
+    public void dispatch(Object resource, HttpContext context) {
+        if (context.getRequest().isSecure())
+        {
+            System.out.println("secure request detected");
+            this.dispatcher.dispatch(resource, context);
+        }
+        else
+        {
+            System.out.println("request is NOT secure");
+            throw new RuntimeException("cannot access this resource over an insecure connection");
+        }
+
+    }
+
+}
+}
+
+
+ In Dropwizard, add the provider like this:
+
+    environment.addProvider(CustomDispatchAdapter.class);
+
+
+==============================================================================
+
+    logging to a GELF-enabled server like Graylog2 or logstash
+    **********************************************************
+
+
+https://github.com/gini/dropwizard-gelf
+
+==============================================================================
+
+
+    How to enable request logging requestLog
+    ****************************************
+
+
+NOTE: with 0.8.x - requestLog is moved under server:
+
+server:
+  requestLog:
+    timeZone: UTC
+    appenders:
+      - type: console
+      - type: file
+        # same as logging.appender.file
+        currentLogFilename: ./logs/sic-person-service.log
+        # archiving is configured in the file appender, so disable here
+        archive: false
+
+NOTE:  As of 0.8.1, Dropwizard uses the Jetty NSCA request logger, that doesn't support custom formats.
+https://github.com/dropwizard/dropwizard/issues/972
+https://groups.google.com/forum/#!topic/dropwizard-user/BTdBW5XF0yc
+
+http.requestLog
+
+http
+  requestLog:
+    console:
+      enabled: true
+      timeZone: UTC
+      logFormat: '%-5p [%d{ISO8601}] [%thread] %c: %m%n%xEx'
+    file:
+      enabled: true
+      timeZone: UTC
+      logFormat: '%-5p [%d{ISO8601}] [%thread] %c: %m%n%xEx'
+      currentLogFilename: ./logs/requests.log
+      archive: true
+      archivedLogFilenamePattern: ./logs/requests-%d.log.gz
+      archivedFileCount: 5
+
+This will log every request in the following format:
+
+
+0:0:0:0:0:0:0:1 - - [22/Jan/2014:20:18:12 +0000] "GET /hello-world HTTP/1.1" 200 57 68 68
+
+
+
+
+==============================================================================
+
+    request log uses common log format
+    **********************************
+
+http://en.wikipedia.org/wiki/Common_Log_Format
+
+
+0:0:0:0:0:0:0:1 - IPv6 loopback
+
+This logging is actually generated by Jetty and is an extended version of the NCSA common log format.
+You can view the source (search for the log method):
+https://github.com/eclipse/jetty.project/blob/master/jetty-server/src/main/java/org/eclipse/jetty/server/AbstractNCSARequestLog.java
+
+
+The default settings log the following:
+
+    The remote server address
+
+    Optional authentication information
+
+    Request date and time
+
+    The HTTP method, URI, and protocol for the request
+
+    The HTTP response status code
+
+    The length of the response
+
+    The HTTP referer header (if set)
+
+    The HTTP user agent (if set)
+
+    The log latency
+
+
+
+
+==============================================================================
+
+    request audit log
+    *****************
+
+This will obviously need to be enhanced.
+
+https://groups.google.com/forum/#!searchin/dropwizard-user/request$20logging/dropwizard-user/g65whPUBmxo/Mm584fPjN2QJ
+https://gist.github.com/ryankennedy/6688601
+
+==> What is missing from the post above is the need for an Adapter so that this provider
+can be added to Dropwizard environment:
+
+    environment.addProvider(CustomDispatchAdapter.class);
+
+This gap was filled from
+http://stackoverflow.com/questions/19785001/custom-method-annotation-using-jerseys-abstracthttpcontextinjectable-not-workin
+
+
+
+AuditedMethodRequestDispatcher.java
+-----------------------------------
+
+
+package test.dropwizard.audit;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.net.HttpHeaders;
+import com.sun.jersey.api.core.HttpContext;
+import com.sun.jersey.api.core.HttpRequestContext;
+import com.sun.jersey.spi.dispatch.RequestDispatcher;
+
+/**
+ *
+ * @author ryankennedy https://gist.github.com/ryankennedy/6688601
+ *
+ */
+public class AuditedMethodRequestDispatcher implements RequestDispatcher
+{
+    private static final Logger log = LoggerFactory.getLogger(AuditedMethodRequestDispatcher.class);
+
+
+    private final static Set<String> REDACTED_HEADERS = ImmutableSet.of(HttpHeaders.AUTHORIZATION);
+    private final RequestDispatcher dispatcher;
+    private final Logger logger;
+    private final boolean requireRemoteIPAddressInformation;
+
+    public AuditedMethodRequestDispatcher(RequestDispatcher dispatcher, Logger logger,
+            boolean requireRemoteIPAddressInformation)
+    {
+        log.info(" ---- AuditedMethodRequestDispatcher Constructor -------");
+
+        this.requireRemoteIPAddressInformation = requireRemoteIPAddressInformation;
+        this.dispatcher = Preconditions.checkNotNull(dispatcher);
+        this.logger = Preconditions.checkNotNull(logger);
+    }
+
+    @Override
+    public void dispatch(Object resource, HttpContext context)
+    {
+        log.info(" ---- AuditedMethodRequestDispatcher.dispatch() -------");
+
+        logRequest(resource, context);
+        dispatcher.dispatch(resource, context);
+    }
+
+    private void logRequest(Object resource, HttpContext context)
+    {
+        log.info(" ---- AuditedMethodRequestDispatcher.logRequest() -------");
+
+        final HttpRequestContext request = context.getRequest();
+        final StringBuilder builder = new StringBuilder();
+        builder.append("\nPROTECTED RESOURCE ACCESS\n");
+        builder.append("  Resource : " + resource.getClass() + "\n");
+
+        if (requireRemoteIPAddressInformation
+                && !request.getRequestHeaders().keySet().contains(HttpHeaders.X_FORWARDED_FOR))
+        {
+            throw new RuntimeException("Header " + HttpHeaders.X_FORWARDED_FOR
+                    + " is required but was not found in the request");
+        }
+
+        for (Map.Entry<String, List<String>> entry : request.getRequestHeaders().entrySet())
+        {
+            if (!REDACTED_HEADERS.contains(entry.getKey()))
+            {
+                builder.append("  Header   : " + entry.getKey() + " = " + entry.getValue() + "\n");
+            }
+        }
+        builder.append("  Method   : " + request.getMethod() + "\n");
+        builder.append("  URI      : " + request.getRequestUri() + "\n");
+        for (Map.Entry<String, List<String>> entry : request.getQueryParameters(true).entrySet())
+        {
+            final String name = entry.getKey();
+            final List<String> value = entry.getValue();
+            builder.append("  Param    : " + name + " = " + value + " \n");
+        }
+        logger.info(builder.toString());
+    }
+}
+
+
+AuditedMethodDispatchProvider.java
+-----------------------------------
+
+
+package test.dropwizard.audit;
+
+import javax.ws.rs.ext.Provider;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import test.dropwizard.HelloWorldService;
+
+import com.google.common.base.Preconditions;
+import com.sun.jersey.api.model.AbstractResourceMethod;
+import com.sun.jersey.spi.container.ResourceMethodDispatchAdapter;
+import com.sun.jersey.spi.container.ResourceMethodDispatchProvider;
+import com.sun.jersey.spi.dispatch.RequestDispatcher;
+
+/**
+ *
+ * @author ryankennedy https://gist.github.com/ryankennedy/6688601
+ *
+ */
+public class AuditedMethodDispatchProvider implements ResourceMethodDispatchProvider
+{
+    private static final Logger log = LoggerFactory.getLogger(AuditedMethodDispatchProvider.class);
+
+    private static final Logger auditLogger = LoggerFactory.getLogger(AuditedMethodDispatchProvider.class);
+
+    private final ResourceMethodDispatchProvider provider;
+    private final Logger logger;
+    private final boolean requireRemoteIPAddressInformation;
+
+    public AuditedMethodDispatchProvider(ResourceMethodDispatchProvider provider, Logger logger,
+            boolean requireRemoteIPAddressInformation)
+    {
+        log.info(" ---- AuditedMethodDispatchProvider Constructor -------");
+
+        this.requireRemoteIPAddressInformation = requireRemoteIPAddressInformation;
+        this.logger = Preconditions.checkNotNull(logger);
+        this.provider = Preconditions.checkNotNull(provider);
+    }
+
+    public RequestDispatcher create(AbstractResourceMethod abstractResourceMethod)
+    {
+        log.info(" ---- AuditedMethodDispatchProvider.create() -------");
+
+        final RequestDispatcher dispatcher = provider.create(abstractResourceMethod);
+        final Audited audited = abstractResourceMethod.getAnnotation(Audited.class);
+        if (audited != null)
+        {
+            return new AuditedMethodRequestDispatcher(dispatcher, logger, requireRemoteIPAddressInformation);
+        }
+        return dispatcher;
+    }
+
+
+    @Provider
+    public static class AuditedMethodDispatcherAdapter implements ResourceMethodDispatchAdapter
+    {
+
+        @Override
+        public ResourceMethodDispatchProvider adapt(ResourceMethodDispatchProvider provider) {
+            return new AuditedMethodDispatchProvider(provider, auditLogger, false);
+        }
+
+    }
+}
+
+Service#run
+-----------
+
+        // add audit provider
+        environment.addProvider(AuditedMethodDispatcherAdapter.class);
+
+
+Audited.java
+------------
+
+package test.dropwizard.audit;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Audited {}
+
+
+
+Annotating resource
+-------------------
+
+    @GET
+    @Timed
+    @Audited
+    public Saying sayHello(@QueryParam("name") Optional<String> name)
+    {
+        return new Saying(
+                counter.incrementAndGet(),
+                String.format(template, name.or(defaultName))
+        );
+    }
+
+
+
+
+==============================================================================
+
+    Securing Dropwizard with Apache Shiro
+    *************************************
+
+http://blog.silb.no/shiro-securing-dropwizard.html
+
+Shiro Upcoming Features
+-----------------
+
+* Cleaner Web Filter mechanism that allows more pluggable filtering support without subclassing.
+
+* More pluggable default Realm implementations favoring composition over inheritance. You will be able to plug in components that look up authentication and authorization data instead of requiring that you subclass a Shiro Realm implementation
+
+* Robust OpenID and OAuth (and possibly Hybrid) client support
+
+* Captcha support
+
+* Easier configuration for 100% stateless applications (e.g. many REST environments).
+
+* Multi-stage authentication via a request/response protocol.
+
+* Coarse-grained authorization via an AuthorizationRequest.
+
+* ANTLR grammar for security assertion queries (e.g. (‘role(admin) && (guest || !group(developer))’)
+
+
+==============================================================================
+
+    Servlet Filters
+    ***************
+
+In Dropwizard, servlet filters can be added in the run method:
+
+    environment.addFilter(SomeFilter, "/*");
+
+
+A servlet filter is an object that can intercept HTTP requests targeted at your web application.
+
+http://tutorials.jenkov.com/java-servlets/servlet-filters.html
+
+A servlet filter can intercept HTTP requests both for servlets, JSP's, HTML files or other static content.
+
+In order to implement a servlet filter, ou must implement the javax.servlet.Filter interface.
+
+    import javax.servlet.*;
+    import java.io.IOException;
+
+    /**
+
+     */
+    public class SimpleServletFilter implements Filter {
+
+        public void init(FilterConfig filterConfig) throws ServletException {
+        }
+
+        public void doFilter(ServletRequest request, ServletResponse response,
+                             FilterChain filterChain)
+        throws IOException, ServletException {
+
+        }
+
+        public void destroy() {
+        }
+    }
+
+
+When a HTTP request arrives at your web application, the filter can inspect the request URI, the request parameters and the request headers, and based on that decide if it wants to block or forward the request to the target servlet, JSP, etc..
+
+It is the doFilter() method that does the interception.
+
+    public void doFilter(ServletRequest request, ServletResponse response,
+                         FilterChain filterChain)
+    throws IOException, ServletException {
+
+        String myParam = request.getParameter("myParam");
+
+        if(!"blockTheRequest".equals(myParam)){
+            filterChain.doFilter(request, response);
+        }
+    }
+
+
+You can also write a different response back to the browser.  Just use the ServletResponse object to do so, just like you would inside a servlet.
+
+You may have to cast the ServletResponse to a HttpResponse to obtain a PrintWriter from it.
+Otherwise, you only have the OutputStream available via getOutputStream().
+
+    public void doFilter(ServletRequest request, ServletResponse response,
+                         FilterChain filterChain)
+    throws IOException, ServletException {
+
+        String myParam = request.getParameter("myParam");
+
+        if(!"blockTheRequest".equals(myParam)){
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        HttpResponse httpResponse = (HttpResponse) response;
+        httpResponse.getWriter().write("a different response... e.g in HTML");
+    }
+
+==============================================================================
+
+    Serving static assets with Dropwizard
+    *************************************
+
+
+http://spin.atomicobject.com/2014/10/11/serving-static-assets-with-dropwizard/
+
+    I was able to accomplish what I wanted and serve both my JavaScript app and my REST backend from the same DropWizard application.
+
+
+
+
+==============================================================================
+
+
+
+    Logging maxFileSize
+    *******************
+
+https://groups.google.com/forum/#!topic/dropwizard-user/DAxf1eaRkik
+
+
+Q:  I can tell maxFileSize is not there anymore. Is there anyway I can still rotate the log files based on file size to not break the old contract?
+
+A: Dropwizard, after 0.4.0, only supports rolling logs by time.
+
+
+==============================================================================
+
+
+    graceful shutdown
+    ******************
+
+ https://groups.google.com/forum/#!topic/dropwizard-user/ioISsbm1Mh0
+ https://groups.google.com/forum/#!msg/dropwizard-user/Q1gDWJctuXQ/82ao7ac0TyAJ
+
+This is how the dropwizard architect describes the shutdown sequence here:
+
+The ideal shutdown sequence is:
+
+1. The server socket is closed.
+2. The server thread pool quiesces, handling all in-flight requests.
+3. All managed objects are notified that the system is shutting down.
+
+This is what Dropwizard does.
+
+
+On a related note, here is a discussion capturing the following recommendations:
+
+ I'm still sticking with SIGTERM. It's a portable POSIX-compliant method with an existing, defined, known security model and operational affordances.
+
+On UNIX, I'd suggest kill -2.
+
+
+
+
+Also here
+
+three questions…
+1.  Should I expect Dropwizard to shutdown by default when it retrieves a SIGINT?
+2.  If it receives a SIGTERM will any running requests continue to run until they complete, but no additional requests are taken (i.e. graceful shutdown)?
+3.  What is the suggested signal to send for a graceful shutdown ?
+
+They're equivalent:
+
+http://www.oracle.com/technetwork/java/javase/signals-139944.html
+
+1. Yes.
+2. Yes.
+3. All shutdowns are graceful. For 0.6, the grace is just a sleep before terminating the thread pool. For 0.7, Jetty 9 just waits for all requests to complete.
+
+
+
+The above of course applies to any business transactions handled thru Jetty (the web server).
+For anything that isn’t going through Jetty, there’s  Managed API (the component you want managed must implement Managed interface and added as such to the environment):
+E.g.
+
+                     QuartzManager qm = new QuartzManager(sf);
+                     environment.manage(qm);
+                     environment.addHealthCheck(new QuartzHealthCheck(qm));
+
+
+==============================================================================
+
+    Variable Substitution
+    *********************
+
+Out of the box, dropwizard supports environment variables injection into configuration
+http://www.dropwizard.io/manual/core.html#environment-variables
+
+    NOTE: do not confuse env vars with system properties
+
+        system properties
+
+            are set on the java command line using the '-Dproperty.name=value' syntax
+            and accessed at runtime using System.getProperty("property.name")
+            or can be set at runtime System.setProperty(name, value)
+
+        environment variables
+
+            are set in the OS
+                Windows: set DW_DEFAULT_NAME=Weirdo
+                Linux  : export DW_DEFAULT_NAME=Weirdo
+
+            cannot be set at runtime
+
+The dropwizard-configuration module also provides the capabilities to substitute configuration settings with the value of environment variables using a SubstitutingSourceProvider and EnvironmentVariableSubstitutor.
+
+public class MyApplication extends Application<MyConfiguration> {
+    // [...]
+    @Override
+    public void initialize(Bootstrap<MyConfiguration> bootstrap) {
+        // Enable variable substitution with environment variables
+        bootstrap.setConfigurationSourceProvider(
+                new SubstitutingSourceProvider(bootstrap.getConfigurationSourceProvider(),
+                                                   new EnvironmentVariableSubstitutor()
+                )
+        );
+
+    }
+
+    // [...]
+}
+
+The configuration settings which should be substituted need to be explicitly written in the configuration file and follow the substitution rules of StrSubstitutor from the Apache Commons Lang library.
+
+    mySetting: ${DW_MY_SETTING}
+    defaultSetting: ${DW_DEFAULT_SETTING:-default value}
+
+
+> cmd /C "set DW_DEFAULT_NAME=Weirdo && java -jar target\dropwizard-example-0.9.0-SNAPSHOT.jar server example.yml"
+
+
+In general SubstitutingSourceProvider isn’t restricted to substitute environment variables but can be used to replace variables in the configuration source with arbitrary values by passing a custom StrSubstitutor implementation.
+
+---------------------------------------------------------------------------------------------
+
+    Other solutions
+    ----------------
+Environment Specific Configuration Management
+https://groups.google.com/forum/#!topic/dropwizard-user/AOFp2MUSYSY
+
+
+https://groups.google.com/forum/#!topic/dropwizard-user/do2nsoUbP-w
+
+
+A:
+
+     For Dropwizard we created a simple ConfigurationSourceProvider which performs substitution of env vars in the YAML, e.g.
+
+    something:
+      test_dir: ${HOME}/test
+
+    We then launch our dropwizard app on each production server with a wrapper shell script that sets all required vars, e.g.
+
+    ./env.sh java -jar app.jar server config.yml
+
+
+----------------------------------------------------------
+
+Other options:
+
+minisu/Dropwizard-EnvVar-Interpolation
+https://github.com/minisu/Dropwizard-EnvVar-Interpolation
+
+tkrille/dropwizard-template-config
+https://github.com/tkrille/dropwizard-template-config
+
+
+==============================================================================
+
+
+    Add Jetty Servlet to Dropwizard
+    ********************************
+
+
+    Deploy a Servlet into Dropwizard
+    *********************************
+
+Q:
+
+    I need to add jetty servlet into my already existing server implemented using dropwizard framework.
+
+    To be more specific:
+
+        1. I have a restful resource Foo mapped to url "localhost:8080/foo" with CRUD operations.
+        2. Now I need a jetty servlet mapped to url "localhost:8080/bar" and handles all requests to this url (mainly GET and POST).
+
+A:
+
+    If you're using Dropwizard 0.6.2 you should be able to do something like this in your run method:
+
+    ServletBuilder builder = environment.addServlet(myServlet, "/bar");
+
+    If you're using Dropwizard 0.7.0 try this:
+
+    environment.getApplicationContext().addServlet("org.example.MyServlet", "/bar");
+
+        @Override
+        public void run(ApplicationConfiguration configuration, Environment environment) throws Exception {
+            environment.servlets().addServlet("foo", MySerlvet.class).addMapping("/bar");
+        }
+
+
+        Setting init params could be a problem
+        **************************************
+
+if you have a servlet that needs init-param specified, like so
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd" id="WebApp_ID" version="3.0">
+      <display-name>emplist-web</display-name>
+
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+      </welcome-file-list>
+
+      <servlet>
+        <servlet-name>ODataServlet</servlet-name>
+        <servlet-class>org.apache.cxf.jaxrs.servlet.CXFNonSpringJaxrsServlet</servlet-class>
+
+        <init-param>
+          <param-name>javax.ws.rs.Application</param-name>
+          <param-value>org.apache.olingo.odata2.core.rest.app.ODataApplication</param-value>
+        </init-param>
+
+        <init-param>
+          <param-name>org.apache.olingo.odata2.service.factory</param-name>
+          <param-value>jv.proto.emplist.odata.EmployeeListServiceFactory</param-value>
+        </init-param>
+
+        <load-on-startup>1</load-on-startup>
+      </servlet>
+
+      <servlet-mapping>
+        <servlet-name>ODataServlet</servlet-name>
+        <url-pattern>/emplist.svc/*</url-pattern>
+      </servlet-mapping>
+
+    </web-app>
+
+
+this may be a problem in dropwizard.  See
+
+
+https://groups.google.com/forum/#!topic/dropwizard-user/2ezCzRMkd2A
+
+http://stackoverflow.com/questions/26528666/dropwizard-override-the-url-for-the-healthcheck-endpoint
+
+    None of these do anything for you:
+
+        environment.adminContext.setInitParameter("healthcheck-uri","/something")
+        environment.applicationContext.setInitParameter("healthcheck-uri","/something")
+        environment.servlets().setInitParameter("healthcheck-uri","/something")
+        environment.admin().setInitParameter("healthcheck-uri","/something")
+
+
+
+
+=============================================================================
+
+    Adding Resources to DW Admin Port
+    **********************************
+
+    DW v0.7.x
+    ----------
+    http://spin.atomicobject.com/2015/03/30/jersey-servlets-dropwizard/
+
+
+I recently ran into a situation where I wanted to add custom servlets to a Dropwizard application. Specifically, I wanted to add a Jersey servlet to the admin port of the application, to support some low level testing and admin functions. I also needed this servlet to support some of the built in Dropwizard things, like automatic serialization with Jackson and hibernate support.
+
+Figuring out how to wire all of this up required a fun romp through some scattered internet forums and a lot of Dropwizard source code. In the hopes that it might help others, I though I would share what I learned here.
+
+First off, here is all of the code needed to accomplish our goal.
+
+
+    DropwizardResourceConfig jerseyConfig = new DropwizardResourceConfig(environment.metrics());
+    JerseyContainerHolder servletContainerHolder = new JerseyContainerHolder(new ServletContainer(jerseyConfig));
+
+    environment.admin().addServlet(name, servletContainer.getContainer()).addMapping("/custom/*");
+
+    final FilterHolder holder = new FilterHolder(new GzipFilterFactory().build());
+    environment.getAdminContext().addFilter(holder, mountPoint, EnumSet.allOf(DispatcherType.class));
+
+    jerseyConfig.getSingletons().add(new JacksonMessageBodyProvider(Jackson.newObjectMapper(), environment.getValidator()));
+    jerseyConfig.getSingletons().add(new UnitOfWorkResourceMethodDispatchAdapter(hibernateBundle.getSessionFactory()));
+    jerseyConfig.getSingletons().add(new AdminResource(new AdminDAO()));
+
+
+1. Create new jersey servlet
+----------------------------
+
+The first thing to do is actually create the servlet container, which is exposed by Jersey. It only needs a configuration which is conveniently provided by Dropwizard.
+
+    DropwizardResourceConfig jerseyConfig = new DropwizardResourceConfig(environment.metrics());
+    JerseyContainerHolder servletContainerHolder = new JerseyContainerHolder(new ServletContainer(jerseyConfig));
+
+The configuration provided by Dropwizard enables logs of useful features, out of the box, like logging of resource endpoints and exception mappers.
+
+2. Add the servlet to the DW environment and map it
+----------------------------------------------------
+
+    environment.admin().addServlet(name, servletContainer.getContainer()).addMapping("/custom/*);
+
+3. Enable gzip
+---------------
+
+We need to add gzip filters so that incoming gzipped requests can be decoded.
+
+    final FilterHolder holder = new FilterHolder(new GzipFilterFactory().build());
+    environment.getAdminContext().addFilter(holder, mountPoint, EnumSet.allOf(DispatcherType.class));
+
+
+
+
+==============================================================================
+
+    Dropwizard Authentication
+    *************************
+
+http://stackoverflow.com/questions/27392224/dropwizard-auth-by-example
+
+
+
+https://github.com/stevenalexander/dropwizard-security
+
+https://github.com/StanSvec/dropwizard-authorization
+
+
+http://clearthehaze.com/2014/07/basicauthentication-with-angularjs-and-dropwizard/
+
+==============================================================================
+
+    Resource Test
+    *************
+https://groups.google.com/forum/#!topic/dropwizard-user/ZxVdth7kzUo
+
+If you want to spin up a full-fledged service instance from a config file, use DropwizardServiceRule.
+
+If you want to use ResourceTest, it should look like this: https://gist.github.com/codahale/225ccc8c0abc58e10db0
+
+public class MyResourceTest {
+    private final MyDatabase myDatabase = new MyDatabase("jdbc:mysql://whatever");
+    private final MyResource myResource = new MyResource(myDatabase);
+
+    @Override
+    protected void setUpResources() throws Exception {
+        addResource(myResource);
+    }
+
+    @Before
+    public void setUp() throws Exception {
+        myDatabase.start();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        myDatabase.stop();
+    }
+
+    @Test
+    public void doesImportantStuff() {
+        // etc.
+    }
+}
+==============================================================================
+
+    Configuring Jackson
+    *******************
+
+How do I configure Jackson to use snake case instead of putting @JsonSnakeCase in every class?
+
+    environment.getObjectMapper().setPropertyNamingStrategy(
+        PropertyNamingStrategy.CAMEL_CASE_TO_LOWER_CASE_WITH_UNDERSCORES);
+
+==============================================================================
+
+    encrypted-config-value-bundle
+    *****************************
+
+http://jcenter.bintray.com/com/palantir/config/crypto/
+
+  ---------------
+
+  Dropwizard 1.x
+  ---------------
+
+Note - a separate project for Dropwizard 1.x compatibility:
+
+http://jcenter.bintray.com/com/palantir/config/crypto/encrypted-config-value-bundle-dropwizard1/
+
+  <groupId>com.palantir.config.crypto</groupId>
+  <artifactId>encrypted-config-value-bundle-dropwizard1</artifactId>
+  <version>1.0.2</version>
+
+
+--------------------------------------------------------------------------------
+
+This bundle is available on the 3rd Party Modules page:
+
+    http://modules.dropwizard.io/thirdparty/
+
+This maven dependency is hosted on Bintray:
+
+https://dl.bintray.com/bintray/jcenter/com/palantir/config/crypto/encrypted-config-value-bundle/
+
+So make sure Bintray JCenter is proxied thru your Sonatype Nexus.
+
+
+  Dropwizard pre 1.x
+  ------------------
+
+<dropwizard-encrypted-config.version>0.1.1</dropwizard-encrypted-config.version>
+
+        <dependency>
+            <groupId>com.palantir.config.crypto</groupId>
+            <artifactId>encrypted-config-value-bundle</artifactId>
+            <version>${dropwizard-encrypted-config.version}</version>
+        </dependency>
+
+Add the bundle:
+
+  @Override
+  public void initialize(Bootstrap<HelloDropwizardConfiguration> bootstrap) {
+    // add encrytped-config-value-bundle
+    bootstrap.addBundle(new EncryptedConfigValueBundle());
+  }
+
+then
+
+> mvn clean package
+
+Now, you can run the following commands:
+
+HELP
+****
+>java -jar target\hello-dropwizard-1.0.0-SNAPSHOT.jar generate-random-key -h
+
+
+    usage: java -jar hello-dropwizard-1.0.0-SNAPSHOT.jar
+           generate-random-key -a ALGORITHM [-f FILE] [-h]
+
+    Generates a random key for encrypting config values
+
+    optional arguments:
+      -a ALGORITHM, --algorithm ALGORITHM
+                             The algorithm  to  use  (see  https://docs.oracle.
+                             com/javase/7/docs/technotes/guides/security/StandardNames.
+                             html#KeyGenerator)
+      -f FILE, --file FILE   The  location   to   write   the   key.  (default:
+                             var/conf/encrypted-config-value.key)
+      -h, --help             show this help message and exit
+    argument -a/--algorithm is required
+
+    usage: java -jar hello-dropwizard-1.0.0-SNAPSHOT.jar
+           generate-random-key -a ALGORITHM [-f FILE] [-h]
+
+    Generates a random key for encrypting config values
+
+    optional arguments:
+      -a ALGORITHM, --algorithm ALGORITHM
+                             The algorithm  to  use  (see  https://docs.oracle.
+                             com/javase/7/docs/technotes/guides/security/StandardNames.
+                             html#KeyGenerator)
+      -f FILE, --file FILE   The  location   to   write   the   key.  (default:
+                             var/conf/encrypted-config-value.key)
+      -h, --help             show this help message and exit
+
+
+
+        ********** GENERATE RANDOM KEY *************
+
+    usage: java -jar hello-dropwizard-1.0.0-SNAPSHOT.jar
+           generate-random-key -a ALGORITHM [-f FILE] [-h]
+
+
+AES Example
+-----------
+
+>java -jar target\hello-dropwizard-1.0.0-SNAPSHOT.jar generate-random-key -a AES -f encrypted-config-value.key
+Wrote key to encrypted-config-value.key
+
+RSA Example
+-----------
+
+>java -jar target\hello-dropwizard-1.0.0-SNAPSHOT.jar generate-random-key -a RSA -f encrtyped-config-value.key
+Wrote key to encrtyped-config-value.key
+Wrote private key to encrtyped-config-value.key.private
+
+
+        ********** ENCRYPT CONFIG VALUE **********
+
+
+    usage: java -jar hello-dropwizard-1.0.0-SNAPSHOT.jar
+           encrypt-config-value [-k KEYFILE] -v VALUE [-h]
+
+    Encrypts a config value so that it can be stored securely
+
+    optional arguments:
+      -k KEYFILE, --keyfile KEYFILE
+                             The location of the  (private)  key file (default:
+                             var/conf/encrypted-config-value.key)
+      -v VALUE, --value VALUE
+                             The value to encrypt
+      -h, --help             show this help message and exit
+    argument -v/--value is required
+    usage: java -jar hello-dropwizard-1.0.0-SNAPSHOT.jar
+           encrypt-config-value [-k KEYFILE] -v VALUE [-h]
+
+    Encrypts a config value so that it can be stored securely
+
+    optional arguments:
+      -k KEYFILE, --keyfile KEYFILE
+                             The location of the  (private)  key file (default:
+                             var/conf/encrypted-config-value.key)
+      -v VALUE, --value VALUE
+                             The value to encrypt
+      -h, --help             show this help message and exit
+
+AES Example
+-----------
+
+E.g.
+>java -jar target\hello-dropwizard-1.0.0-SNAPSHOT.jar encrypt-config-value -k encrypted-config-value.key -v Sunny01
+enc:gFyl0BIE147ELkq2B047ZdKPvhRpDOotOx10AxaGPrgh6PG+PMdZweRWa+rl41G71veKAYg1ig==
+
+RSA Example
+-----------
+note: you are not passing the private key (.private) explicitly into this command:
+
+
+>java -jar target\hello-dropwizard-1.0.0-SNAPSHOT.jar encrypt-config-value -k .\encrtyped-config-value.key -v Sunny01
+enc:PoANvFJ4eVEng/ViY1hf+D+f1lQk/6RfEWDeduAIUcEyDwav/sWrI6QDsG93/56cAgwW+UYH3xm6k0WSBlKVbIVcQsEqdjIgqh9pK5MUCAcadgPrgnjmh/ZXhDT6ZbX8IBKgI/bKAImjyMVn1WfnPLK4D6YPMD9mAMi2hG8Im2kvRwKUkgZ1gKKtp3zRFcM+M+5wIMoutS+qB7px5mMMJinePSBem35uJHjSIdknPlGY3LXZ15QqEvImwM4ihcxIE2uxBbvS7t6pseRUubUw01qUTJcCYb3vfhVjbTkoMEFgtyHfRv2LqzLm7FSdOspFJethN8Lmwd46qlc0NyWVbQ==
+
+
+
+==============================================================================
+
+    Dropwizard testing with dropwizard-client
+    *****************************************
+
+-----------------------------------------------------------------------
+    duplicate metric issue
+    **********************
+
+In UnitTest using DW class rule:
+
+  @ClassRule
+  public static final DropwizardAppRule<MemberUpdateServiceConfiguration> DW_RULE = new DropwizardAppRule<MemberUpdateServiceConfiguration>(
+      MemberUpdateService.class,
+      ResourceHelpers.resourceFilePath("config/MemberUpdateServiceTest-config.yml")
+  );
+
+and then creating a DW client in each TestCase:
+
+    Client client = new JerseyClientBuilder(DW_RULE.getEnvironment()).build("test member-update service client");
+
+This generates an error like this:
+
+java.lang.IllegalArgumentException: A metric named     org.apache.http.conn.HttpClientConnectionManager.test-client.available-connections already exists
+
+in the test case that runs 2nd.
+
+
+A:
+
+    move client creation to @BeforeClass so that one instance of client exists
+
+  @BeforeClass
+  public static void beforeClass() {
+    client = new JerseyClientBuilder(DW_RULE.getEnvironment()).build("test member-update service client");
+  }
+
+-----------------------------------------------------------------------
+
+
+==============================================================================
+
+  Dropwizard in a different JEE container
+  ***************************************
+
+Discussion:
+https://groups.google.com/forum/#!topic/dropwizard-user/sSl11jOk5YY
+
+3rd party
+https://github.com/rvs-fluid-it/wizard-in-a-box
+
+==============================================================================
+
+  Print HTTP headers
+  *******************
+
+List of HTTP header fields:
+https://en.wikipedia.org/wiki/List_of_HTTP_header_fields
+
+
+/**
+ * Product resource
+ */
+@Path("/products")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class ProductResource {
+
+  private static final Logger log = LoggerFactory.getLogger(ProductResource.class);
+
+  @GET
+  public List<String> getProducts(@Context HttpHeaders httpHeaders) {
+
+    log.info("--------------- Request for getProducts --------------");
+
+    for (String header : httpHeaders.getRequestHeaders().keySet()) {
+      log.info("header: {} = {}", header, httpHeaders.getRequestHeaders().get(header));
+    }
+  }
+}
+
+==============================================================================
+  Enabling CORS in Dropwizard
+  ****************************
+
+Worked in dW 0.7.1, 0.9.2
+
+  @Override
+  public void run(MdmProductServiceConfiguration mdmProductServiceConfiguration, Environment environment)
+      throws Exception {
+
+    // enable CORS headers
+    final FilterRegistration.Dynamic cors = environment.servlets().addFilter("CORS", CrossOriginFilter.class);
+
+    // configure CORS parameters
+    cors.setInitParameter(CrossOriginFilter.ALLOWED_ORIGINS_PARAM, "*");
+    cors.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, "X-Requested-With,Content-Type,Accept,Origin");
+    cors.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, "OPTIONS,GET,PUT,POST,DELETE,HEAD");
+
+    // add URL mapping
+    cors.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), true, "/*");
+
+
+    // register resources
+    final ProductResource productResource = new ProductResource();
+    environment.jersey().register(productResource);
+  }
+
+To verify with curl:
+
+$ curl \
+      -H "Origin: http://example.com" \
+      -H "Access-Control-Request-Method: POST" \
+      -H "Access-Control-Request-Headers: X-Requested-With" \
+      -X OPTIONS \
+      --verbose \
+      http://localhost:10080
+
+
+
+C:\ws>curl -H "Origin: http://example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: X-Requested-With" -X OPTIONS --verbose http://localhost:10080
+* Rebuilt URL to: http://localhost:10080/
+*   Trying 127.0.0.1...
+* Connected to 127.0.0.1 (127.0.0.1) port 3128 (#0)
+> OPTIONS http://localhost:10080/ HTTP/1.1
+> Host: localhost:10080
+> User-Agent: curl/7.48.0
+> Accept: */*
+> Origin: http://example.com
+> Access-Control-Request-Method: POST
+> Access-Control-Request-Headers: X-Requested-With
+>
+< HTTP/1.1 200 OK
+< Date: Thu, 22 Dec 2016 20:56:06 GMT
+< Access-Control-Allow-Origin: http://example.com
+< Access-Control-Allow-Credentials: true
+< Access-Control-Max-Age: 1800
+< Access-Control-Allow-Methods: OPTIONS,GET,PUT,POST,DELETE,HEAD
+< Access-Control-Allow-Headers: X-Requested-With,Content-Type,Accept,Origin
+< Allow: GET, HEAD, TRACE, OPTIONS
+< Content-Length: 0
+< Proxy-Connection: keep-alive
+< Connection: keep-alive
+<
+* Connection #0 to host 127.0.0.1 left intact
+
+
+CORS filter in 1.0.0 vs 0.9.2
+-----------------------------
+https://github.com/dropwizard/dropwizard/issues/1487
+
+In version 0.9.2 it looked like that:
+
+        FilterRegistration.Dynamic filter = environment.servlets().addFilter("CORSFilter", CrossOriginFilter.class);
+
+        filter.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), false, environment.getApplicationContext().getContextPath() + "*");
+
+and now for 1.0.0:
+
+        FilterRegistration.Dynamic filter = environment.servlets().addFilter("CORSFilter", CrossOriginFilter.class);
+
+        filter.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), false, "*");
+
+
+
+With HTTPS:
+
+  -k to work with self-signed certs
+
+
+
+$ curl -k -H "Origin: http://example.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: X-Requested-With" -X OPTIONS --verbose https://localhost:8080/web-user-context
+
+================================================================================
+
+  Jersey Filters
+  **************
+
+http://www.dropwizard.io/1.0.5/docs/manual/core.html
+
+There might be cases when you want to filter out requests or modify them before they reach your Resources. Jersey has a rich api for filters and interceptors that can be used directly in Dropwizard. You can stop the request from reaching your resources by throwing a WebApplicationException. Alternatively, you can use filters to modify inbound requests or outbound responses.
+
+@Provider
+public class DateNotSpecifiedFilter implements ContainerRequestFilter {
+    @Override
+    public void filter(ContainerRequestContext requestContext) throws IOException {
+        String dateHeader = requestContext.getHeaderString(HttpHeaders.DATE);
+
+        if (dateHeader == null) {
+            Exception cause = new IllegalArgumentException("Date Header was not specified");
+            throw new WebApplicationException(cause, Response.Status.BAD_REQUEST);
+        }
+    }
+}
+This example filter checks the request for the “Date” header, and denies the request if was missing. Otherwise, the request is passed through.
+
+Filters can be dynamically bound to resource methods using DynamicFeature:
+
+@Provider
+public class DateRequiredFeature implements DynamicFeature {
+    @Override
+    public void configure(ResourceInfo resourceInfo, FeatureContext context) {
+        if (resourceInfo.getResourceMethod().getAnnotation(DateRequired.class) != null) {
+            context.register(DateNotSpecifiedFilter.class);
+        }
+    }
+}
+The DynamicFeature is invoked by the Jersey runtime when the application is started. In this example, the feature checks for methods that are annotated with @DateRequired and registers the DateNotSpecified filter on those methods only.
+
+You typically register the feature in your Application class, like so:
+
+environment.jersey().register(DateRequiredFeature.class);
+
+
+  Servlet Filters
+  ***************
+
+Another way to create filters is by creating servlet filters. They offer a way to to register filters that apply both to servlet requests as well as resource requests. Jetty comes with a few bundled filters which may already suit your needs. If you want to create your own filter, this example demonstrates a servlet filter analogous to the previous example:
+
+public class DateNotSpecifiedServletFilter implements javax.servlet.Filter {
+    // Other methods in interface omitted for brevity
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        if (request instanceof HttpServletRequest) {
+            String dateHeader = ((HttpServletRequest) request).getHeader(HttpHeaders.DATE);
+
+            if (dateHeader != null) {
+                chain.doFilter(request, response); // This signals that the request should pass this filter
+            } else {
+                HttpServletResponse httpResponse = (HttpServletResponse) response;
+                httpResponse.setStatus(HttpStatus.BAD_REQUEST_400);
+                httpResponse.getWriter().print("Date Header was not specified");
+            }
+        }
+    }
+}
+This servlet filter can then be registered in your Application class by wrapping it in FilterHolder and adding it to the application context together with a specification for which paths this filter should active. Here’s an example:
+
+environment.servlets().addFilter("DateNotSpecifiedServletFilter", new DateNotSpecifiedServletFilter())
+      .addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
+
+
+
+
+================================================================================
+
+  Deploying DW microservices to a RHEL box
+  ****************************************
+
+
+Disabled firewalld per Adam
+
+                # systemctl stop firewalld
+                # systemctl disable firewalld
+
+
+Here is a list of changes that I would like to be persisted via RHEL7 image so this doesn’t have to be part of everyone’s “runbook”.
+
+1. disable firewalld
+2. do not install OpenJDK
+3. do install dos2unix
+
+
+
+
+1. Enhanced the description for Java microservice port assignment strategy:
+http://collab.standard.com/sites/Collaboration/AppEngCoE/devwiki/Pages/service-transport-port-number-registry.aspx
+
+2. Changed the encryption algorithm to “AES” (in the “3. Generate key for encrypted passwords encrtypion/decryption” section below)
+
+
+
+            Environment Setup
+            *****************
+
+1. Create 'pojogroup' GID
+
+  $ groupadd pojogroup
+
+2. Create parent directory for Java microservces
+
+  $ mkdir /apps/pojoapps               
+
+3. Create 'pojouser' UID
+
+  $ useradd -rM -d /home/pojouser -s /sbin/nologin -g pojogroup pojouser
+
+      -rM create a system user and do not create homedir
+      -d  homedir=/
+      -s  login shell = /sbin/nologin
+      -g  login group = pojogroup
+
+     create .profile and .bashrc in /home/pojouser and make sure (see below)
+
+        umask 007
+
+
+4. directory permissions 
+
+$ chmod 0770 /apps/pojoapps
+$ chgrp pojogroup /apps/pojoapps
+$ chmod g+s /apps/pojoapps  -> files created in this directory will in group 'pojogroup'
+
+whoever is member of 'pojogroup' MUST have umask set in their ~/.profile
+
+umask 007
+
+
+5. Keystores setup
+
+1. Create directories
+
+  $ mkdir -p /var/apps/shared/keystores/identity
+  $ mkdir -p /var/apps/shared/keystores/truststore
+
+2. Make them readable by group 'pojogroup'
+
+  # chgrp -R pojogroup /var/apps
+
+3. Change permissions so that root can Write, group - Read, world - None
+
+  # chmod -R 0750 /var/apps
+
+4. Copy keystore files and set permissions:
+
+  # ls -l ./identity/
+                
+  -rw-r----- 1 root pojogroup 4565 Mar 25 12:29 keystore.jks
+
+  # ls -l truststore/
+                
+  -rw-r----- 1 root pojogroup 2101 Mar 25 12:29 truststore.jks
+
+Permissions overview for each level of keystores path:
+
+[root@pdxlmicni001 apps]# ls -ld /var/apps
+drwxr-x--- 3 root pojogroup 4096 Mar 25 12:20 /var/apps
+[root@pdxlmicni001 apps]# ls -ld /var/apps/shared/
+drwxr-x--- 3 root pojogroup 4096 Mar 25 12:20 /var/apps/shared/
+[root@pdxlmicni001 apps]# ls -ld /var/apps/shared/keystores/
+drwxr-x--- 4 root pojogroup 4096 Mar 25 12:21 /var/apps/shared/keystores/
+[root@pdxlmicni001 apps]# ls -ld /var/apps/shared/keystores/truststore/
+drwxr-x--- 2 root pojogroup 4096 Mar 25 12:29 /var/apps/shared/keystores/truststore/
+
+[root@pdxlmicni001 apps]# ls -l /var/apps/shared/keystores/truststore/
+total 4
+-rw-r----- 1 root root 2101 Mar 25 12:29 truststore.jks
+
+[root@pdxlmicni001 apps]# ls -ld /var/apps/shared/keystores/identity/
+drwxr-x--- 2 root pojogroup 4096 Mar 25 12:29 /var/apps/shared/keystores/identity/
+
+[root@pdxlmicni001 apps]# ls -l /var/apps/shared/keystores/identity/keystore.jks 
+-rw-r----- 1 root root 4565 Mar 25 12:29 /var/apps/shared/keystores/identity/keystore.jks
+
+
+member-update-service Initial setup
+----------------------------------------------------------
+
+0. assume 'pojouser' identity
+
+  # su - -s /bin/bash pojouser
+
+1. Create service directory
+
+  $ mkdir /apps/pojoapps/member-update-service
+
+ [pojouser@pdxlmicni001 pojoapps]$ ls -ld /apps/pojoapps/member-update-service/
+   drwxrws--- 2 pojouser pojogroup 4096 Mar 25 12:51 /apps/pojoapps/member-update-service/                
+
+
+2. Deploy the service distro manually (the first time)
+
+  - Extract service startup script, JAR and config template out of service distro
+  - copy into the service directory
+                
+  $ mv config-template.yml config.yml
+
+  - convert the .sh script AND config.yml to UNIX format
+
+    $ dos2unix config.yml
+    $ dos2unix member-update-service.sh
+
+                - resolve the config template
+
+                                See below on service port assignment logic
+
+                NOTE:
+
+                                logs: 
+for now, logs are local to the service until we have the log share mounted
+                                dos2unix (for conversion from DOS to UNIX format): 
+was not installed on this Linux VM so installed it:
+                                                # yum install dos2unix
+
+
+3. Generate key for encrypted passwords encrtypion/decryption
+
+                [pojouser@pdxlmicni001 member-update-service]$ pwd
+                /apps/pojoapps/member-update-service
+                [pojouser@pdxlmicni001 member-update-service]$ mkdir -p var/conf
+                
+                $ java -jar member-update-service.jar generate-random-key -a AES
+                Wrote key to var/conf/encrypted-config-value.key
+                Wrote private key to var/conf/encrypted-config-value.key.private
+
+                Generate encrypted password value for any password in the config.yml
+
+                Example: generating for "secret"
+
+                [pojouser@pdxlmicni001 member-update-service]$ java -jar member-update-service.jar encrypt-config-value -v secret
+                
+                enc:+SeaZRBZ7RE24yI70KCtxM0+tyxfaYpdoI8NesjQw22jJCvfZE1v9v9+O0n9cjxDcuQ4sG6uqIZL9ak=
+
+                Update config.yml with encrypted passwords
+
+
+Set up OS-level Linux service for member-update-service
+----------------------------------------------
+
+RHEL7 systemd and systemctl are replacing ‘chkconfig’ and ‘service’ commands that we used for RHEL 6 and below.
+Supposedly, ‘chkconfig’ and ‘service’ are still supported (delegated to systemctl under the cover), and I tried to use them to setup the service, but in the end 
+                # service member-update-service stop | start | restart
+wasn’t functional… so I scraped that and had to learn systemd and systemctl (another 3 hrs I will never get back..)
+
+Here are the steps:
+
+1. create the unit file for "member-update-service" service
+
+  # touch /etc/systemd/system/member-update-service.service
+  # chmod 644 !$
+
+2. edit the unit file created above:
+
+# vi  /etc/systemd/system/member-update-service.service
+
+[Unit]
+Description=EBMR Member Update service
+After=syslog.target network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=oneshot
+ExecStart=/apps/pojoapps/member-update-service/member-update-service.sh start
+ExecReload=/apps/pojoapps/member-update-service/member-update-service.sh restart
+ExecStop=/apps/pojoapps/member-update-service/member-update-service.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
+
+3. Notify systemd that a new [service-name].service exists by
+
+  # systemctl daemon-reload
+
+
+4. Enable the service
+
+                # systemctl enable member-update-service.service
+
+5. Control the service
+
+                # systemctl start|stop|restart member-update-servie.service
+
+
+
+
+
+Removing OpenJDK and replacing with Oracle JDK 1.8
+------------------------------------------------------------------
+
+# yum list installed "java*"
+
+Installed Packages
+java-1.7.0-openjdk.x86_64                 1:1.7.0.95-2.6.4.0.el7_2         @rhel-x86_64-server-7
+java-1.7.0-openjdk-headless.x86_64        1:1.7.0.95-2.6.4.0.el7_2         @rhel-x86_64-server-7
+java-1.8.0-openjdk.x86_64                 1:1.8.0.71-2.b15.el7_2           @rhel-x86_64-server-7
+java-1.8.0-openjdk-headless.x86_64        1:1.8.0.71-2.b15.el7_2           @rhel-x86_64-server-7
+javapackages-tools.noarch                 3.4.1-11.el7                     @rhel-x86_64-server-7
+
+# yum remove [.. the above ..]
+
+Install latest Oracle Java 8
+
+> yum install /path/to/jdk..rpm
+
+# yum list installed "jdk*"
+Installed Packages
+jdk1.8.0_77.x86_64                    2000:1.8.0_77-fcs                     @/jdk-8u77-linux-x64
+
+# java -version
+java version "1.8.0_77"
+
+
+
+Openning up firewalld
+=======================
+
+# firewall-cmd --list-all
+public (default)
+  interfaces: 
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+# firewall-cmd --zone=public --permanent --add-port=9000-10999/tcp
+
+# firewall-cmd --zone=public --list-all
+public (default)
+  interfaces: 
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 9000-10999/tcp
+
+
+
+
+================================================================================
+
+  YAML Configuration Notes
+  ************************
+
+
+
+No validator could be found for constraint 'javax.validation.constraints.Size'
+-------------------------------------------------------------------------------
+
+http://stackoverflow.com/questions/5982741/error-no-validator-could-be-found-for-type-java-lang-integer
+
+Exception in thread "main" javax.validation.UnexpectedTypeException: HV000030: No validator could be found for constraint 'javax.validation.constraints.Size' validating type 'jv.demo.hellodropwizard.config.SsoConfiguration'. Check configuration for 'ssoConfiguration'  
+
+Caused by @NotEmpty
+
+  import org.hibernate.validator.constraints.NotEmpty;
+
+  Amazing how easy it is to unintentionally annotate an integer field with a @NotEmpty annotation. And then you get the less than helpful warning “No validator could be found for constraint 'javax.validation.constraints.Size' validating type 'java.lang.Integer'.”
+
+  @NotEmpty, being proprietary, should be avoided altogether. It can be replaced by @NotNull, @Range and @Size (depending on context)
+
+
+
+================================================================================
+
+  Apache HttpClient
+  *****************
+
+
+  Custom HTTP Header
+  ---------------------------------------------------------------
+
+    Set Header on Request – Before 4.3
+    ----------------------------------
+
+      You can set any custom header on a request with a simple setHeader call:
+
+      HttpClient client = new DefaultHttpClient();
+      HttpGet request = new HttpGet(SAMPLE_URL);
+      request.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      client.execute(request);
+
+
+    Set Header on Request – 4.3 and above
+    -------------------------------------
+
+      HttpClient 4.3 has introduced a new way of building requests – the RequestBuilder. To set a header, we will use the same, setHeader method – on the builder:
+
+
+        HttpClient client = HttpClients.custom().build();
+        HttpUriRequest request = RequestBuilder.get()
+          .setUri(SAMPLE_URL)
+          .setHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+          .build();
+        client.execute(request);  
+        
+    Set Default Header on the Client – 4.3 and above
+    ------------------------------------------------
+
+      Instead of setting the Header on each and every request, you can also configure it as a default header on the Client itself:
+
+        Header header = new BasicHeader(
+          HttpHeaders.CONTENT_TYPE, "application/json");
+        List<Header> headers = Lists.newArrayList(header);
+        HttpClient client = HttpClients.custom()
+          .setDefaultHeaders(headers).build();
+        HttpUriRequest request = RequestBuilder.get()
+          .setUri(SAMPLE_URL).build();
+        client.execute(request);      
+
+
+
+  Basic Authentication
+  ---------------------------------------------------------------
+
+    http://www.baeldung.com/httpclient-4-basic-authentication
+
+
+    Basic Authentication with the API
+    ---------------------------------
+      CredentialsProvider provider = new BasicCredentialsProvider();
+      UsernamePasswordCredentials credentials
+       = new UsernamePasswordCredentials("user1", "user1Pass");
+      provider.setCredentials(AuthScope.ANY, credentials);
+        
+      HttpClient client = HttpClientBuilder.create()
+        .setDefaultCredentialsProvider(provider)
+        .build();
+       
+      HttpResponse response = client.execute(
+        new HttpGet(URL_SECURED_BY_BASIC_AUTHENTICATION));
+      int statusCode = response.getStatusLine()
+        .getStatusCode();
+        
+      assertThat(statusCode, equalTo(HttpStatus.SC_OK));
+
+
+    The entire Client-Server communication is now clear:
+
+    the Client sends the HTTP Request with no credentials
+    the Server sends back a challenge
+    the Client negotiates and identifies the right authentication scheme
+    the Client sends a second Request, this time with credentials
+  
+
+  Preemptive Basic Authentication
+  -------------------------------
+
+  Out of the box, the HttpClient doesn’t do preemptive authentication – this has to be an explicit decision made by the client.
+
+  First, we need to create the HttpContext – pre-populating it with an authentication cache with the right type of authentication scheme pre-selected. This will mean that the negatiation from the previous example is no longer necessary – Basic Authentication is already chosen:
+
+    HttpHost targetHost = new HttpHost("localhost", 8080, "http");
+    CredentialsProvider credsProvider = new BasicCredentialsProvider();
+    credsProvider.setCredentials(AuthScope.ANY, 
+      new UsernamePasswordCredentials(DEFAULT_USER, DEFAULT_PASS));
+     
+    AuthCache authCache = new BasicAuthCache();
+    authCache.put(targetHost, new BasicScheme());
+     
+    // Add AuthCache to the execution context
+    final HttpClientContext context = HttpClientContext.create();
+    context.setCredentialsProvider(credsProvider);
+    context.setAuthCache(authCache);
+
+Now we can use the client with the new context and send the pre-authentication request:
+
+    HttpClient client = HttpClientBuilder.create().build();
+    response = client.execute(
+      new HttpGet(URL_SECURED_BY_BASIC_AUTHENTICATION), context);
+     
+    int statusCode = response.getStatusLine().getStatusCode();
+    assertThat(statusCode, equalTo(HttpStatus.SC_OK));
+
+Everything looks OK:
+
+the “Basic Authentication” scheme is pre-selected
+the Request is sent with the Authorization header
+the Server responds with a 200 OK
+Authentication succeeds
+
+
+
+================================================================================
+
+	ExceptionMapper with Dropwizard
+	*******************************
+https://dzone.com/articles/powerful-tactic-to-use-exception-mapper-in-dropwiz	
+
+When developing RESTful web services, people are often confused with handling exceptions. This post will explain a powerful tactic for using exception mapper with the Dropwizard framework. JAX-RS specification has already introduced exception mappers for handling such a situation in a great way.	
+
+
+There are three steps involved for achieving this:
+
+Introduce a custom exception
+Write an exception mapper for our newly introduced exception
+Throw the custom exception from our REST API
+
+Custom Exception
+---------------------
+
+public class DropwizardSkolException extends Throwable {
+    private int code;
+    public DropwizardSkolException() {
+        this(500);
+    }
+    public DropwizardSkolException(int code) {
+        this(code, "Error while processing the request", null);
+    }
+    public DropwizardSkolException(int code, String message) {
+        this(code, message, null);
+    }
+    public DropwizardSkolException(int code, String message, Throwable throwable) {
+        super(message, throwable);
+        this.code = code;
+    }
+    public int getCode() {
+        return code;
+    }
+}
+
+
+Exception Mapper
+-------------------------
+
+@Provider
+public class DropwizardSkolExceptionMapper implements ExceptionMapper<DropwizardSkolException> {
+    public Response toResponse(DropwizardSkolException exception) {
+        return Response.status(exception.getCode())
+                .entity(exception.getMessage())
+                .type(MediaType.TEXT_PLAIN)
+                .build();
+    }
+}
+
+
+REST API Changes
+-------------------------
+
+
+	@DELETE
+    @Path("{isbn}")
+    public Response delete(@PathParam("isbn") String isbn) throws DropwizardSkolException {
+        logger.info("Enters delete()");
+        if (!"1416562605".equals(isbn)) {
+            final DropwizardSkolException exception = new DropwizardSkolException(404, "Book with mentioned isbn is NOT found");
+            throw exception;
+        }
+        return Response.ok("Book is deleted successfully").build();
+    }
+
+
+Register the @Provider instance
+--------------------------------
+
+environment.jersey().register(new DropwizardSkolExceptionMapper());
+
+
+You will see the proper error message as a response when you hit the API with an error scenario. I hope this article has helped you to understand how we can use custom exceptions with REST API.
+
+
+================================================================================
+
