@@ -15,6 +15,59 @@ https://github.com/warumono-for-develop/spring-boot-oauth2-resource-server-tutor
 http://stytex.de/blog/2016/02/01/spring-cloud-security-with-oauth2/
 https://jugbd.org/2017/09/19/implementing-oauth2-spring-boot-spring-security/
 
+RFCs:
+
+https://tools.ietf.org/html/rfc7519
+
+
+JwtClaimsSetVerifier
+http://www.baeldung.com/spring-security-oauth-2-verify-claims
+
+================================================================================
+
+	oauth2
+	******
+The OAuth2 protocol is a delegated authz mechanism, where a client application
+requests access to resources controlled by the user (resource owner) and hosted
+by an API (resource server), and the authz server issues the client a more 
+restricted set of credentials than those of the user.
+
+
+	scopes
+	******
+Using scope parameter, you can:
+
+* let a client application authenticate users and add'l info about them.
+* implement granular access control to your API.
+  In this case, you need to define custom scopes for your API and add 
+  these newly-created scope to your scope request parameter.
+
+
+  claims
+  ******
+
+OIDC has a notion of claims.  There are two types of claims:
+
+1. Standard
+2. Custom
+
+
+Standard claims
+---------------
+
+These claims are user attributes and are intended to provide the client with
+user details such as email, name and picture.
+
+sub: 		subject, identifies the principal that is the subject of the JWT
+iss:		issuer, identifies the principal that issued the JWT
+aud:		audience, identifies the recipients that the JWT is intended for.
+exp:		expiration time, after which the JWT must not be accepted.
+nbf:		not before
+iat:		issued at, identifies the time at which the JWT was issued.
+jti:		JWT ID, a unique identifier for the JWT.
+
+
+
 
 ================================================================================
 
