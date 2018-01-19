@@ -1019,4 +1019,55 @@ public class SomeResourceController {
 
 ================================================================================
 
+	JwtClaimsSetVerifier
+	********************
+
+http://www.baeldung.com/spring-security-oauth-2-verify-claims
+
+
+  /**
+   * This JwtClaimsSetVerifier verifies that the JWT token contains a valid
+   * "user_name" claim.
+   */
+  public static class UserNameJwtClaimVerifier implements JwtClaimsSetVerifier {
+
+    @Override
+    public void verify(Map<String, Object> claims) throws InvalidTokenException {
+      String username = (String) claims.get("user_name");
+      log.debug("JWT 'user_name' claim: {}", username);
+      if ((username == null) || (username.length() == 0)) {
+        throw new InvalidTokenException("user_name claim is missing or empty.");
+      }
+    }
+  }
+
+  @Bean
+  public JwtClaimsSetVerifier jwtClaimsSetVerifier() {
+    return new UserNameJwtClaimVerifier();
+  }
+
+//  @Bean
+//  public JwtClaimsSetVerifier jwtClaimsSetVerifier() {
+//    return new DelegatingJwtClaimsSetVerifier(Arrays.asList(
+//        new UserNameJwtClaimVerifier()
+//    ));
+//  }
+
+
+  /**
+   * JWT token converter allows us to apply our signing key to enable token validation.
+   * @return JwtAccessTokenConverter token converter
+   */
+  @Bean
+  public JwtAccessTokenConverter accessTokenConverter() {
+    JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+    converter.setSigningKey(signingKey);
+    converter.setAccessTokenConverter(new JwtConverter());
+    converter.setJwtClaimsSetVerifier(jwtClaimsSetVerifier());
+    return converter;
+  }
+
+
+================================================================================
+
 
