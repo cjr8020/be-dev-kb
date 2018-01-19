@@ -1046,6 +1046,11 @@ http://www.baeldung.com/spring-security-oauth-2-verify-claims
     return new UserNameJwtClaimVerifier();
   }
 
+If you have several Verifiers, you can add them to 
+
+DelegatingJwtClaimsSetVerifier
+------------------------------
+
 //  @Bean
 //  public JwtClaimsSetVerifier jwtClaimsSetVerifier() {
 //    return new DelegatingJwtClaimsSetVerifier(Arrays.asList(
