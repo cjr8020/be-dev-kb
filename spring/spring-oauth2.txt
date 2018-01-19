@@ -364,6 +364,45 @@ public class HelloWorldWebSecurityConfiguration extends WebSecurityConfigurerAda
 	Authorization Server Configuration
 	**********************************
 
+
+Token Request
+-------------------------------------------------------------
+
+the client makes a request to the token endpoint by adding the following
+parameters using the "application/x-www-form-urlencoded" format:
+
+grant_type
+	REQUIRED  value must be set to "password"
+
+username
+	REQUIRED  resource owner username
+
+password
+	REQUIRED  resource owner password
+
+scope
+	OPTIONAL  scope of the access request 
+
+
+example:
+     POST /token HTTP/1.1
+     Host: server.example.com
+     Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+     Content-Type: application/x-www-form-urlencoded
+
+     grant_type=password&username=johndoe&password=A3ddj3w
+
+
+Spring OAuth2 Authn server also  supports BasicAuth header to allow
+trusted clients to authenticate themselves.
+Untrusted clients just provide their "clientID" in the username and leave password
+blank.
+
+
+Authn Server Configuration
+--------------------------------------------------------------
+
+
 As you configure the Authn Server, you have to consider the grant type that the
 client is to use to obtain an access token from the end-user, e.g.:
 
