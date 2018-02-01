@@ -7,6 +7,73 @@
 
 ================================================================================
 
+  CrudRepository
+  **************
+
+ typical CRUD functionality:
+
+save(…) – save an Iterable of entities. Here, we can pass multiple objects to save them in a batch
+findOne(…) – get a single entity based on passed primary key value
+findAll() – get an Iterable of all available entities in database
+count() – return the count of total entities in a table
+delete(…) – delete an entity based on the passed object
+exists(…) – verify if an entity exists based on the passed primary key value  
+
+  PagingAndSortingRepository
+  **************************
+
+public interface PagingAndSortingRepository<T, ID extends Serializable> 
+  extends CrudRepository<T, ID> {
+ 
+    Iterable<T> findAll(Sort sort);
+ 
+    Page<T> findAll(Pageable pageable);
+}
+
+This interface provides a method findAll(Pageable pageable), which is the key to implementing Pagination.
+
+When using Pageable, we create a Pageable object with certain properties and we’ve to specify at least:
+
+  Page size
+  Current page number
+  Sorting
+
+So, let’s assume that we want to show the first page of a result set sorted by lastName, ascending, having no more than five records each. This is how we can achieve this using a PageRequest and a Sort definition:
+
+  Sort sort = new Sort(new Sort.Order(Direction.ASC, "lastName"));
+  Pageable pageable = new PageRequest(0, 5, sort);
+
+Passing the pageable object to the Spring data query will return the results in question (the first parameter of PageRequest is zero-based).  
+
+
+  JpaRepository
+  *************
+
+public interface JpaRepository<T, ID extends Serializable> extends
+  PagingAndSortingRepository<T, ID> {
+ 
+    List<T> findAll();
+ 
+    List<T> findAll(Sort sort);
+ 
+    List<T> save(Iterable<? extends T> entities);
+ 
+    void flush();
+ 
+    T saveAndFlush(T entity);
+ 
+    void deleteInBatch(Iterable<T> entities);
+}  
+
+findAll() – get a List of all available entities in database
+findAll(…) – get a List of all available entities and sort them using the provided condition
+save(…) – save an Iterable of entities. Here, we can pass multiple objects to save them in a batch
+flush() – flush all pending task to the database
+saveAndFlush(…) – save the entity and flush changes immediately
+deleteInBatch(…) – delete an Iterable of entities. Here, we can pass multiple objects to delete them in a batch  
+
+================================================================================
+
 Entity class name is transformed into SQL table name with underscores
 *********************************************************************
 
