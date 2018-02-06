@@ -111,3 +111,29 @@ spring:
     show-sql: true
     
 ================================================================================
+
+	EmbeddedDatabaseBuilder
+	***********************
+
+https://docs.spring.io/spring/docs/3.0.x/spring-framework-reference/html/jdbc.html#jdbc-embedded-database-support	
+
+Spring provides `org.springframework.jdbc.datasource.embedded` package in 
+support of embedded Java database engines.  Support for
+ 
+ HSQL
+ H2
+ Derby
+
+is provided natively.
+
+The EmbeddedDatabaseBuilder class provides a fluent API for constructing an embedded database programmatically. Use this when you need to create an embedded database instance in a standalone environment, such as a data access object unit test:
+
+    EmbeddedDatabaseBuilder builder = new EmbeddedDatabaseBuilder();
+    EmbeddedDatabase db = builder.setType(H2).addScript("my-schema.sql").addScript("my-test-data.sql").build();
+    // do stuff against the db (EmbeddedDatabase extends javax.sql.DataSource)
+    db.shutdown()
+
+You could also create a DataSource bean 
+
+
+================================================================================

@@ -1058,6 +1058,16 @@ public class SomeResourceController {
 
 ================================================================================
 
+	
+	Spring Security stateleless JWT authentication - How to get other jwt fields?
+
+
+https://stackoverflow.com/questions/36721315/spring-security-stateleless-jwt-authentication-how-to-get-other-jwt-fields
+
+
+
+================================================================================
+
 	JwtClaimsSetVerifier
 	********************
 
