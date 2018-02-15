@@ -3327,3 +3327,190 @@ You will see the proper error message as a response when you hit the API with an
 
 ================================================================================
 
+  enable Basic Auth on management endpoint
+  ****************************************
+
+The admin servlet is a plain old servlet, not a Jersey resource.
+You can register a Jetty security handler.
+
+Example
+
+management:
+  securityEnabled: true
+  username: monitor
+  password: secret
+
+
+ManagementConfiguration
+-------------------------------------------
+
+public class ManagementConfiguration {
+
+  @JsonProperty
+  private boolean securityEnabled = true;
+
+  @JsonProperty
+  private String username;
+
+  @JsonProperty
+  private String password;
+
+  public boolean isSecurityEnabled() {
+    return securityEnabled;
+  }
+
+  public String getUsername() {
+    return username;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("securityEnabled", securityEnabled)
+        .add("username", username)
+        .add("password", password)
+        .toString();
+  }
+}
+
+
+
+
+
+DW 0.7 thru 0.9.x
+=================================
+
+
+AdminConstraintSecurityHandler
+--------------------------------------------
+
+
+import java.io.IOException;
+import org.eclipse.jetty.security.ConstraintMapping;
+import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.MappedLoginService;
+import org.eclipse.jetty.security.authentication.BasicAuthenticator;
+import org.eclipse.jetty.server.UserIdentity;
+import org.eclipse.jetty.util.security.Constraint;
+import org.eclipse.jetty.util.security.Password;
+
+
+/**
+ * Jetty security handler
+ */
+public class AdminConstraintSecurityHandler extends ConstraintSecurityHandler {
+
+  private static final String ADMIN_ROLE = "admin";
+
+  public AdminConstraintSecurityHandler(final String userName, final String password) {
+    final Constraint constraint = new Constraint(Constraint.__BASIC_AUTH, ADMIN_ROLE);
+    constraint.setAuthenticate(true);
+    constraint.setRoles(new String[]{ADMIN_ROLE});
+    final ConstraintMapping cm = new ConstraintMapping();
+    cm.setConstraint(constraint);
+    cm.setPathSpec("/*");
+    setAuthenticator(new BasicAuthenticator());
+    addConstraintMapping(cm);
+    setLoginService(new AdminMappedLoginService(userName, password, ADMIN_ROLE));
+  }
+}
+
+class AdminMappedLoginService extends MappedLoginService {
+
+  public AdminMappedLoginService(final String userName, final String password, final String role) {
+    putUser(userName, new Password(password), new String[]{role});
+  }
+
+  @Override
+  public String getName() {
+    return "Hello";
+  }
+
+  @Override
+  protected UserIdentity loadUser(final String username) {
+    return null;
+  }
+
+  @Override
+  protected void loadUsers() throws IOException {
+  }
+}
+
+
+Application class run() method
+-----------------------------------------
+
+  @Override
+  public void run(DemoConfiguration configuration, Environment environment)
+      throws Exception {
+
+    /*
+     * Management endpoint security
+     */
+    if (configuration.getManagement().isSecurityEnabled()) {
+      environment.admin().setSecurityHandler(
+          new AdminConstraintSecurityHandler(
+            configuration.getManagement().getUsername(),
+            configuration.getManagement().getPassword()
+        )
+      );
+    }
+
+
+DW 1.2.2
+=================================
+
+AdminConstraintSecurityHandler
+--------------------------------------------
+
+
+public class AdminConstraintSecurityHandler extends ConstraintSecurityHandler {
+
+    private static final String ADMIN_ROLE = "admin";
+
+    public AdminConstraintSecurityHandler(final String userName, final String password) {
+        final Constraint constraint = new Constraint(Constraint.__BASIC_AUTH, ADMIN_ROLE);
+        constraint.setAuthenticate(true);
+        constraint.setRoles(new String[]{ADMIN_ROLE});
+        final ConstraintMapping cm = new ConstraintMapping();
+        cm.setConstraint(constraint);
+        cm.setPathSpec("/*");
+        setAuthenticator(new BasicAuthenticator());
+        addConstraintMapping(cm);
+        setLoginService(new AdminLoginService(userName, password));
+    }
+
+    class AdminLoginService extends AbstractLoginService {
+
+        private final UserPrincipal adminPrincipal;
+        private final String adminUserName;
+
+        public AdminLoginService(final String userName, final String password) {
+            this.adminUserName = Objects.requireNonNull(userName);
+            this.adminPrincipal = new UserPrincipal(userName, new Password(Objects.requireNonNull(password)));
+        }
+
+
+        @Override
+        protected String[] loadRoleInfo(final UserPrincipal principal) {
+            if (adminUserName.equals(principal.getName())) {
+                return new String[]{ADMIN_ROLE};
+            }
+            return new String[0];
+        }
+
+        @Override
+        protected UserPrincipal loadUserInfo(final String userName) {
+            return adminUserName.equals(userName) ? adminPrincipal : null;
+        }
+    }
+}
+
+
+
+================================================================================
+
