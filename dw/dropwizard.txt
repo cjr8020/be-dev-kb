@@ -3441,8 +3441,8 @@ class AdminMappedLoginService extends MappedLoginService {
 }
 
 
-Application class run() method
------------------------------------------
+Application class run() method - set this SecurityHandler on admin servlet
+--------------------------------------------------------------------------------
 
   @Override
   public void run(DemoConfiguration configuration, Environment environment)
