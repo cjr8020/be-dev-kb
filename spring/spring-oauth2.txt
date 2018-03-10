@@ -1124,4 +1124,17 @@ DelegatingJwtClaimsSetVerifier
 
 ================================================================================
 
+	support for HS512 algorithm
+	---------------------------
 
+https://github.com/spring-projects/spring-security-oauth/issues/865
+
+you need a custom converter to be able to set up a signer with a non-default algorithm before this change
+
+
+https://stackoverflow.com/questions/48662899/hmacsha512-in-spring-oauth2-doesnt-work
+
+https://github.com/spring-projects/spring-security-oauth/issues/870
+
+
+================================================================================
