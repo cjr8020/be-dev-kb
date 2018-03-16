@@ -1145,3 +1145,48 @@ Because of that, our ThreadLocal will be shared among different userIds. That’
 
 ================================================================================
 
+	maven artifact version at runtime
+	*********************************
+
+https://stackoverflow.com/questions/2712970/get-maven-artifact-version-at-runtime
+
+should be able to use
+
+	getClass().getPackage().getImplementationVersion() 
+
+to get the version information stored in MANIFEST.MF
+
+	Manifest-Version: 1.0
+	Implementation-Version: 1.0.0-SNAPSHOT
+	Spring-Boot-Version: 1.5.9.RELEASE
+	Implementation-Vendor: Pivotal Software, Inc.
+	Main-Class: org.springframework.boot.loader.JarLauncher
+	Spring-Boot-Classes: BOOT-INF/classes/
+	Spring-Boot-Lib: BOOT-INF/lib/
+	Created-By: Apache Maven 3.3.9
+	Build-Jdk: 1.8.0_45
+
+If the correct is not written to the MANIFEST.MF by default:
+
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-jar-plugin</artifactId>
+    <configuration>
+        <archive>                   
+            <manifest>
+                <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+            </manifest>
+        </archive>
+    </configuration>
+</plugin>
+
+or if it is a WAR
+
+	maven-war-plugin 
+
+		same configuration
+
+
+================================================================================
+
