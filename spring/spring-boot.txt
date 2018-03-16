@@ -1108,3 +1108,40 @@ app using the library
 
 ================================================================================
 
+	ThreadLocal with REST
+	*********************
+
+http://www.baeldung.com/java-threadlocal	
+
+The TheadLocal construct allows us to store data that will be accessible only by a specific thread.
+
+Let’s say that we want to have an Integer value that will be bundled with the specific thread:
+
+	ThreadLocal<Integer> threadLocalValue = new ThreadLocal<>();
+
+Next, when we want to use this value from a thread we only need to call a get() or set() method.
+
+ThreadLocal stores data inside of a map – with the thread as the key.
+
+	threadLocalValue.set(1);
+	Integer result = threadLocalValue.get();
+
+with initial value:
+
+	ThreadLocal<Integer> threadLocal = ThreadLocal.withInitial(() -> 1);
+
+to remove a value from the ThreadLocal
+
+	threadLocal.remove();
+
+
+Do not use ThreadLocal with ExecutorService
+============================================
+
+If we want to use an ExecutorService and submit a Runnable to it, using ThreadLocal will yield non-deterministic results – because we do not have a guarantee that every Runnable action for a given userId will be handled by the same thread every time it is executed.
+
+Because of that, our ThreadLocal will be shared among different userIds. That’s why we should not use a TheadLocal together with ExecutorService. It should only be used when we have full control over which thread will pick which runnable action to execute.
+
+
+================================================================================
+
