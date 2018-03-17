@@ -1107,3 +1107,50 @@ app using the library
 
 
 ================================================================================
+
+	org.slf4j.MDC versus ThreadLocal<ExecutionContext>
+	**************************************************
+
+slf4j and logback/log4j offer MDC (Mapped Diagnostic Context).
+
+so, you could use 
+
+	MDC.put("executionContext", executionContext)
+
+and then 
+
+	%d %-5level [%thread] %logger [%X{executionContext}] %msg%n
+
+and all log entries will get the execution context injected into the log entry.
+
+Seems like a no-brainer.
+The docs say "MDC managed contextual information on a per thread basis".
+
+
+However, here are the reasons not to:
+
+1. Using MDC, makes execution context data available to the logging system, 
+   there may be other consumers of the execution context data for which
+   MDC is of no help.
+   In this case a use of a ExecutionContextHolder with 
+   ThreadLocal<ExecutionContext> will provide a more generic solution.
+
+2. I may not want the context data in EVERY log entry.
+
+3. Sounds like there is a concern with using MDC in a pooled thread env:
+
+MDC and Thread Pools: A Bad Combination
+http://ashtonkemerling.com/blog/2017/09/01/mdc-and-threadpools/
+
+	On paper you could generate a UUID per request, insert it into the MDC and presto you have a UUID per request in each log line! Since threads are created per request, the MDC will be empty each time.
+
+	Except, that’s not really how Java programming works these days. Threads are expensive, and so for the sake of efficiency modern Java aims to minimize the number of threads created. This means using non-blocking IO (NIO), or reusing threads via Thread Pools where possible, which avoids creating new threads. 
+
+	So, what happens to our MDC when we reuse threads? 
+	Well, we end up with the wrong MDC!
+
+For the above reasons, using your own ExecutionContextHolder may be a better idea
+for the moment.
+
+
+================================================================================

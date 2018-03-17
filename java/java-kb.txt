@@ -12,6 +12,8 @@
 	*********************
 
 http://www.baeldung.com/java-threadlocal	
+https://veerasundar.com/blog/2010/11/java-thread-local-how-to-use-and-code-sample/
+
 
 The TheadLocal construct allows us to store data that will be accessible only by a specific thread.
 
