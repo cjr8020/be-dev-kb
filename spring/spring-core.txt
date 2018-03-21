@@ -440,3 +440,50 @@ Output
 	WARNING: @Bean method MyConfig.myConfigBean is non-static and returns an object assignable to Spring's BeanFactoryPostPro
 
 ================================================================================
+
+	Configuration as a Service
+	**************************
+
+https://tuhrig.de/why-using-springs-value-annotation-is-bad/
+
+Usually
+
+	@Service
+	public class MyService {
+	 
+	    @Value("${my.config.property.key}")
+	    private String someConfigValue;
+	    
+	    //...
+	}	
+
+whenever you need some property, you will inject it. You will inject it in services, controllers and components and you will properly inject the same property in different classes.
+
+this means nothing else than scattering your configuration about your whole application. Every class can pick a couple of properties to use. You will have no idea or control which class is using which properties. You will end-up with doing a full text search on your project to find out where a single key is used. You will have a lot of fun if you want to rename one of those keys or when you need to set each and every property for each and every class in your unit tests.
+
+	Configuration as a Service
+	-------------------------
+
+Instead of this, configuration should be an encapsulated service of your application such as any other functionality, too. You encapsulate persistence in DAOs, you encapsulate REST services in controllers and you encapsulate security in authenticators. So why not encapsulating configuration?
+
+
+	@Service
+	public class ConfigurationService {
+	 
+	    @Value("${my.config.property.key}")
+	    private String someConfigValue;
+	 
+	    // getters, setters, sanity checks and so on...
+	}
+	 
+	@Service
+	public class MyService {
+	 
+	    @Autowire
+	    private ConfigurationService configurationService ;
+	    
+	    //...
+	}
+
+
+================================================================================
