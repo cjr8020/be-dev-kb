@@ -345,6 +345,39 @@ BeanDefinitionRegistryPostProcessor
 http://www.logicbig.com/tutorials/spring-framework/spring-core/bean-definition/
 
 @see note on PriorityOrdered
+https://stackoverflow.com/questions/41442683/beandefinitionregistrypostprocessor-how-to-register-a-configuration-class-as
+
+--------------------------------------------------------------------------------
+It is important that the postprocessor is @Configuraiton and
+is imported directly in the config, not defined in another @Configuration class:
+
+	@Configuration
+	public class MyFactoryPostProcessor implements BeanDefinitionRegistryPostProcessor, PriorityOrdered{
+
+	    @Override
+	    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
+	        BeanDefinition someConfig= new RootBeanDefinition("x.y.z.SomeConfig");
+	        registry.registerBeanDefinition("someConfig", enableOAuth2ClientBd);
+	    }
+
+	    @Override
+	    public int getOrder() {
+	        return Ordered.HIGHEST_PRECEDENCE;
+	    }
+	}
+
+and not like
+
+	@Configuration
+	public class BeanDefinitionFactoryTestConfig {
+
+	    @Bean
+	    public MyFactoryPostProcessor cc(){
+	        return new MyFactoryPostProcessor ();
+	    }   
+	}
+	-->> THIS WILL FAIL TO IMPORT THE BEANS<<--
+--------------------------------------------------------------------------------
 
 
 It allows for the registration of bean definitions. It's method postProcessBeanDefinitionRegistry is called before BeanFactoryPostProcessor#postProcessBeanFactory. 
@@ -438,6 +471,73 @@ beans have been initialized yet.
 Output
 	from MyBean:  my string property
 	WARNING: @Bean method MyConfig.myConfigBean is non-static and returns an object assignable to Spring's BeanFactoryPostPro
+
+
+
+	PriorityOrdered
+-------------------------------------------------------------------
+
+
+
+
+
+================================================================================
+
+	add Properties to ApplicationContext
+	************************************
+
+https://stackoverflow.com/questions/9294187/how-to-add-properties-to-an-application-context	
+
+Starting with Spring 3.1, you can implement your own PropertySource
+
+First, create your own PropertySource implementation:
+
+
+	private static class CustomPropertySource extends PropertySource<String> {
+
+	    public CustomPropertySource() {super("custom");}
+
+	    @Override
+	    public String getProperty(String name) {
+	        if (name.equals("myCalculatedProperty")) {
+	            return magicFunction();  //you might cache it at will
+	        }
+	        return null;
+	    }
+	}
+
+Now, add this PropertySource before refreshing the application context:
+
+	AbstractApplicationContext appContext =
+	    new ClassPathXmlApplicationContext(
+	        new String[] {"applicationContext.xml"}, false
+	    );
+	appContext.getEnvironment().getPropertySources().addLast(
+	   new CustomPropertySource()
+	);
+	appContext.refresh();
+
+or
+
+    //the real main app context has a link to the parent context
+    ctx.setParent(parent);
+    ctx.getEnvironment().getPropertySources().addLast(customPropertySource);
+    . . .
+    ctx.refresh();
+    ctx.registerShutdownHook();
+    ctx.start();
+
+and now you can reference your new property in Spring:
+
+
+	@Value("${myCalculatedProperty}")
+	private String magic;
+
+	@PostConstruct
+	public void init() {
+	    System.out.println("Magic: " + magic);
+	}
+
 
 ================================================================================
 
