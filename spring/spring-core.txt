@@ -7,6 +7,139 @@
 
 ================================================================================
 
+	@Resource  @Inject @Autowire
+	****************************
+
+These annotations provide classes with a declarative way to resolve dependencies.
+
+Two of the three annotations belong to the Java extension package: 
+
+	javax.annotation.Resource and 
+	javax.inject.Inject. 
+
+The @Autowired annotation belongs to 
+
+	org.springframework.beans.factory.annotation
+
+
+@Inject: 
+
+	Annotation based on JSR-330 (Dependency Injection for Java) identifies 
+	injectable constructors, methods, and fields. 
+
+	This annotation is an almost complete drop-in replacement for 
+	Spring’s @Autowired annotation. 
+
+	So, instead of using the Spring-specific @Autowired annotation, 
+	you might choose to use @Inject.
+
+	One of the differences between @Autowired and @Inject is that 
+	@Inject does not have the required field so in case we fail 
+	to find a suitable object to injected it will fail 
+	while @Autowired can used required=false and allow null able field (only if required!). 
+
+	Advantage of @Inject annotation is that rather than inject a reference directly, 
+	you could ask @Inject to inject a Provider. 
+
+	The Provider interface enables, among other things, lazy injection of bean references 
+	and injection of multiple instances of a bean. 
+	In case we have few implementations of an interface or a subclass 
+	we can narrow down the selection using the @Named annotation to avoid ambiguity. 
+	@Named annotation works much like Spring’s @Qualifier
+
+
+@Autowired: 
+
+	spring propriety annotation (as opposed to @Inject and @Resource) that inject a resource by-type, i.e. by the class of by the interface of the annotated field or contractor. 
+
+	In case we have few implementation of an interface or a subclass we can narrow down the selection using the @Qualifier annotation to avoid ambiguity. For a fallback match, the bean name is considered a default qualifier value. Although you can use this convention to refer to specific beans by name, @Autowired is fundamentally about type-driven injection with optional semantic qualifiers.
+
+@Resource: 
+
+	annotation based on JSR-250. 
+	@Resource is quite similar to @Autowired and @Inject, but the main difference 
+	is the execution paths taken to find out the required bean to inject. 
+
+	@Resource will narrow down the search first by name then by type and 
+	finally by Qualifiers (ignored if match is found by name). 
+
+	@Autowired and @Inject will narrow down the search first by type 
+	then by qualifier and finally by the name.
+
+
+================================================================================
+
+
+	@Resource
+---------------------------------------
+
+Field injection
+
+	Resolving dependencies by field injection is achieved by annotating an instance variable with the @Resource annotation.	
+
+	    @Resource(name="namedFile")
+	    private File defaultFile;
+
+This configuration will resolve dependencies using the match-by-name execution path. The bean namedFile must be defined in the ApplicationContextTestResourceNameType application context.
+
+Note that the bean id and the corresponding reference attribute value must match:
+
+	@Configuration
+	public class ApplicationContextTestResourceNameType {
+	 
+	    @Bean(name="namedFile")
+	    public File namedFile() {
+	        File namedFile = new File("namedFile.txt");
+	        return namedFile;
+	    }
+	}
+
+Match by Type
+
+	@Resource
+	private File defaultFile;
+
+
+Match by Qualifier
+
+	@Configuration
+	public class ApplicationContextTestResourceQualifier {
+	 
+	    @Bean(name="defaultFile")
+	    public File defaultFile() {
+	        File defaultFile = new File("defaultFile.txt");
+	        return defaultFile;
+	    }
+	 
+	    @Bean(name="namedFile")
+	    public File namedFile() {
+	        File namedFile = new File("namedFile.txt");
+	        return namedFile;
+	    }
+	}
+
+
+	@Resource
+	@Qualifier("defaultFile")
+	private File dependency1;
+	 
+	@Resource
+	@Qualifier("namedFile")
+	private File dependency2;
+
+
+
+Setter Injection
+
+
+    @Resource(name="namedFile")
+    protected void setDefaultFile(File defaultFile) {
+        this.defaultFile = defaultFile;
+    }
+
+
+================================================================================
+
 	@ComponentScan with basePackageclasses
 	**************************************
 
@@ -584,6 +717,42 @@ Instead of this, configuration should be an encapsulated service of your applica
 	    
 	    //...
 	}
+
+
+================================================================================
+
+	Using @Value for Constructor Arguments
+	***************************************
+http://mrhaki.blogspot.com/2015/04/spring-sweets-using-value-for.html
+
+
+In Spring we can use the @Value annotation to set property or arguments values based on a SpEL expression. If we want to use the @Value annotation for a constructor argument we must not forget to add the @Autowired annotation on the constructor as well.
+
+	// File: sample/Message.groovy
+	package sample
+	 
+	import org.springframework.beans.factory.annotation.*
+	import org.springframework.stereotype.*
+	 
+	@Component
+	class Message {
+	 
+	    final String text
+	 
+	    // Use @Autowired to get @Value to work.
+	    @Autowired
+	    Message(
+	        // Refer to configuration property
+	        // app.message.text to set value for
+	        // constructor argument text.
+	        @Value('${app.message.text}') final String text) {
+	        this.text = text
+	    }
+	 
+	}
+
+Written with Spring 4.1.6.
+
 
 
 ================================================================================
