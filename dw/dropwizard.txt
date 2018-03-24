@@ -333,47 +333,85 @@ server:
 
 ==============================================================================
 
+  maven-shade-plugin
+  add Implementation-Title, Implementation-Version to MANIFEST
+  ************************************************************
+https://stackoverflow.com/questions/45812230/maven-shade-plugin-add-application-version-to-manifest
+
+
+
+accepted
+Just as described in official instruction page about adding entries into manifest file, Version and Title of Implementation and specification could also be supported because they are entries of the manifest file.
+
+However Apache Maven Archiver is not supported in Maven Shade Plugin, so <archive> element is not work here. You have to use ManifestResourceTransformer, provided by Maven Shade Plugin
+
+==============================================================================
+
 Building/Packaging
 ******************
 
 build your Dropwizard services as “fat” JAR files-single .jar files which contain all of the .class files required to run your service. This allows you to build a single deployable artifact which you can promote from your staging environment to your QA environment to your production environment without worrying about differences in installed libraries. To start building our Hello World service as a fat JAR, we need to configure a Maven plugin called maven-shade. In the <build><plugins> section of your pom.xml file, add this:
 
 
-<plugin>
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-shade-plugin</artifactId>
-    <version>1.6</version>
-    <configuration>
-        <createDependencyReducedPom>true</createDependencyReducedPom>
-        <filters>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>${maven-shade-plugin.version}</version>
+        <configuration>
+          <createDependencyReducedPom>true</createDependencyReducedPom>
+          <filters>
             <filter>
-                <artifact>*:*</artifact>
-                <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                </excludes>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>META-INF/*.SF</exclude>
+                <exclude>META-INF/*.DSA</exclude>
+                <exclude>META-INF/*.RSA</exclude>
+              </excludes>
             </filter>
-        </filters>
-    </configuration>
-    <executions>
-        <execution>
+          </filters>
+        </configuration>
+        <executions>
+          <execution>
             <phase>package</phase>
             <goals>
-                <goal>shade</goal>
+              <goal>shade</goal>
             </goals>
             <configuration>
-                <transformers>
-                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                    <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                        <mainClass>com.example.helloworld.HelloWorldService</mainClass>
-                    </transformer>
-                </transformers>
-            </configuration>
-        </execution>
-    </executions>
-</plugin>
+              <transformers>
+                <transformer
+                  implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
 
+                <transformer
+                  implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>META-INF/cxf/bus-extensions.txt</resource>
+                </transformer>
+
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>META-INF/spring.handlers</resource>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>META-INF/spring.schemas</resource>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>META-INF/spring.tooling</resource>
+                </transformer>
+
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <Main-Class>${project.build.mainClass}</Main-Class>
+                    <Specification-Title>${project.artifactId}</Specification-Title>
+                    <Specification-Version>${project.version}</Specification-Version>
+                    <Implementation-Title>${project.artifactId}</Implementation-Title>
+                    <Implementation-Version>${project.version}</Implementation-Version>
+                    <Implementation-Vendor-Id>${project.groupId}</Implementation-Vendor-Id>
+                  </manifestEntries>
+                </transformer>
+
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
 
 ** Warning **
 
