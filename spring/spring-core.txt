@@ -671,6 +671,28 @@ and now you can reference your new property in Spring:
 	    System.out.println("Magic: " + magic);
 	}
 
+or as a class field
+
+  /*
+   * custom property source
+   */
+  private PropertySource<String> somePropertySource
+      = new PropertySource<String>("CustomPropertySource") {
+
+    @Override
+    public Object getProperty(String name) {
+      log.info("somePropertySource fetching property={}", name);
+      if (name.equalsIgnoreCase("some.value")) {
+        return someValue;
+      }
+      return null;
+    }
+  };
+
+  public PropertySource<String> getCustomPropertySource() {
+    return oauthConfigurationPropertySource;
+  }
+
 
 ================================================================================
 
