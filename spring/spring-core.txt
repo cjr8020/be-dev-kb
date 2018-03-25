@@ -379,7 +379,9 @@ with whatever you want:
 
 and plug into the real context
 
-	ClassPathXmlApplicationContext
+	ClassPathXmlApplicationContext context = 
+		new ClassPathXmlApplicationContext(
+			new String[] { "real-context.xml"}, mockContext);
 
 
 ================================================================================
