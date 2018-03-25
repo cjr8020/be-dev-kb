@@ -340,6 +340,49 @@ as if it were nested.
 
 ================================================================================
 
+	Java-Based Spring Container configuraiton
+	*****************************************
+
+An AnnotationConfigApplicationContext may be instantiated using a no-arg constructor and then configured using the register() method. This approach is particularly useful when programmatically building an AnnotationConfigApplicationContext.
+
+	public static void main(String[] args) {
+	    AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
+	    ctx.register(AppConfig.class, OtherConfig.class);
+	    ctx.register(AdditionalConfig.class);
+	    ctx.refresh();
+	    MyService myService = ctx.getBean(MyService.class);
+	    myService.doStuff();
+	}
+
+
+================================================================================
+
+	add existing object to Spring ApplicationContext
+	************************************************
+
+Imagine you have a legacy application not using Spring. A new feature of this app uses Spring and needs to call methods of an object created by the legacy part (and thus unmanaged by spring).
+
+	AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+	context.getBeanFactory().registerSingleton("myBeanName", new String("String handled as Singleton in Spring"));
+	context.register(AppSpringConfig.class);
+	context.refresh();
+
+Then you can autowire this "legacy" bean in your brand new Spring-managed code.
+
+================================================================================
+
+	enable component scanning with scan(..)
+	***************************************
+
+@Configuration
+@ComponentScan(basePackages = "com.acme")
+public class AppConfig {
+	. . .
+}
+
+
+================================================================================
+
 	Constructor Inejection
 	**********************
 
