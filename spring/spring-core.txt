@@ -369,6 +369,34 @@ Imagine you have a legacy application not using Spring. A new feature of this ap
 
 Then you can autowire this "legacy" bean in your brand new Spring-managed code.
 
+You can also create another context:
+
+	GenericApplicationContext mockContext = new GenericApplicationContext();
+
+with whatever you want:
+
+	mockContext.getBeanFactory().registerSingleton("blah", reference);
+
+and plug into the real context
+
+	ClassPathXmlApplicationContext
+
+
+================================================================================
+
+	merging ApplicationContexts
+	****************************
+
+parent/child
+
+you can merge your two ApplicationContext by setting your created context
+as child of the parent context and refresh the parent:
+
+	GenericApplicationContext context = new GenericApplicationContext();
+	context.setParent(parentContext);
+	parentContext.refresh();
+
+
 ================================================================================
 
 	enable component scanning with scan(..)
