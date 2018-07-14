@@ -7,6 +7,109 @@
 
 
 ================================================================================
+================================================================================
+================================================================================
+
+	Spring Security 5
+	******************
+
+Next Generation OAuth 2.0 Support with Spring Security
+******************************************************
+
+https://spring.io/blog/2018/01/30/next-generation-oauth-2-0-support-with-spring-security
+
+Current (pre-5) State
+---------------------
+
+The current state of OAuth 2.0 Support, within the Spring projects portfolio, is spread out between Spring Security OAuth, Spring Cloud Security, Spring Boot 1.5.x, and the new support introduced in Spring Security 5. 
+
+Plan Forward
+--------------------
+
+The OAuth 2.0 support is currently underway in Spring Security 5 with new Client support. 
+The plan is to also provide support for Resource Server by mid-2018 and 
+Authorization Server by the end of 2018 or early 2019.
+
+
+OAuth 2.0 Features Matrix
+--------------------------
+
+https://github.com/spring-projects/spring-security/wiki/OAuth-2.0-Features-Matrix
+https://spring.io/blog/2018/01/30/next-generation-oauth-2-0-support-with-spring-security
+
+
+OAuth 2.0 sample project updated for SB 2 and spring-security 5
+----------------------------------------------------------------
+http://www.baeldung.com/spring-security-oauth-jwt
+https://github.com/Baeldung/spring-security-oauth
+
+
+
+	Password Storage Format in spring-security 5
+	********************************************
+
+https://spring.io/blog/2017/11/01/spring-security-5-0-0-rc1-released#password-storage-format	
+
+
+The general format for a password is:
+
+	{id}encodedPassword
+
+Such that id is an identifier used to look up which PasswordEncoder should be used and encodedPassword is the original encoded password for the selected PasswordEncoder. The id must be at the beginning of the password, start with { and end with }. If the id cannot be found, the id will be null. For example, the following might be a list of passwords encoded using different id. All of the original passwords are "password".
+
+Examples:
+
+{bcrypt}$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG (1)
+
+	The first password would have a PasswordEncoder id of bcrypt and encodedPassword of $2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG. When matching it would delegate to BCryptPasswordEncoder
+
+
+{noop}password (2)
+
+	The second password would have a PasswordEncoder id of noop and encodedPassword of password. When matching it would delegate to NoOpPasswordEncoder
+
+{pbkdf2}5d923b44a6d129f3ddf3e3c8d29412723dcbde72445e8ef6bf3b508fbf17fa4ed4d6b99ca763d8dc (3)
+
+	The third password would have a PasswordEncoder id of pbkdf2 and encodedPassword of 5d923b44a6d129f3ddf3e3c8d29412723dcbde72445e8ef6bf3b508fbf17fa4ed4d6b99ca763d8dc. 
+
+{scrypt}$e0801$8bWJaSu2IKSn9Z9kM+TPXfOc/9bdYSrN1oD9qfVThWEwdRTnO7re7Ei+fUZRJ68k9lTyuTeUp4of4g24hHnazw==$OAOec05+bXxvuu/1qZ6NUR+xQYvYv7BeL1QxwRpY5Pc=  (4)
+
+	The fourth password would have a PasswordEncoder id of scrypt and encodedPassword 
+	When matching it would delegate to SCryptPasswordEncoder
+
+{sha256}97cde38028ad898ebc02e690819fa220e88c62e0699403e94fff291cfffaf8410849f27605abcbc0 (5)
+
+	The final password would have a PasswordEncoder id of sha256 and encodedPassword
+	When matching it would delegate to StandardPasswordEncoder
+
+
+Reverting to Previous Behavior
+-------------------------------
+
+While it is insecure, users can revert to the previous behavior, by providing a NoOpPasswordEncoder as a @Bean. If the application leverages AuthenticationManagerBuilder the NoOpPasswordEncoder must be explicitly provided to AuthenticationManagerBuilder. For example, if you have:
+
+	auth
+		.inMemoryAuthentication()
+			.withUser("user").password("password").roles("USER");
+
+you can revert to the previous behavior using:
+
+	auth
+		.inMemoryAuthentication()
+			.passwordEncoder(NoOpPasswordEncoder.getInstance())
+			.withUser("user").password("password").roles("USER");
+
+
+================================================================================
+================================================================================
+================================================================================
+
+	Spring Security <4 
+	******************
+
+================================================================================
+================================================================================
+================================================================================
 
 	SecurityAutoConfiguration
 	*************************
