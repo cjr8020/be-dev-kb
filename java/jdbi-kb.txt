@@ -12,7 +12,44 @@
 
 ================================================================================	
 
-	
+	Transactions
+	************
+
+Handle objects provide two ways to open a transaction:
+
+1. inTransaction
+
+	allows you to return a result
+
+2. useTransaction
+
+	has no return value.
+
+
+
+As with connection handles, we introduce a transaction by calling a method with a closure:
+
+
+handle.useTransaction((Handle h) -> {
+    haveFunWith(h);
+});
+
+And, as with handles, the transaction is automatically closed when the closure returns.
+
+However, we must commit or rollback the transaction before returning:
+
+handle.useTransaction((Handle h) -> {
+    h.execute("...");
+    h.commit();
+});
+
+If, however, an exception is thrown from the closure, Jdbi automatically rolls back the transaction.
+
+handle.inTransaction((Handle h) -> {
+    h.execute("...");
+    h.commit();
+    return true;
+});
 
 
 ================================================================================	
