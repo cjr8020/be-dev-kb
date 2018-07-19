@@ -408,3 +408,69 @@ You could also create a DataSource bean
 
 
 ================================================================================
+
+  JPA and Transaction Management
+  ******************************
+
+http://www.codingpedia.org/jhadesdev/how-does-spring-transactional-really-work/
+
+JPA on itself does not provide any type of declarative transaction managment.
+When using JPA outside of spring DI container, transactions need to be handled
+programmatically by the developer  
+
+
+  try { 
+      utx.begin(); 
+   
+      businessLogic();
+   
+      utx.commit(); 
+  } catch(Exception ex) { 
+      utx.rollback(); 
+      throw ex; 
+  }
+
+several disavantages:
+
+it’s repetitive and error prone
+any error can have a very high impact
+errors are hard to debug and reproduce
+this decreases the readability of the code base
+What if this method calls another transactional method?
+
+
+With Spring @Transactional, the above code gets reduced to simply this:
+
+  @Transactional
+  public void businessLogic() {
+      ... use entity manager inside a transaction ...
+  }
+
+
+In this case if another transactional method is called by businessLogic(), that method will have the option of joining the ongoing transaction.
+
+One potential downside is that this powerful mechanism hides what is going on under the hood, making it hard to debug when things don’t work.
+
+
+What does @Transactional mean?
+===============================
+
+One of the key points about @Transactional is that there are two separate concepts to consider, each with it’s own scope and life cycle:
+
+ - the persistence context
+ - the database transaction
+
+The @Transactional defines the scope of a single db transaction.
+The db transaction happens inside the scope of a persistence context.
+
+The persistence context in JPA is the EntityManager - implemented internally
+using a Hibernate Session (when using Hibernate as the persistence provider).
+
+The persistence context is just a synchronizer object that tracks the state 
+of a limited set of Java objects and makes sure that changes on those objects
+are eventually persisted back into the database.
+
+
+
+
+================================================================================
