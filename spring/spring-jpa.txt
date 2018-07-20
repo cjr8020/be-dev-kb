@@ -5,6 +5,29 @@
 
 	@@@@@@@@@@@@@@@@@@
 
+
+
+  Java 9/10/11 Notes
+  ******************
+
+java.lang.NoClassDefFoundError: javax/xml/bind/JAXBException in Java 9/10
+------------------------------------------------------------
+
+https://stackoverflow.com/questions/43574426/how-to-resolve-java-lang-noclassdeffounderror-javax-xml-bind-jaxbexception-in-j
+
+
+The JAXB APIs are considered to be Java EE APIs, and therefore are no longer contained on the default class path in Java SE 9. In Java 11 they are completely removed from the JDK.
+
+What you will need to do in Java 11 and forward is include your own copy of the Java EE APIs on the class path or module path.
+
+    <!-- https://mvnrepository.com/artifact/javax.xml.bind/jaxb-api -->
+    <dependency>
+      <groupId>javax.xml.bind</groupId>
+      <artifactId>jaxb-api</artifactId>
+      <version>${jaxb.version}</version>
+    </dependency>
+
+
 ================================================================================
 
   Production DataSource Support
