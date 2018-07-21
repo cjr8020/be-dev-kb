@@ -497,3 +497,30 @@ are eventually persisted back into the database.
 
 
 ================================================================================
+
+  initializing data
+  *****************
+
+with this YML config:
+
+spring:
+  datasource:
+    initialization-mode: always
+    url: jdbc:h2:mem:test;INIT=CREATE SCHEMA IF NOT EXISTS DEMO
+
+and no Hibernate/JPA
+
+In `src/{main|test}/resources/`
+
+  schema.sql  - executed fine
+
+  data.sql - not executed (i.e., executed according to logs, but.. )
+
+  import.sql - executed, but INSERT statements need to be in one line:
+
+e.g.:
+
+  INSERT INTO DEMO.ACTOR (ACTOR_ID, USERNAME, RESOURCES_REQUESTED, RECORD_VERSION, CREATED_BY, CREATED_TIMESTAMP) VALUES(1, 'jsmith', 0, 0, 'data-init', SYSDATE);
+
+
+================================================================================
