@@ -5,6 +5,300 @@
 
 	@@@@@@@@@@@@@@@@@@
 
+
+
+  Java 9/10/11 Notes
+  ******************
+
+java.lang.NoClassDefFoundError: javax/xml/bind/JAXBException in Java 9/10
+------------------------------------------------------------
+
+https://stackoverflow.com/questions/43574426/how-to-resolve-java-lang-noclassdeffounderror-javax-xml-bind-jaxbexception-in-j
+
+
+The JAXB APIs are considered to be Java EE APIs, and therefore are no longer contained on the default class path in Java SE 9. In Java 11 they are completely removed from the JDK.
+
+What you will need to do in Java 11 and forward is include your own copy of the Java EE APIs on the class path or module path.
+
+    <!-- https://mvnrepository.com/artifact/javax.xml.bind/jaxb-api -->
+    <dependency>
+      <groupId>javax.xml.bind</groupId>
+      <artifactId>jaxb-api</artifactId>
+      <version>${jaxb.version}</version>
+    </dependency>
+
+
+================================================================================
+
+  Production DataSource Support
+  ***************************
+
+Java's javax.sql.DataSource interface provides a standard method of working with
+database connections. 
+
+Production database connections can also be auto-configed by using a pooling
+DataSource.  SB uses the following alg for choosing specific impl:
+
+  1. prefers HikariCP for its performance and concurrency, if available
+  2. next, prefer Tomcat pooling DataSource if avail
+  3. if neither above is avail, use Commons DBCP2 if available.
+
+If you use 
+
+  spring-boot-starter-jdbc
+  spring-boot-starter-jpa
+
+you automatically get HikariCP.
+
+  However, you can bypass that algorithm and specify the CP by setting the 
+  spring.datasource.type property.  This is particularly important if you run
+  your application in a Tomcat container, as tomcat-jdbc is provided by default.
+
+Additoinal CPs can be configured manually.  If you define your own DataSource
+bean, auto-config does not occur.
+
+DataSource configuration is controlled by extnernal config properties in 
+
+  spring.datasource.*  
+
+For pooling DataSource to be created, we need to be able to verify that a valid
+Driver class is available, so we can check that before we do anything:
+
+  spring.datasource.driver-class-name=com.mysql.jdbc.Driver
+
+
+DataSource Properties
+--------------------------
+
+See DataSourceProperties for more of the supported options. These are the standard options that work regardless of the actual implementation. 
+
+https://github.com/spring-projects/spring-boot/blob/v2.0.3.RELEASE/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/jdbc/DataSourceProperties.java
+
+It is also possible to fine-tune implementation-specific settings by using their respective prefix (spring.datasource.hikari.*, spring.datasource.tomcat.*, and spring.datasource.dbcp2.*)
+
+
+  Hikari DataSource properties
+  -----------------------------
+
+  http://www.baeldung.com/hikaricp  - BENCHMARKS
+
+  This is a very lightweight (at roughly 130Kb) and lightning fast JDBC connection pooling framework developed by Brett Wooldridge around 2012.
+
+
+  Java 8:
+
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+      <version>2.6.1</version>
+    </dependency>
+
+  Java 9:
+
+    <dependency>
+        <groupId>com.zaxxer</groupId>
+        <artifactId>HikariCP-java9ea</artifactId>
+        <version>2.6.1</version>
+    </dependency>  
+
+  HikariConfig is the configuration class used to utilize a data source.
+  It comes with 4 well-known must-used params:
+    username
+    password
+    jdbcUrl
+    dataSourceClassName
+
+
+  Out of `jdbcUrl` and `dataSourceClassName`, either one is to be used at a time.
+  (with older drivers, we may need to use both).
+
+  In addition to the standard 4 props, the following are available:
+  (detailed description: https://github.com/brettwooldridge/HikariCP )
+
+    autoCommit
+    connectionTimeout
+    idleTimeout
+    maxLifetime
+    connectionTestQuery
+    connectionInitSql
+    validationTimeout
+    maximumPoolSize
+    poolName
+    allowPoolSuspension
+    readOnly
+    transactionIsolation
+    leakDetectionThreshold
+
+  HikariCP stands out b/c of these db properties.
+  It's advanced enough to even detect connection leaks by itself!
+
+
+================================================================================
+
+  Configuring custom DataSource
+  *****************************
+To configure your own DataSource, define a @Bean of that type in your config.
+Spring reuses your DataSource anywhere one is required, including database
+initialization.  
+
+  Externalizing DataSouce configuration
+  -------------------------------------
+  https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-external-config.html#boot-features-external-config-3rd-party-configuration
+
+
+The following example shows how to define a data source in a bean:
+
+  @Bean
+  @ConfigurationProperties(prefix="app.datasource")
+  public DataSource dataSource() {
+    return new FancyDataSource();
+  }
+
+The above assumes that your FancyDataSource has regular JavaBean props for the 
+URL, the username, and the pool size.
+
+SB also provides a utility builder class, called DataSourceBuilder, that can be
+used to create one of the standard data sources (if it is on the classpath).
+The builder can detect the one to use based on what's available on the classpath.
+It also auto-detects the driver based on the JDBC URL. 
+
+The following example shows how to create a data source by using a DataSourceBuilder:
+
+  @Bean
+  @ConfigurationProperties("app.datasource")
+  public DataSource dataSource() {
+    return DataSourceBuilder.create().build();
+  }
+
+     
+The following example shows how to define a data source by setting properties:
+
+  app.datasource.url=jdbc:h2:mem:mydb
+  app.datasource.username=sa
+  app.datasource.password=dbpass
+  app.datasource.pool-size=30
+
+
+However, there is a CATCH - the actual size of the connection pool is not exposed - 
+no keys are generated in the metadata for your custom DataSource
+(b/c the DataSource interface exposes no properties).
+If you happen to have Hikari on the classpath, this basic setup does not work,
+b/c Hikari has no `url` property (but does have a `jdbcUrl` property).
+
+  How to configure HikariCP
+  --------------------------
+
+To fix the limitations of `DataSource`, force the connection pool to use and
+return a dedicated implementation rather than DataSource.
+Here is how to create a HikariDataSource with DataSourceBuilder:
+
+  @Bean
+  @ConfigurationProperties("app.datasource")
+  public HikariDataSource dataSource() {
+    return DataSourceBuilder.create().type(HikariDataSource.class).build();
+  }
+
+You can go further by leveraging what DataSourceProperties.
+ - It can provide a default embedded database with a sensible username and pass
+if no URL is provided.
+ - you can easily initialize a DataSourceBuilder from the state of any 
+ DataSourceProperties object, so you could also inject the DataSource that SB
+ creates automatically.
+
+ Create a custom DataSourceProperties on your custom namespace:
+
+    @Bean
+    @Primary
+    @ConfigurationProperties("app.datasource")
+    public DataSourceProperties dataSourceProperties() {
+      return new DataSourceProperties();
+    }
+
+    @Bean
+    @ConfigurationProperties("app.datasource")
+    public HikariDataSource dataSource(DataSourceProperties properties) {
+      return properties.initializeDataSourceBuilder().type(HikariDataSource.class)
+          .build();
+    }
+
+The above setup puts you in sync with what SB does for you by default, except
+that a dedicated connection pool is chosen (in code) and its settings are 
+exposed in the same namespace.
+
+B/c `DataSourceProperties` is taking care of the url/jdbUrl translation for you,
+you can configure it as follows:
+
+  app.datasource.url=jdbc:mysql://localhost/test
+  app.datasource.username=dbuser
+  app.datasource.password=dbpass
+  app.datasource.maximum-pool-size=30
+
+
+Note: `app.datasource.type` has no effect in this custom configuration 
+b/c the builder is initialized with whatever value you might set there, and
+
+then overridden by the call to `.type()`  in the `dataSource()` method.
+
+
+================================================================================
+
+  configuring Two DataSources
+  ***************************
+
+When you define multiple data sources, you need to mark one of the `DataSource`
+instances as @Primary b/c various auto-configurations down the road expect to 
+be able to get one by type.
+
+
+#first db
+app.datasource.db1.url = [url]
+app.datasource.db1.username = [username]
+app.datasource.db1.password = [password]
+app.datasource.db1.driverClassName = oracle.jdbc.OracleDriver
+app.datasource.db1.type=com.zaxxer.hikari.HikariDataSource # either here or in code
+
+#second db ...
+app.datasource.db2.url = [url]
+app.datasource.db2.username = [username]
+app.datasource.db2.password = [password]
+app.datasource.db2.driverClassName = oracle.jdbc.OracleDriver
+
+
+@Bean
+@Primary
+@ConfigurationProperties("app.datasource.db1")
+public DataSourceProperties firstDataSourceProperties() {
+  return new DataSourceProperties();
+}
+
+@Bean
+@Primary
+@ConfigurationProperties("app.datasource.db1")
+public DataSource firstDataSource() {
+  return firstDataSourceProperties()
+      .initializeDataSourceBuilder()
+      .type(HikariDataSource.class)
+      .build();
+}
+
+@Bean
+@ConfigurationProperties("app.datasource.db2")
+public DataSourceProperties secondDataSourceProperties() {
+  return new DataSourceProperties();
+}
+
+@Bean
+@ConfigurationProperties("app.datasource.db2")
+public DataSource secondDataSource() {
+  return secondDataSourceProperties()
+      .initializeDataSourceBuilder()
+      .type(HikariDataSource.class)
+      .build();
+}
+
+
+
+================================================================================
 ================================================================================
 
   CrudRepository
@@ -134,6 +428,99 @@ The EmbeddedDatabaseBuilder class provides a fluent API for constructing an embe
     db.shutdown()
 
 You could also create a DataSource bean 
+
+
+================================================================================
+
+  JPA and Transaction Management
+  ******************************
+
+http://www.codingpedia.org/jhadesdev/how-does-spring-transactional-really-work/
+
+JPA on itself does not provide any type of declarative transaction managment.
+When using JPA outside of spring DI container, transactions need to be handled
+programmatically by the developer  
+
+
+  try { 
+      utx.begin(); 
+   
+      businessLogic();
+   
+      utx.commit(); 
+  } catch(Exception ex) { 
+      utx.rollback(); 
+      throw ex; 
+  }
+
+several disavantages:
+
+it’s repetitive and error prone
+any error can have a very high impact
+errors are hard to debug and reproduce
+this decreases the readability of the code base
+What if this method calls another transactional method?
+
+
+With Spring @Transactional, the above code gets reduced to simply this:
+
+  @Transactional
+  public void businessLogic() {
+      ... use entity manager inside a transaction ...
+  }
+
+
+In this case if another transactional method is called by businessLogic(), that method will have the option of joining the ongoing transaction.
+
+One potential downside is that this powerful mechanism hides what is going on under the hood, making it hard to debug when things don’t work.
+
+
+What does @Transactional mean?
+===============================
+
+One of the key points about @Transactional is that there are two separate concepts to consider, each with it’s own scope and life cycle:
+
+ - the persistence context
+ - the database transaction
+
+The @Transactional defines the scope of a single db transaction.
+The db transaction happens inside the scope of a persistence context.
+
+The persistence context in JPA is the EntityManager - implemented internally
+using a Hibernate Session (when using Hibernate as the persistence provider).
+
+The persistence context is just a synchronizer object that tracks the state 
+of a limited set of Java objects and makes sure that changes on those objects
+are eventually persisted back into the database.
+
+
+
+
+================================================================================
+
+  initializing data
+  *****************
+
+with this YML config:
+
+spring:
+  datasource:
+    initialization-mode: always
+    url: jdbc:h2:mem:test;INIT=CREATE SCHEMA IF NOT EXISTS DEMO
+
+and no Hibernate/JPA
+
+In `src/{main|test}/resources/`
+
+  schema.sql  - executed fine
+
+  data.sql - not executed (i.e., executed according to logs, but.. )
+
+  import.sql - executed, but INSERT statements need to be in one line:
+
+e.g.:
+
+  INSERT INTO DEMO.ACTOR (ACTOR_ID, USERNAME, RESOURCES_REQUESTED, RECORD_VERSION, CREATED_BY, CREATED_TIMESTAMP) VALUES(1, 'jsmith', 0, 0, 'data-init', SYSDATE);
 
 
 ================================================================================

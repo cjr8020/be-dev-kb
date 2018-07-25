@@ -155,6 +155,14 @@ server:
       keyStorePassword: example
       validateCerts: false
 
+INFO  [2018-04-05 19:08:38,625] io.dropwizard.server.DefaultServerFactory: Registering jersey handler with root path prefix: /web-user-context
+INFO  [2018-04-05 19:08:38,638] io.dropwizard.server.DefaultServerFactory: Registering admin handler with root path prefix: /web-user-context
+
+note: 
+
+ environment.getApplicationContext().getContextPath():  /
+ DefaultServerFactory defaultServerFactory = (DefaultServerFactory) configuration.getServerFactory();
+ defaultServerFactory.getApplicationContextPath()): /web-user-context
 
 ==============================================================================
 
@@ -3365,6 +3373,123 @@ You will see the proper error message as a response when you hit the API with an
 
 ================================================================================
 
+  Unbranded error page error handler
+  **********************************
+
+Dropwizard 0.7.x and above allows you to inject a custom ErrorHandler into both
+
+  - application context
+  - admin context
+
+
+see: https://github.com/lexsf/dropwizard-json/blob/master/dropwizard-core/src/main/java/com/yammer/dropwizard/jetty/UnbrandedErrorHandler.java
+
+
+  public void run(EbPortalApiConfiguration configuration, Environment environment)
+      throws Exception {
+
+    environment.getApplicationContext().setErrorHandler(new UnbrandedErrorHandler());
+    environment.getAdminContext().setErrorHandler(new UnbrandedErrorHandler());  
+
+
+This error handler can extend Jetty ErrorHandler
+--------------------------------------------------
+
+
+  public class UnbrandedErrorHandler extends ErrorPageErrorHandler {
+
+    public UnbrandedErrorHandler() {
+      super();
+      setShowStacks(false);
+    }
+
+    @Override
+    protected void writeErrorPage(
+          HttpServletRequest request,
+          Writer writer,
+          int code,
+          String message,
+          boolean showStacks) throws IOException {
+
+      writer.write("{\"Status\":\"");
+      writer.write(Integer.toString(code));
+      writer.write("\"}");
+    }
+
+  }
+
+To customize, see:
+
+  org.eclipse.jetty.server.handler.ErrorHanlder
+  org.eclipse.jetty.servlet.ErrorPageErrorHandler;
+
+
+Alternatively, you could just override handle() method
+------------------------------------------------------
+
+  public class UnbrandedErrorHandler extends ErrorPageErrorHandler {
+
+    public UnbrandedErrorHandler() {
+      super();
+      setShowStacks(false);
+    }
+
+    @Override
+    protected void writeErrorPage(
+          HttpServletRequest request,
+          Writer writer,
+          int code,
+          String message,
+          boolean showStacks) throws IOException {
+
+      writer.write("{\"Status\":\"");
+      writer.write(Integer.toString(code));
+      writer.write("\"}");
+    }
+
+    @Override
+    public void handle(String target, Request baseRequest,
+        HttpServletRequest request, HttpServletResponse response)
+        throws IOException {
+      response.getWriter()
+          .append("{\"status\":\"ERROR\",\"message\":\"HTTP ")
+          .append(String.valueOf(response.getStatus())).append("\"}");
+    }
+
+  }
+
+
+
+================================================================================
+
+  Jetty error handler facility
+  ****************************
+
+
+    @Override
+    public void run(final MyConfiguration configuration, final Environment environment) {
+        // ...
+
+        final ErrorPageErrorHandler epeh = new ErrorPageErrorHandler();
+        // 400 - Bad Request, leave alone 
+        epeh.addErrorPage(401, "/error/general-error"); 
+        epeh.addErrorPage(402, "/error/general-error"); 
+        epeh.addErrorPage(403, "/error/403"); 
+        epeh.addErrorPage(404, "/error/404"); 
+        epeh.addErrorPage(405, 499, "/error/general-error"); 
+        epeh.addErrorPage(500, 599, "/error/general-error"); 
+        environment.getApplicationContext().setErrorHandler(epeh);
+
+        // ...
+    }
+
+
+Then define the /error/* handlers like you do for any other Jersey resource.
+
+
+
+================================================================================
+
   enable Basic Auth on management endpoint
   ****************************************
 
@@ -3547,6 +3672,87 @@ public class AdminConstraintSecurityHandler extends ConstraintSecurityHandler {
         }
     }
 }
+
+
+
+================================================================================
+
+  /version resource
+  *****************
+
+package com.standard.portalng.service.resources;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.CharStreams;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import org.springframework.stereotype.Service;
+
+/**
+ * This resource reports version and build timestamp for this service/application
+ */
+@Path("/version")
+@Service
+public class VersionResource {
+
+  @GET
+  @Produces({MediaType.APPLICATION_JSON})
+  public Response returnVersionInfo() throws IOException {
+    final String versionInfo;
+    try (InputStream versionData = getClass().getClassLoader().getResourceAsStream("version.json")) {
+      versionInfo = CharStreams.toString(new InputStreamReader(versionData, Charsets.UTF_8));
+    }
+    return Response.ok(versionInfo, MediaType.APPLICATION_JSON).build();
+  }
+}
+
+
+depends on `version.json` generated by the maven build:
+
+
+  <properties>
+    <!-- build properties -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <timestamp>${maven.build.timestamp}</timestamp>
+    <maven.build.timestamp.format>yyyy-MM-dd HH:mm z</maven.build.timestamp.format>
+    <version.info.file>version.json</version.info.file>
+    . . .
+  </properties>
+
+
+some-api-service maven module:
+
+
+
+  <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>${version.info.file}</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <excludes>
+          <exclude>${version.info.file}</exclude>
+        </excludes>
+      </resource>
+    </resources>
+    .
+    .
+    .
+  </build>
 
 
 
