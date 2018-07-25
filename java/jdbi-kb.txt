@@ -12,6 +12,37 @@
 
 ================================================================================	
 
+	Handle
+	******
+Handles represent an active database connection.	
+A Handle inherits configuration from the Jdbi at the time it is created.
+Handles must be closed.
+
+The easiest way to work with handles, and have them automatically closed, is by using lambda expressions:
+
+	jdbi.useHandle(handle -> {
+	    doStuffWith(handle);
+	});
+
+We call useHandle when we don’t have to return a value.
+
+Otherwise, we use withHandle:
+
+	jdbi.withHandle(handle -> {
+	    return computeValue(handle);
+	});
+
+It’s also possible, though not recommended, to manually open a connection handle; in that case, we have to close it when we’re done:
+
+	Jdbi jdbi = Jdbi.create("jdbc:hsqldb:mem:testDB", "sa", "");
+	try (Handle handle = jdbi.open()) {
+	    doStuffWith(handle);
+	}
+
+Luckily, as we can see, Handle implements Closeable, so it can be used with try-with-resources.
+
+================================================================================	
+
 	Transactions
 	************
 
