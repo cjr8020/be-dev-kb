@@ -1,0 +1,51 @@
+    @@@@@@@@@@@
+        REST
+    @@@@@@@@@@@
+
+
+
+GET - List collection or retrieve element
+PUT - Replace collection or element
+POST - Create collection or element
+DELETE - delete collection or element
+
+================================================================================
+
+    RESTful search
+    **************
+
+resources:
+https://stackoverflow.com/questions/5020704/how-to-design-restful-search-filtering
+
+https://softwareengineering.stackexchange.com/questions/233164/how-do-searches-fit-into-a-restful-interface
+
+https://stackoverflow.com/questions/207477/restful-url-design-for-search
+
+Simple searches can be easily supported by GET with the help of query parameters:
+
+GET /users?parameter1=value1&parameter2=value2&parameter3=value3&parameter4=value4
+
+however, the following considerations make this solution less than optimal:
+
+
+1. GET should be IDEMPOTENT; search however could return different results..
+2. complex searches with a larger number of query parameters become unwieldy
+3. search terms involving PII or other sensitive data are likely to rule out 
+   the use of GET for a variety of reasons.
+
+
+    Accept: application/json
+    Content-Type: application/json
+    POST http://example.com/people/searches
+    {
+      "terms": {
+        "ssn": "123456789"
+      },
+      "order": { ... },
+      ...
+    }   
+
+================================================================================
+
+
+
