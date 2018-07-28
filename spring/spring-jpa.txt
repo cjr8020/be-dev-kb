@@ -46,7 +46,7 @@ DataSource.  SB uses the following alg for choosing specific impl:
 If you use 
 
   spring-boot-starter-jdbc
-  spring-boot-starter-jpa
+  spring-boot-starter-data-jpa
 
 you automatically get HikariCP.
 
@@ -131,6 +131,32 @@ It is also possible to fine-tune implementation-specific settings by using their
 
   HikariCP stands out b/c of these db properties.
   It's advanced enough to even detect connection leaks by itself!
+
+Example:
+
+
+app:
+  datasource:
+    blahdb:
+      url: "jdbc:oracle:thin:@host:1521:blah"
+      username: BLAHUSER
+      password: blahpass
+      driver-class-name: oracle.jdbc.OracleDriver
+      type: com.zaxxer.hikari.HikariDataSource
+      hikari:
+        pool-name: cool-app-blah-db
+        minimum-idle: 1
+        maximum-pool-size: 5
+    blehdb:
+      url: "jdbc:oracle:thin:@host:1521:bleh"
+      username: BLEHUSER
+      password: blehpass
+      driver-class-name: oracle.jdbc.OracleDriver
+      type: com.zaxxer.hikari.HikariDataSource
+      hikari:
+        pool-name: cool-app-bleh-db
+        minimum-idle: 1
+        maximum-pool-size: 2
 
 
 ================================================================================
@@ -295,6 +321,75 @@ public DataSource secondDataSource() {
       .type(HikariDataSource.class)
       .build();
 }
+
+
+
+================================================================================
+
+/**
+ * Database configuration for this application.
+ */
+@Configuration
+public class DatabaseConfiguration {
+
+  /* =================  BLAH datasource  ==================== */
+
+  @Bean
+  @Primary
+  @ConfigurationProperties("app.datasource.blahdb")
+  public DataSourceProperties blahDataSourceProperties() {
+    return new DataSourceProperties();
+  }
+
+  @Bean
+  @Primary
+  @ConfigurationProperties("app.datasource.blahdb")
+  public DataSource blahDataSource() {
+    return blahDataSourceProperties()
+        .initializeDataSourceBuilder()
+        .type(HikariDataSource.class)
+        .build();
+  }
+
+  @Autowired
+  @Bean(name = "blahJdbi")
+  public Jdbi idiJdbi(DataSource blahDataSource) {
+    synchronized (Jdbi.class) {
+      Jdbi jdbi = Jdbi.create(blahDataSource);
+      jdbi.installPlugin(new SqlObjectPlugin());
+      return jdbi;
+    }
+  }
+
+  /* =================  bleh DB datasource  ==================== */
+
+  @Bean
+  @ConfigurationProperties("app.datasource.blehdb")
+  public DataSourceProperties blehDataSourceProperties() {
+    return new DataSourceProperties();
+  }
+
+  @Bean
+  @ConfigurationProperties("app.datasource.blehdb")
+  public DataSource blehDataSource() {
+    return blehDataSourceProperties()
+        .initializeDataSourceBuilder()
+        .type(HikariDataSource.class)
+        .build();
+  }
+
+  @Autowired
+  @Bean(name = "blehJdbi")
+  public Jdbi blehJdbi(DataSource blehDataSource) {
+    synchronized (Jdbi.class) {
+      Jdbi jdbi = Jdbi.create(blehDataSource);
+      jdbi.installPlugin(new SqlObjectPlugin());
+      return jdbi;
+    }
+  }
+
+}
+
 
 
 
