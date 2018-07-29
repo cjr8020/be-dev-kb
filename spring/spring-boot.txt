@@ -1077,3 +1077,38 @@ for the moment.
 
 
 ================================================================================
+
+  @EnableScheduling and @Scheduled
+  ********************************
+
+To schedule a job in spring-boot app to run periodically
+
+@EnableScheduing
+
+  internally imports the SchedulingConfiguration via 
+  @Import(SchedulingConfiguration.class)
+
+
+@SpringBootApplication
+@EnableScheduling
+public class DemoApplication {
+
+
+@Scheduled
+
+add on methods which you want to schedule
+methods must NOT have arguments.
+
+ScheduledAnnotationBeanPostProcessor scans all declared beans for the presense
+of the @Scheduled annotations.
+
+  @Scheduled(
+      initialDelay = 1000,
+      fixedRate = 10000
+  )
+  public void scheduledCurrentTime() {
+    logger.info("Current time: {}", Calendar.getInstance().getTime());
+  }
+
+
+================================================================================
