@@ -1,0 +1,688 @@
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+	
+		Spring Rest Clients
+
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+================================================================================
+
+	Apache HttpClient
+	*****************
+
+Configuring 
+------------------------------------
+http://www.baeldung.com/httpclient-connection-management
+https://hc.apache.org/httpcomponents-client-ga/tutorial/html/connmgmt.html
+
+The defaults of the pooling connection manager are well chosen but 
+depending on your use case – may be too small:
+
+defaults:
+
+	the per host connection limit is 2 by default.
+
+You can configure
+
+the total number of connections
+the maximum number of connections per (any) route
+the maximum number of connections per a single, specific route
+
+setMaxTotal(int max): 
+	Set the maximum number of total open connections.
+
+setDefaultMaxPerRoute(int max): 
+	Set the maximum number of concurrent connections per route, 
+	which is 2 by default.
+
+setMaxPerRoute(int max): 
+	Set the total number of concurrent connections to a specific route, 
+	which is 2 by default.
+
+
+================================================================================
+
+
+
+	Configure RestTemplate with HttpClient
+	**************************************
+
+	using Apache HttpClient 4
+
+https://howtodoinjava.com/spring-restful/resttemplate-httpclient-java-config/
+
+HttpClient Configuration
+----------------------------
+
+/**
+ * - Supports both HTTP and HTTPS
+ * - Uses a connection pool to re-use connections and save overhead of creating connections.
+ * - Has a custom connection keep-alive strategy 
+ *   to apply a default keep-alive if one isn't specified via header
+ * - Starts an idle connection monitor to continuously clean up stale connections.
+ */
+@Configuration
+@EnabledScheduling
+
+	// Determines the timeout in milliseconds until a connection is established.
+    private static final int CONNECT_TIMEOUT = 30000; // 30 sec
+
+    // The timeout when requesting a connection from the connection manager.
+    private static final int REQUEST_TIMEOUT = 30000; // 30 sec
+
+    // The timeout for waiting for data
+    private static final int SOCKET_TIMEOUT = 60000; // 60 sec
+
+    private static final int MAX_TOTAL_CONNECTIONS = 50;
+
+    // default keep-alive - 20 sec
+    private static final int DEFAULT_KEEP_ALIVE_TIME_MILLIS = 20 * 1000;
+
+    // close idle connections after 30 sec
+    private static final int CLOSE_IDLE_CONNECTION_WAIT_TIME_SECS = 30;
+
+
+    @Bean
+    public PoolingHttpClientConnectionManager poolingConnectionManager() 
+
+		it's a connection pool manager
+		https://hc.apache.org/httpcomponents-client-ga/tutorial/html/connmgmt.html
+
+
+	@Bean
+    public ConnectionKeepAliveStrategy connectionKeepAliveStrategy()
+
+    	sets time to decide how long a connection can remain idle before 
+    	being reused
+
+    @Bean
+    public CloseableHttpClient httpClient()
+
+    @Bean
+    public Runnable idleConnectionMonitor(final PoolingHttpClientConnectionManager connectionManager)    
+
+    	idleConnectionMonitor thread to periodically check all connections
+    	and free up which have not been used and idle time has elapsed.
+
+    	this monitor relies on @Scheduled annotation.
+
+    	This example uses a taskScheduler bean, but you should be able to 
+    	just @EnableScheduling in your spring-boot application.
+
+
+RestTemplateConfiguration
+-------------------------
+
+Here, we are configuring RestTemplate bean to be used when invoking REST APIs.
+It uses CloseableHttpClient bean instance to build ClientHttpRequestFactory
+which is used to create RestTemplate.
+
+	HttpComponentsClientHttpRequestFactory
+
+
+--------------------------------------------------------------------------------
+RestTemplateConfig.class
+--------------------------
+
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.web.client.RestTemplate;
+
+public class RestTemplateConfig {
+
+	@Autowired
+	CloseableHttpClient httpClient;
+
+	@Bean
+	public RestTemplate restTemplate() {
+		RestTemplate restTemplate = new RestTemplate(clientHttpRequestFactory());
+		return restTemplate;
+	}
+
+	@Bean
+	public HttpComponentsClientHttpRequestFactory clientHttpRequestFactory() {
+		HttpComponentsClientHttpRequestFactory clientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory();
+		clientHttpRequestFactory.setHttpClient(httpClient);
+		return clientHttpRequestFactory;
+	}
+
+	// should be able to use @EnableScheduling instead...
+
+	@Bean
+	public TaskScheduler taskScheduler() {
+		ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+		scheduler.setThreadNamePrefix("poolScheduler");
+		scheduler.setPoolSize(50);
+		return scheduler;
+	}
+}
+
+
+--------------------------------------------------------------------------------
+HttpClientConfig.class
+----------------------
+
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.http.HeaderElement;
+import org.apache.http.HeaderElementIterator;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.ConnectionKeepAliveStrategy;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.message.BasicHeaderElementIterator;
+import org.apache.http.protocol.HTTP;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+
+/**
+ * - Supports both HTTP and HTTPS
+ * - Uses a connection pool to re-use connections and save overhead of creating connections.
+ * - Has a custom connection keep-alive strategy (to apply a default keep-alive if one isn't specified)
+ * - Starts an idle connection monitor to continuously clean up stale connections.
+ */
+@Configuration
+@EnableScheduling
+public class HttpClientConfig {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpClientConfig.class);
+
+    // Determines the timeout in milliseconds until a connection is established.
+    private static final int CONNECT_TIMEOUT = 30000;
+    
+    // The timeout when requesting a connection from the connection manager.
+    private static final int REQUEST_TIMEOUT = 30000;
+    
+    // The timeout for waiting for data
+    private static final int SOCKET_TIMEOUT = 60000;
+
+    private static final int MAX_TOTAL_CONNECTIONS = 50;
+    private static final int DEFAULT_KEEP_ALIVE_TIME_MILLIS = 20 * 1000;
+    private static final int CLOSE_IDLE_CONNECTION_WAIT_TIME_SECS = 30;
+
+    @Bean
+    public PoolingHttpClientConnectionManager poolingConnectionManager() {
+        SSLContextBuilder builder = new SSLContextBuilder();
+        try {
+            builder.loadTrustMaterial(null, new TrustSelfSignedStrategy());
+        } catch (NoSuchAlgorithmException | KeyStoreException e) {
+            LOGGER.error("Pooling Connection Manager Initialisation failure because of " + e.getMessage(), e);
+        }
+
+        SSLConnectionSocketFactory sslsf = null;
+        try {
+            sslsf = new SSLConnectionSocketFactory(builder.build());
+        } catch (KeyManagementException | NoSuchAlgorithmException e) {
+            LOGGER.error("Pooling Connection Manager Initialisation failure because of " + e.getMessage(), e);
+        }
+
+        Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder
+                .<ConnectionSocketFactory>create().register("https", sslsf)
+                .register("http", new PlainConnectionSocketFactory())
+                .build();
+
+        PoolingHttpClientConnectionManager poolingConnectionManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+        poolingConnectionManager.setMaxTotal(MAX_TOTAL_CONNECTIONS);
+        return poolingConnectionManager;
+    }
+
+    @Bean
+    public ConnectionKeepAliveStrategy connectionKeepAliveStrategy() {
+        return new ConnectionKeepAliveStrategy() {
+            @Override
+            public long getKeepAliveDuration(HttpResponse response, HttpContext context) {
+                HeaderElementIterator it = new BasicHeaderElementIterator
+                        (response.headerIterator(HTTP.CONN_KEEP_ALIVE));
+                while (it.hasNext()) {
+                    HeaderElement he = it.nextElement();
+                    String param = he.getName();
+                    String value = he.getValue();
+
+                    if (value != null && param.equalsIgnoreCase("timeout")) {
+                        return Long.parseLong(value) * 1000;
+                    }
+                }
+                return DEFAULT_KEEP_ALIVE_TIME_MILLIS;
+            }
+        };
+    }
+
+    @Bean
+    public CloseableHttpClient httpClient() {
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectionRequestTimeout(REQUEST_TIMEOUT)
+                .setConnectTimeout(CONNECT_TIMEOUT)
+                .setSocketTimeout(SOCKET_TIMEOUT).build();
+
+        return HttpClients.custom()
+                .setDefaultRequestConfig(requestConfig)
+                .setConnectionManager(poolingConnectionManager())
+                .setKeepAliveStrategy(connectionKeepAliveStrategy())
+                .build();
+    }
+    
+    @Bean
+    public Runnable idleConnectionMonitor(final PoolingHttpClientConnectionManager connectionManager) {
+        return new Runnable() {
+            @Override
+            @Scheduled(fixedDelay = 10000)
+            public void run() {
+                try {
+                    if (connectionManager != null) {
+                        LOGGER.trace("run IdleConnectionMonitor - Closing expired and idle connections...");
+                        connectionManager.closeExpiredConnections();
+                        connectionManager.closeIdleConnections(CLOSE_IDLE_CONNECTION_WAIT_TIME_SECS, TimeUnit.SECONDS);
+                    } else {
+                        LOGGER.trace("run IdleConnectionMonitor - Http Client Connection manager is not initialised");
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("run IdleConnectionMonitor - Exception occurred. msg={}, e={}", e.getMessage(), e);
+                }
+            }
+        };
+    }
+
+}
+
+--------------------------------------------------------------------------------
+pom.xml
+---------
+
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-hateoas</artifactId>
+        </dependency>
+         
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+        </dependency>
+
+
+
+================================================================================
+
+	RestTemplate
+	************
+
+https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-resttemplate.html
+
+If you need to call remote REST services from your application, you can use the Spring Framework’s RestTemplate class. 
+
+Since RestTemplate instances often need to be customized before being used, Spring Boot does not provide any single auto-configured RestTemplate bean. It does, however, auto-configure a RestTemplateBuilder, which can be used to create RestTemplate instances when needed. 
+
+	NEW HttpConnection EVERY TIME
+
+	By default RestTemplate creates new Httpconnection every time and closes the connection once done.
+
+
+================================================================================
+
+	RestTemplate SimpleClientHttpRequestFactory
+	*******************************************
+
+   @Bean
+    public RestTemplate restTemplate() {
+        RestTemplate restTemplate = new RestTemplate();
+        ((SimpleClientHttpRequestFactory) restTemplate.getRequestFactory()).setConnectTimeout(15000);
+        ((SimpleClientHttpRequestFactory) restTemplate.getRequestFactory()).setReadTimeout(15000);
+
+        return restTemplate;
+    }	
+
+
+================================================================================
+
+	Connection Pooling
+	******************
+
+By default RestTemplate creates new Httpconnection every time and closes the connection once done.
+
+If you need to have a connection pooling under rest template then you may use different implementation of the ClientHttpRequestFactory that pools the connections.
+
+
+	HttpComponentsClientHttpRequestFactory
+	**************************************
+https://docs.spring.io/spring/docs/current/javadoc-api/org/springframework/http/client/HttpComponentsClientHttpRequestFactory.html
+
+
+- ClientHttpRequestFactory implementation that uses Apache HttpComponents HttpClient to create requests.
+
+- Allows to use a pre-configured HttpClient instance - potentially with authentication, HTTP connection pooling, etc.
+
+
+
+--------------------------------------------------------------------------------
+
+https://stackoverflow.com/questions/40161117/spring-resttemplate-need-to-release-connection
+
+
+	@Bean
+	public ClientHttpRequestFactory createRequestFactory(
+			@Value("${connection.timeout}") String maxConn
+	) {
+	
+	    PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+	    connectionManager.setMaxTotal(maxTotalConn);
+	    connectionManager.setDefaultMaxPerRoute(maxPerChannel);
+
+	    RequestConfig config = RequestConfig.custom()
+	    		.setConnectTimeout(100000)
+	    		.build();
+	    CloseableHttpClient httpClient = HttpClientBuilder.create().setConnectionManager(connectionManager)
+	            .setDefaultRequestConfig(config).build();
+	    return new HttpComponentsClientHttpRequestFactory(httpClient);
+	}
+
+
+Then you can use this bean to create your RestTemplate:
+
+
+	@Bean
+	@Qualifier("myRestService")
+	public RestTemplate createRestTemplate(ClientHttpRequestFactory factory) {
+	    RestTemplate restTemplate = new RestTemplate(factory);
+
+	    restTemplate.setErrorHandler(new RestResponseErrorHandler());
+	    restTemplate.setMessageConverters(createMessageConverters());
+
+	    return restTemplate;
+	}	
+
+
+
+================================================================================
+
+	Sample Configuration for HttpClient
+	***********************************
+
+
+https://stackoverflow.com/questions/29959772/spring-configurable-high-performance-metered-http-client-instances
+
+
+@Configuration
+public class HttpClientConfiguration {
+
+  private static final Logger log = LoggerFactory.getLogger(HttpClientConfiguration.class);
+
+  @Autowired
+  private Environment environment;
+
+  @Bean
+  public ClientHttpRequestFactory httpRequestFactory() {
+    return new HttpComponentsClientHttpRequestFactory(httpClient());
+  }
+
+  @Bean
+  public RestTemplate restTemplate() {
+    RestTemplate restTemplate = new RestTemplate(httpRequestFactory());
+    restTemplate.setInterceptors(ImmutableList.of((request, body, execution) -> {
+      byte[] token = Base64.encodeBase64((format("%s:%s", environment.getProperty("fake.username"), environment.getProperty("fake.password"))).getBytes());
+      request.getHeaders().add("Authorization", format("Basic %s", new String(token)));
+
+      return execution.execute(request, body);
+    }));
+
+    return restTemplate;
+  }
+
+  @Bean
+  public HttpClient httpClient() {
+    PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+
+    // Get the poolMaxTotal value from our application[-?].yml or default to 10 if not explicitly set
+    connectionManager.setMaxTotal(environment.getProperty("poolMaxTotal", Integer.class, 10));
+
+    return HttpClientBuilder
+      .create()
+      .setConnectionManager(connectionManager)
+      .build();
+  }
+
+  /**
+   * Just for demonstration
+   */
+  @PostConstruct
+  public void debug() {
+    log.info("Pool max total: {}", environment.getProperty("poolMaxTotal", Integer.class));
+  }
+}
+
+
+and an example application.yml
+-------------------------------
+
+fake.username: test
+fake.password: test
+poolMaxTotal: 10
+
+
+To support different values per environment you can use Spring profiles. Using the example above, you could just create application-prod.yml with a "prod" specific value for poolMaxTotal. Then start your app with --spring.profiles.active=prod and the "prod" value will be used instead of your default value in application.yml. You can do this for however many environments you need.
+
+application-prod.yml
+
+poolMaxTotal: 20
+
+
+================================================================================
+
+
+
+================================================================================
+
+	Connection Keep-Alive Strategy
+	******************************
+
+what is keep-alive?  https://blog.stackpath.com/glossary/keep-alive/
+
+
+http://www.baeldung.com/httpclient-connection-management
+
+Quoting the HttpClient 4.3.3. reference: 
+http://hc.apache.org/httpcomponents-client-ga/tutorial/html/connmgmt.html#d5e373
+
+	“If the Keep-Alive header is not present in the response, HttpClient assumes the connection can be kept alive indefinitely.” 
+
+To get around this, and be able to manage dead connections we need a customized strategy implementation and build it into the HttpClient.
+
+Custom keep-alive strategy:
+
+	first try to apply the host's Keep-Alive policy stated in the header.
+	if that information is not present in the response header, keep connection
+	alive for 5 seconds
+
+
+ConnectionKeepAliveStrategy myStrategy = new ConnectionKeepAliveStrategy() {
+    @Override
+    public long getKeepAliveDuration(HttpResponse response, HttpContext context) {
+        HeaderElementIterator it = new BasicHeaderElementIterator
+            (response.headerIterator(HTTP.CONN_KEEP_ALIVE));
+        while (it.hasNext()) {
+            HeaderElement he = it.nextElement();
+            String param = he.getName();
+            String value = he.getValue();
+            if (value != null && param.equalsIgnoreCase
+               ("timeout")) {
+                return Long.parseLong(value) * 1000;
+            }
+        }
+        return 5 * 1000;
+    }
+};
+
+Now, configure the client to use this custom strategy:
+
+	PoolingHttpClientConnectionManager connManager 
+	  = new PoolingHttpClientConnectionManager();
+	CloseableHttpClient client = HttpClients.custom()
+	  .setKeepAliveStrategy(myStrategy)
+	  .setConnectionManager(connManager)
+	  .build();
+
+
+
+
+================================================================================
+
+	IdleConnectionMonitorThread 
+	***************************
+
+Connection Eviction
+
+Connection eviction is used to detect idle and expired connections and close them; there are two options to do this.
+
+1. Relying on the HttpClient to check if the connection is stale before executing a   
+   request. This is an expensive option that is not always reliable.
+
+2. Create a monitor thread to close idle and/or closed connections.
+
+
+1. Setting the HttpClient to check for Stale Connections
+---------------------------------------------------------
+
+	PoolingHttpClientConnectionManager connManager 
+	  = new PoolingHttpClientConnectionManager();
+	
+	CloseableHttpClient client 
+			= HttpClients.custom()
+				.setDefaultRequestConfig(
+	    			RequestConfig.custom()
+	    				.setStaleConnectionCheckEnabled(true)
+	    				.build()
+	).setConnectionManager(connManager).build();
+
+
+2. Use a Stale Connection Monitor Thread
+-----------------------------------------
+
+	PoolingHttpClientConnectionManager connManager 
+	  = new PoolingHttpClientConnectionManager();
+	
+	CloseableHttpClient client 
+			= HttpClients.custom()
+	  			.setConnectionManager(connManager)
+	  			.build();
+
+	IdleConnectionMonitorThread staleMonitor
+	 = new IdleConnectionMonitorThread(connManager);
+	staleMonitor.start();
+	staleMonitor.join(1000);
+
+
+	IdleConnectionMonitorThread.class
+--------------------------------------
+
+	public class IdleConnectionMonitorThread extends Thread {
+	    private final HttpClientConnectionManager connMgr;
+	    private volatile boolean shutdown;
+	 
+	    public IdleConnectionMonitorThread(
+	      PoolingHttpClientConnectionManager connMgr) {
+	        super();
+	        this.connMgr = connMgr;
+	    }
+	    @Override
+	    public void run() {
+	        try {
+	            while (!shutdown) {
+	                synchronized (this) {
+	                    wait(1000);
+	                    connMgr.closeExpiredConnections();
+	                    connMgr.closeIdleConnections(30, TimeUnit.SECONDS);
+	                }
+	            }
+	        } catch (InterruptedException ex) {
+	            shutdown();
+	        }
+	    }
+	    public void shutdown() {
+	        shutdown = true;
+	        synchronized (this) {
+	            notifyAll();
+	        }
+	    }
+	}		
+
+================================================================================
+
+	Closing connection
+	******************
+https://stackoverflow.com/questions/40161117/spring-resttemplate-need-to-release-connection
+
+No, you do not need to close the connection on the response, if you use 
+RestTemplate - it does so automatically:
+
+https://github.com/spring-projects/spring-framework/blob/master/spring-web/src/main/java/org/springframework/web/client/RestTemplate.java
+
+
+	@Nullable
+	protected <T> T doExecute(URI url, @Nullable HttpMethod method, @Nullable RequestCallback requestCallback,
+			@Nullable ResponseExtractor<T> responseExtractor) throws RestClientException {
+
+		ClientHttpResponse response = null;
+		try {
+			ClientHttpRequest request = createRequest(url, method);
+			if (requestCallback != null) {
+				requestCallback.doWithRequest(request);
+			}
+			response = request.execute();
+			handleResponse(url, method, response);
+			return (responseExtractor != null ? responseExtractor.extractData(response) : null);
+		}
+		catch (IOException ex) {
+			...
+		}
+		finally {
+			if (response != null) {
+				response.close();
+			}
+		}
+	}
+
+When using the Apache HttpClient alone, you need to consume complete response 
+and close it.
+
+	CloseableHttpClient client = HttpClients.custom()
+	  .setConnectionManager(connManager)
+	  .build();
+	HttpGet get = new HttpGet("http://google.com");
+	CloseableHttpResponse response = client.execute(get);
+	 
+	EntityUtils.consume(response.getEntity());
+	response.close();
+	client.close();
+	connManager.close();
+
+
+================================================================================
