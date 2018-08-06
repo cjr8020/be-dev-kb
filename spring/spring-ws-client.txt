@@ -20,24 +20,43 @@ depending on your use case – may be too small:
 
 defaults:
 
-	the per host connection limit is 2 by default.
+	the per host connection limit is 2 by default
+    up to 20 connections in total
 
-You can configure
 
-the total number of connections
-the maximum number of connections per (any) route
-the maximum number of connections per a single, specific route
+    PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
 
+
+You can configure:
 setMaxTotal(int max): 
-	Set the maximum number of total open connections.
+    Set the maximum number of total open connections.
 
 setDefaultMaxPerRoute(int max): 
-	Set the maximum number of concurrent connections per route, 
-	which is 2 by default.
+    Set the maximum number of concurrent connections per route, 
+    which is 2 by default.
 
 setMaxPerRoute(int max): 
-	Set the total number of concurrent connections to a specific route, 
-	which is 2 by default.
+    Set the total number of concurrent connections to a specific route, 
+    which is 2 by default.
+
+
+Examples:    
+
+the total number of connections
+
+    // increase max total connections
+    cm.setMaxTotal(50);
+
+the maximum number of connections per (any) route
+
+    // increase default max connections per route to 5
+    cm.setDefaultMaxPerRoute(5);
+
+the maximum number of connections per a single, specific route:
+
+    // increase max connections for localhost:80 to 20
+    HttpHost localhost = new HttpHost("localhost", 80);
+    cm.setMaxPerRoute(new HttpRoute(localhost), 20);
 
 
 ================================================================================
