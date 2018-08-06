@@ -3,7 +3,6 @@
     @@@@@@@@@@@
 
 
-
 GET - List collection or retrieve element
 PUT - Replace collection or element
 POST - Create collection or element
