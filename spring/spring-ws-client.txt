@@ -705,3 +705,56 @@ and close it.
 
 
 ================================================================================
+
+    Apache HttpClient with SSL "Accept All" support
+    ***********************************************
+
+how to configure SSL for an Apache HttpClient so that it is able to consume any HTTPS URL, 
+regardless of the certificate.   
+
+!!!  this strategy entirely ignores certificate checking  !!!
+
+    https://www.baeldung.com/httpclient-ssl
+
+HttpClient 4.4+
+
+
+    SSLContext sslContext = new SSLContextBuilder()
+      .loadTrustMaterial(null, (certificate, authType) -> true).build();
+ 
+    CloseableHttpClient client = HttpClients.custom()
+      .setSSLContext(sslContext)
+      .setSSLHostnameVerifier(new NoopHostnameVerifier())
+      .build();
+    HttpGet httpGet = new HttpGet(HOST_WITH_SSL);
+    httpGet.setHeader("Accept", "application/xml");
+
+    client.execute(httpGet);
+
+RestTemplate with SSL (HttpClient 4.4+)
+
+    CloseableHttpClient httpClient = HttpClients.custom()
+        .setSSLHostnameVerifier(new NoopHostnameVerifier())
+        .build();
+
+    HttpComponentsClientHttpRequestFactory requestFactory 
+      = new HttpComponentsClientHttpRequestFactory();
+    requestFactory.setHttpClient(httpClient);
+ 
+    ResponseEntity<String> response 
+      = new RestTemplate(requestFactory).exchange(
+      urlOverHttps, HttpMethod.GET, null, String.class);
+
+
+
+================================================================================
+
+    Apache HttpClient with custom SSL context
+    *****************************************
+
+
+    
+    
+
+
+================================================================================
