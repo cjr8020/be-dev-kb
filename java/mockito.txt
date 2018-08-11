@@ -1,0 +1,36 @@
+
+	***************
+
+		Mockito
+
+	***************
+
+http://static.javadoc.io/org.mockito/mockito-core/2.21.0/org/mockito/Mockito.html
+
+
+================================================================================
+
+Real Partial Mocks
+------------------			
+
+@Test
+public void testSomething() {
+
+
+    final Some builder = spy(new SomeBuilder(
+        actor,
+        createTestApplications(),
+        blahJdbiResource.getDbi(),
+        blehJdbiResource.getDbi(),
+        someThingElse
+    ));
+
+
+    when(builder.doSomething(any())).thenReturn(true);
+    when(builder.doAnotherThing(any())).thenReturn(true);
+    
+    when(builder.build()).thenCallRealMethod(); // method under test    
+
+}    
+
+================================================================================
