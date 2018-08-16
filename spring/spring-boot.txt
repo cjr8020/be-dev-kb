@@ -695,6 +695,117 @@ now you get
 
 
 ================================================================================
+================================================================================
+
+  Reading application properties in Spring
+  ****************************************
+
+http://www.appsdeveloperblog.com/reading-application-properties-spring-boot/
+
+There are a few ways to read application properties from application.properties
+or application.yml in SpringBoot.
+
+1. using Environment object
+2. using @Value annotation
+3. using @ConfigurationProperties
+
+
+1. Using Environment object
+----------------------------------------  
+
+@Autowired
+private Environment env;
+
+String keyValue = env.getProperty(key);
+
+example:
+
+app.title=Learning Spring Boot 
+app.description=Working with properties file
+
+  @RestController
+  @RequestMapping("app")
+  public class AppController {
+   
+   @Autowired
+   private Environment env; // autowired Environment object
+   
+   @GetMapping("/property")
+   public String getPropertyValue(@RequestParam("key") String key) {
+    String returnValue = "No value";
+    
+    String keyValue = env.getProperty(key);  // read property 
+    
+    if( keyValue!= null && !keyValue.isEmpty()) {
+     returnValue = keyValue;
+    }
+    return returnValue;
+   }
+
+  }
+
+
+3. Reading properties with @ConfigurationProperties
+-----------------------------------------------------
+
+Create a POJO object where each class field matches the name of the key 
+in a propeprty file.
+
+properties:
+-----------
+
+  app.title=Learning Spring Boot 
+  app.description=Working with properties file
+
+property object class:
+----------------------
+  @Component
+  @ConfigurationProperties("app")
+  public class AppProperties {
+   
+   private String title;
+   private String description;
+   public String getTitle() {
+    return title;
+   }
+   public void setTitle(String title) {
+    this.title = title;
+   }
+   public String getDescription() {
+    return description;
+   }
+   public void setDescription(String description) {
+    this.description = description;
+   }
+   
+  }
+
+controller
+-----------
+
+  @RestController
+  @RequestMapping("app")
+  public class AppController {
+   
+   
+   @Autowired
+   AppProperties myAppProperties;  // injected properties object
+   
+   
+   @GetMapping("/title")
+   public String getAppTitle() {
+    return myAppProperties.getTitle(); // read title from properties object
+   }
+   
+   @GetMapping("/description")
+   public String getAppDescription() {
+    return myAppProperties.getDescription();
+   }
+   
+  }
+
+
+================================================================================
 
 	Typesafe configuration properties
 	*********************************
