@@ -927,6 +927,150 @@ If you are inheriting from the spring-boot-starter-parent POM, the default filte
 
 
 ================================================================================
+================================================================================
+
+  Spring Boot Error Handling
+  **************************
+
+@ExceptionHandler
+HandlerExceptionResolver
+
+  Before Spring 3.2, the two main approaches to handling exceptions 
+  in a Spring MVC application were:     
+    HandlerExceptionResolver or 
+    @ExceptionHandler annotation. 
+  Both of these have some clear downsides.
+
+  This annotation, if used on methods of controller classes, will serve as the entry point for handling exceptions thrown within this controller only. 
+
+
+@ControllerAdvice
+
+After 3.2 we now have the new @ControllerAdvice annotation to address the limitations of the previous two solutions.
+
+================================================================================
+
+  @ExceptionHandler 
+  -----------------
+
+This works at the @Controller level - define a method to handle exceptions, and
+annotate that with @ExceptionHandler
+
+  public class FooController {
+
+    @ExceptionHandler( { CustomExceptionOne.class, CustomExceptionTwo.class })
+    public void handleException() {
+      // return 404
+      ErrorDetails errorDetails = new ErrorDetails(new Date(), ex.getMessage(),
+        request.getDescription(false));
+      return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+
+  }
+
+This approach has a MAJOR DRAWBACK - the @ExceptionHandler annotated method
+is ONLY active for that particular Controller, not globally for the entire
+application.
+
+This limitation is often worked around by having all Controllers extends a 
+Base Controller class - however, this could be a problem where a Controller 
+cannot be made to extend from a such a class.
+
+
+================================================================================
+
+  HandlerExceptionResolver
+  -------------------------
+https://www.baeldung.com/exception-handling-for-rest-with-spring
+
+
+this will resolve ANY exception thrown by the application. 
+It will also allow us to implement a uniform exception handling mechanism in our REST API.
+
+Limitations:
+ - no control over the body of the response.
+ - it’s interacting with the low-level HtttpServletResponse and 
+ - it fits into the old MVC model which uses ModelAndView – so there’s still room for improvement.
+
+
+================================================================================
+
+  @ControllerAdvice
+  *****************
+
+Spring 3.2 brings support for a global @ExceptionHandler with the new 
+@ControllerAdvice annotation.
+
+It is an "Advice" for multiple controllers, used to enable a single ExceptionHandler
+to be applied to multiple controllers.  This way we can define, in just one place, 
+how to treat such an exception and this handler will be called when the
+exception is thrown from classes that are covered by this @ControllerAdvice.
+
+
+
+
+
+--------------------------------------------------------------------------------
+
+  selectors
+  ---------
+
+@ControllerAdvice(annotations ... )
+@ControllerAdvice(assignableTypes ... )
+@ControllerAdvice(annotations ... )
+
+  annotations
+
+The subset of controllers affected can be defined by using the following 
+
+AdviceA.class
+-------------
+@ControllerAdvice(annotations = {UseAdviceA.class})
+class AdviceA {
+
+  @ExceptionHandler({SomeException.class})
+  public ResponseEntity<String> handleSomeException(SomeException pe, HandlerMethod handlerMethod) {
+    String value = handlerMethod.getMethod().getDeclaringClass().getAnnotation(UseAdviceA.class).myValue();
+     //value will be ApiController
+    return new ResponseEntity<>("SomeString", HttpStatus.BAD_REQUEST);
+  }
+
+}  
+
+UseAdviceA.class
+----------------
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface UseAdviceA {
+  public String myValue();
+}  
+
+
+enabled AdviceA on ApiController.class
+---------------------------------------
+@RestController
+@UseAdviceA(myValue = "ApiController")
+@RequestMapping("/myapi")
+class ApiController {
+ ...
+}
+
+
+  assignableTypes
+
+@ControllerAdvice(assignableTypes = AController.class)
+public class AControllerAdvice {
+    @ModelAttribute
+    public void addModelInformation(Model model){
+         //controller specific model information for header and footer added here
+    }
+}
+
+
+
+
+
+================================================================================
 
 	Handlers
 	********
@@ -1120,6 +1264,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
   
 }
 
+================================================================================
 ================================================================================
 
 	Import @Configurations from library
