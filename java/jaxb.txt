@@ -1,0 +1,1945 @@
+
+
+    @@@@@@@@@@@@
+    
+        JAXB
+        
+    @@@@@@@@@@@@
+    
+http://jaxb.java.net/tutorial/
+
+    
+    Java Architecture for XML Binding (JAXB)
+    
+    
+Java API called Java Architecture for XML Binding (JAXB) can make it easier to access XML documents from applications written in the Java programming language.    
+
+
+    Marshalling - Convert a Java object into a XML file.
+    Unmarshalling - Convert XML content into a Java Object.
+
+================================================================================
+
+    Cost of creating Context marshallers and unmarshallers
+    ******************************************************
+    
+
+JAXBContext is thread safe and should only be created once and reused to avoid the cost of initializing the metadata multiple times. 
+
+Marshaller and Unmarshaller are not thread safe, but are lightweight to create and could be created per operation.    
+
+
+================================================================================
+
+  example (circa 2015)
+  *******************
+
+Maven setup
+-------------------------------
+
+            <!-- JAXB -->
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>${jaxb-api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.xml</groupId>
+            <artifactId>jaxb-impl</artifactId>
+            <version>${jaxb-impl.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jvnet.jaxb2_commons</groupId>
+            <artifactId>jaxb2-basics</artifactId>
+            <version>${jaxb2-basics.version}</version>
+        </dependency>
+
+        <!-- Test dependencies -->
+
+        <dependency>
+            <groupId>nl.jqno.equalsverifier</groupId>
+            <artifactId>equalsverifier</artifactId>
+        </dependency>
+
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>jaxb2-maven-plugin</artifactId>
+                <version>1.6</version>
+                <executions>
+                    <execution>
+                        <id>xjc-member</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>xjc</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- The schema directory or xsd files. -->
+                    <schemaDirectory>${project.basedir}/src/main/resources</schemaDirectory>
+                    <schemaFiles>Person.xsd, Common.xsd</schemaFiles>
+                    <!-- The package in which the source files will be generated. -->
+                    <packageName>com.standard.eb.member</packageName>
+                    <!-- The working directory to create the generated java source files. -->
+                    <outputDirectory>${project.basedir}/target/generated-sources/jaxb2</outputDirectory>
+                    <bindingDirectory>${project.basedir}/src/main/resources</bindingDirectory>
+                    <bindingFiles>binding.xml</bindingFiles>
+                    <!-- arguments to XJC -->
+                    <arguments>-extension -Xinheritance -Xequals -XhashCode -XtoString</arguments>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jvnet.jaxb2_commons</groupId>
+                        <artifactId>jaxb2-basics</artifactId>
+                        <version>0.9.5</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <!-- this adds JAXB-generated sources as a source directory -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${build-helper-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.basedir}/target/generated-sources/jaxb2</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Needed to run the plugin xjc en Java 8 or superior -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.0-alpha-2</version>
+                <executions>
+                    <execution>
+                        <id>set-additional-system-properties</id>
+                        <goals>
+                            <goal>set-system-properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <properties>
+                        <property>
+                            <name>javax.xml.accessExternalSchema</name>
+                            <value>all</value>
+                        </property>
+                        <property>
+                            <name>javax.xml.accessExternalDTD</name>
+                            <value>all</value>
+                        </property>
+                    </properties>
+                    <outputFile> </outputFile>
+                </configuration>
+            </plugin>
+
+            <!-- disable Findbugs on generated code in this module -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>findbugs-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+
+            <!-- disable Checkstyle for generated code in this module -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+
+            <!-- disable Jacoco code coverage for generated code in this module -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+
+
+JAXB bindings file
+--------------------------------------
+
+NOTE: since you're generating the Java Object contract methods 
+
+  <arguments>-extension -Xinheritance -Xequals -XhashCode -XtoString</arguments>
+
+you need to make sure that your Base class
+
+  <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+
+implements those methods as well, so you'll have to do it manually...
+
+
+<jxb:bindings
+        xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+        xmlns:jxb="http://java.sun.com/xml/ns/jaxb"
+        xmlns:inheritance="http://jaxb2-commons.dev.java.net/basic/inheritance"
+        jxb:extensionBindingPrefixes="xjc"
+        version="2.1">
+
+    <jxb:globalBindings>
+        <!-- use java8 localDate for xsd:date -->
+        <jxb:javaType name="java.time.LocalDate"
+                      xmlType="xsd:date"
+                      parseMethod="com.standard.dev.jaxb.DateTimeAdapter.parseLocalDate"
+                      printMethod="com.standard.dev.jaxb.DateTimeAdapter.printLocalDate"/>
+        <!-- use java8 offsetDateTime for xsd:dateTime -->
+        <jxb:javaType name="java.time.LocalDateTime"
+                      xmlType="xsd:dateTime"
+                      parseMethod="com.standard.dev.jaxb.DateTimeAdapter.parseLocalDateTime"
+                      printMethod="com.standard.dev.jaxb.DateTimeAdapter.printLocalDateTime"/>
+        <!-- use java.lang.Long instead of java.math.BigInteger (overkill!) for xsd:integer used for sequences in XSD (should use xsd:long) -->
+        <jxb:javaType name="java.lang.Long"
+                      xmlType="xsd:integer"/>
+    </jxb:globalBindings>
+
+    <jxb:bindings schemaLocation="Common.xsd">
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Actor']">
+            <jxb:class name="Actor"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_ChangeDomain']">
+            <jxb:class name="ChangeDomain"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_ChangeDomains']">
+            <jxb:class name="ChangeDomains"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_CodeValue']">
+            <jxb:class name="CodeValue"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Context']">
+            <jxb:class name="Context"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Control']">
+            <jxb:class name="Control"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:simpleType[@name='DataType_Flag']">
+            <jxb:typesafeEnumClass name="Flag"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_ListOfValues']">
+            <jxb:class name="ListOfValues"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_NamedComplexValue']">
+            <jxb:class name="NamedComplexValue"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Range']">
+            <jxb:class name="Range"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_System']">
+            <jxb:class name="System"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:simpleType[@name='DataType_TransactionType']">
+            <jxb:typesafeEnumClass name="TransactionType"/>
+        </jxb:bindings>
+    </jxb:bindings>
+
+    <jxb:bindings schemaLocation="Person.xsd">
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Address']">
+            <jxb:class name="Address"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Addresses']">
+            <jxb:class name="Addresses"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_WorkHour']">
+            <jxb:class name="WorkHour"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_WorkHours']">
+            <jxb:class name="WorkHours"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Billing']">
+            <jxb:class name="Billing"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Billings']">
+            <jxb:class name="Billings"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Contact']">
+            <jxb:class name="Contact"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Contacts']">
+            <jxb:class name="Contacts"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Earning']">
+            <jxb:class name="Earning"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Earnings']">
+            <jxb:class name="Earnings"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Email']">
+            <jxb:class name="Email"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Emails']">
+            <jxb:class name="Emails"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Employment']">
+            <jxb:class name="Employment"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Employments']">
+            <jxb:class name="Employments"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Enrollment']">
+            <jxb:class name="Enrollment"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Enrollments']">
+            <jxb:class name="Enrollments"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Payroll']">
+            <jxb:class name="Payroll"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Payrolls']">
+            <jxb:class name="Payrolls"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_PersonDemographic']">
+            <jxb:class name="PersonDemographic"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_HRContact']">
+            <jxb:class name="HrContact"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_HRContacts']">
+            <jxb:class name="HrContacts"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Membership']">
+            <jxb:class name="Membership"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Memberships']">
+            <jxb:class name="Memberships"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Person']">
+            <jxb:class name="Person"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_PersonIdentification']">
+            <jxb:class name="PersonIdentification"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_PersonIdentifications']">
+            <jxb:class name="PersonIdentifications"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_PersonIdentifications']//xsd:element[@name='Id']">
+            <jxb:property name="ids"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_PersonName']">
+            <jxb:class name="PersonName"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_PersonNames']">
+            <jxb:class name="PersonNames"/>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_PersonNames']//xsd:element[@name='Name']">
+            <jxb:property name="names"/>
+        </jxb:bindings>
+
+        <jxb:bindings node="//xsd:complexType[@name='DataType_RelatedPerson']">
+            <jxb:class name="RelatedPerson"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_RelatedPersons']">
+            <jxb:class name="RelatedPersons"/>
+        </jxb:bindings>
+    </jxb:bindings>
+</jxb:bindings>
+
+DateTimeAdapter
+--------------------------------------------------------
+
+package com.standard.dev.jaxb;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+
+/**
+ * Performs date, time conversions
+ */
+public class DateTimeAdapter {
+
+  /**
+   * Prints java.time.LocalDate as a string
+   * @param inputDate
+   * @return
+   */
+  public static String printLocalDate(LocalDate inputDate) {
+    return inputDate.toString();
+  }
+
+  /**
+   * Converts string to LocalDate
+   *
+   * @link https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html#predefined
+   */
+  public static LocalDate parseLocalDate(String inputDateString) {
+    return LocalDate.parse(inputDateString, DateTimeFormatter.ISO_LOCAL_DATE);
+  }
+
+  /**
+   *
+   * @param inputDateTime
+   * @return
+   */
+  public static String printLocalDateTime(LocalDateTime inputDateTime) {
+    return inputDateTime.toString();
+  }
+
+  /**
+   * Parses a date-time string
+   *
+   * @link https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html#predefined
+   */
+  public static LocalDateTime parseLocalDateTime(String inputDateTimeString) {
+    // ISO_LOCAL_DATE_TIME
+    // parses a date-time without an offset, such as '2011-12-03T10:15:30'.
+    return LocalDateTime.parse(inputDateTimeString, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+  }
+
+  /* DateTimeFormatter for date-time with offset, such as '2001-12-17T09:30:47-05:00' */
+  private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
+
+  /**
+   * prints OffsetDateTime as string
+   *
+   * @param dateTime
+   * @return
+   */
+  public static String printOffsetDateTime(final OffsetDateTime dateTime) {
+    return dateTime.format(OFFSET_DATE_TIME_FORMATTER);
+  }
+
+  /**
+   * converts string to OffsetDateTime
+   * parses a date-time with an offset, such as '2011-12-03T10:15:30+01:00'.
+   *
+   * @param offsetDateTime
+   * @return
+   */
+  public static OffsetDateTime parseOffsetDateTime(final String offsetDateTime) {
+    return OffsetDateTime.parse(offsetDateTime, OFFSET_DATE_TIME_FORMATTER);
+  }
+
+}
+
+
+
+Base Entity impl
+------------------------------------------------
+
+package com.standard.eb;
+
+import com.google.common.base.Objects;
+
+import org.jvnet.jaxb2_commons.lang.Equals;
+import org.jvnet.jaxb2_commons.lang.EqualsStrategy;
+import org.jvnet.jaxb2_commons.lang.HashCode;
+import org.jvnet.jaxb2_commons.lang.HashCodeStrategy;
+import org.jvnet.jaxb2_commons.lang.JAXBEqualsStrategy;
+import org.jvnet.jaxb2_commons.lang.JAXBHashCodeStrategy;
+import org.jvnet.jaxb2_commons.lang.JAXBToStringStrategy;
+import org.jvnet.jaxb2_commons.lang.ToString;
+import org.jvnet.jaxb2_commons.lang.ToStringStrategy;
+import org.jvnet.jaxb2_commons.locator.ObjectLocator;
+import org.jvnet.jaxb2_commons.locator.util.LocatorUtils;
+
+import java.time.LocalDateTime;
+
+
+/**
+ * Base entity defining common data elements/DB columns
+ */
+public class BaseEntity implements java.io.Serializable, Equals, HashCode, ToString {
+
+  protected LocalDateTime createdDateTime;
+  protected String createdUserId;
+  protected LocalDateTime updatedDateTime;
+  protected String updatedUserId;
+
+
+  public LocalDateTime getCreatedDateTime() {
+    return createdDateTime;
+  }
+
+  public void setCreatedDateTime(LocalDateTime createdDateTime) {
+    this.createdDateTime = createdDateTime;
+  }
+
+  public String getCreatedUserId() {
+    return createdUserId;
+  }
+
+  public void setCreatedUserId(String createdUserId) {
+    this.createdUserId = createdUserId;
+  }
+
+  public LocalDateTime getUpdatedDateTime() {
+    return updatedDateTime;
+  }
+
+  public void setUpdatedDateTime(LocalDateTime updatedDateTime) {
+    this.updatedDateTime = updatedDateTime;
+  }
+
+  public String getUpdatedUserId() {
+    return updatedUserId;
+  }
+
+  public void setUpdatedUserId(String updatedUserId) {
+    this.updatedUserId = updatedUserId;
+  }
+
+  @Override
+  public boolean equals(ObjectLocator thisLocator, ObjectLocator thatLocator, Object object, EqualsStrategy strategy) {
+    if (!(object instanceof BaseEntity)) {
+      return false;
+    }
+    if (this == object) {
+      return true;
+    }
+    final BaseEntity that = ((BaseEntity) object);
+    {
+      final LocalDateTime lhsCreatedDateTime = this.getCreatedDateTime();
+      final LocalDateTime rhsCreatedDateTime = that.getCreatedDateTime();
+      if (!strategy.equals(
+          LocatorUtils.property(thisLocator, "createdDateTime", lhsCreatedDateTime),
+          LocatorUtils.property(thatLocator, "createdDateTime", rhsCreatedDateTime),
+          lhsCreatedDateTime,
+          rhsCreatedDateTime)) {
+        return false;
+      }
+    }
+    {
+      final String lhsCreatedUserId = this.getCreatedUserId();
+      final String rhsCreatedUserId = that.getCreatedUserId();
+      if (!strategy.equals(
+          LocatorUtils.property(thisLocator, "createdUserId", lhsCreatedUserId),
+          LocatorUtils.property(thatLocator, "createdUserId", rhsCreatedUserId),
+          lhsCreatedUserId,
+          rhsCreatedUserId)) {
+        return false;
+      }
+    }
+    {
+      final LocalDateTime lhsUpdatedDateTime = this.getUpdatedDateTime();
+      final LocalDateTime rhsUpdatedDateTime = that.getUpdatedDateTime();
+      if (!strategy.equals(
+          LocatorUtils.property(thisLocator, "updatedDateTime", lhsUpdatedDateTime),
+          LocatorUtils.property(thatLocator, "updatedDateTime", rhsUpdatedDateTime),
+          lhsUpdatedDateTime,
+          rhsUpdatedDateTime)) {
+        return false;
+      }
+    }
+    {
+      final String lhsUpdatedUserId = this.getUpdatedUserId();
+      final String rhsUpdatedUserId = that.getUpdatedUserId();
+      if (!strategy.equals(
+          LocatorUtils.property(thisLocator, "updatedUserId", lhsUpdatedUserId),
+          LocatorUtils.property(thatLocator, "updatedUserId", rhsUpdatedUserId),
+          lhsUpdatedUserId,
+          rhsUpdatedUserId)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public boolean equals(Object object) {
+    final EqualsStrategy strategy = JAXBEqualsStrategy.INSTANCE;
+    return equals(null, null, object, strategy);
+  }
+
+  @Override
+  public int hashCode(ObjectLocator locator, HashCodeStrategy strategy) {
+    int currentHashCode = 1;
+    {
+      final LocalDateTime createdDateTime = this.getCreatedDateTime();
+      currentHashCode = strategy.hashCode(LocatorUtils.property(locator, "createdDateTime", createdDateTime), currentHashCode, createdDateTime);
+    }
+    {
+      final String createdUserId = this.getCreatedUserId();
+      currentHashCode = strategy.hashCode(LocatorUtils.property(locator, "createdUserId", createdUserId), currentHashCode, createdUserId);
+    }
+    {
+      final LocalDateTime updatedDateTime = this.getUpdatedDateTime();
+      currentHashCode = strategy.hashCode(LocatorUtils.property(locator, "updatedDateTime", updatedDateTime), currentHashCode, updatedDateTime);
+    }
+    {
+      final String updatedUserId = this.getUpdatedUserId();
+      currentHashCode = strategy.hashCode(LocatorUtils.property(locator, "updatedUserId", updatedUserId), currentHashCode, updatedUserId);
+    }
+    return currentHashCode;
+  }
+
+  public int hashCode() {
+    final HashCodeStrategy strategy = JAXBHashCodeStrategy.INSTANCE;
+    return this.hashCode(null, strategy);
+  }
+
+  public String toString() {
+    final ToStringStrategy strategy = JAXBToStringStrategy.INSTANCE;
+    final StringBuilder buffer = new StringBuilder();
+    append(null, buffer, strategy);
+    return buffer.toString();
+  }
+
+  @Override
+  public StringBuilder append(ObjectLocator locator, StringBuilder buffer, ToStringStrategy strategy) {
+    strategy.appendStart(locator, this, buffer);
+    appendFields(locator, buffer, strategy);
+    strategy.appendEnd(locator, this, buffer);
+    return buffer;
+  }
+
+  @Override
+  public StringBuilder appendFields(ObjectLocator locator, StringBuilder buffer, ToStringStrategy strategy) {
+    {
+      final LocalDateTime createdDateTime = this.getCreatedDateTime();
+      strategy.appendField(locator, this, "createdDateTime", buffer, createdDateTime);
+    }
+    {
+      final String createdUserId = this.getCreatedUserId();
+      strategy.appendField(locator, this, "createdUserId", buffer, createdUserId);
+    }
+    {
+      final LocalDateTime updatedDateTime = this.getUpdatedDateTime();
+      strategy.appendField(locator, this, "updatedDateTime", buffer, updatedDateTime);
+    }
+    {
+      final String updatedUserId = this.getUpdatedUserId();
+      strategy.appendField(locator, this, "updatedUserId", buffer, updatedUserId);
+    }
+    return buffer;
+  }
+}
+
+
+
+================================================================================
+
+    javax.xml.bind.UnmarshalException: 
+    ***********************************
+
+    unexpected element (uri:"http://standard.com/rp", local:"DataType_RPData"). Expected elements are (none)
+
+This is most likely b/c you don't have @XmlRootElement, and you're using
+JAXB like so
+
+    try (CloseableHttpResponse httpResponse = this.httpClient.execute(request, context)) {
+      RPData rpData = jaxbUnmarshaller.unmarshall(httpResponse.getEntity().getContent());
+    }
+
+So, either make sure RPData has @XmlRootElement, or
+
+use JAXB unmarshaller like this:
+
+    JAXBElement<RPData> rpDataJAXBElement = jaxbUnmarshaller.unmarshal(
+        new StreamSource(httpResponse.getEntity().getContent()), RPData.class);
+    RPData rpData = rpDataJAXBElement.getValue();
+    retirementPlanList = rpData.getRetirementPlanList();
+
+
+
+================================================================================
+
+Why does JAXB put @XmlRootElement sometimes but not always?
+***********************************************************
+
+When trying to marshall an object I get this error message:
+
+    unable to marshal type "org.blah.MessageType" as an element
+    because it is missing an @XmlRootElement annotation
+
+If I add the @XmlRootElement annotation to the MessageType, it works, but my question is why doesn't the JAXB compiler put this annotation in automatically. It's inconvenient because MessageType is automatically generated and I don't want to edit it every time I regenerate the java classes.
+Is there any better way to resolve this problem?
+
+A:
+
+XJC does try to put @XmlRootElement annotation on a class that we generate from a complex type. The exact condition is somewhat ugly, but the basic idea is that if we can statically guarantee that a complex type won't be used by multiple different tag names, we put @XmlRootElement. So for example, if the schema is as follows:
+
+    <xmp>
+    <schema>
+      <element name="foo">
+        <complexType>
+          ...
+        </complexType>
+      </element>
+    </schema>
+    </xmp>
+
+Then you'd get:
+
+    @XmlRootElement
+    class Foo {
+      ...
+    }
+
+But if the schema is as follows, then XJC can't eliminate the possibility that your type might be used in other schemas (that can be compiled separately and put together at runtime):
+
+    <xmp>
+    <schema>
+      <element name="foo" type="bar" />
+      <complexType name="bar" />
+    </schema>
+    </xmp>
+
+Now, that said, there's another way to work around this issue. If all you want is just to marshal an object without @XmlRootElement, then you can just do:
+
+    marshaller.marshal( 
+        new JAXBElement(new QName("uri","local"), 
+        MessageType.class, messageType )
+    );
+    
+E.g.:
+
+            StringWriter writer = new StringWriter();
+            
+            // Grab and print passed parameters
+            String obeName = dataMap.getString(OBE_NAME);
+            
+            JAXBContext jaxbContext = JAXBContext.newInstance(ScheduledList.class);
+            Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
+            
+            ScheduledList scheduledList = new ScheduledList();
+
+            scheduledList.setListCorrelationId(obeName);
+            scheduledList.setListType(SCHEDULED_LIST_TYPE);
+            
+            GregorianCalendar now = new GregorianCalendar();
+            scheduledList.setDueDate(DatatypeFactory.newInstance().newXMLGregorianCalendar(now));
+            
+            // output pretty printed
+            jaxbMarshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+            
+            jaxbMarshaller.marshal(
+                    new JAXBElement<ScheduledList>(
+                            new QName(SCHEDULED_LIST_NAMESPACE_URI, SCHEDULED_LIST_XML_ROOT_ELEMENT), 
+                            ScheduledList.class, 
+                            scheduledList), 
+                    writer
+            );
+            
+            message = session.createTextMessage(writer.toString());
+            
+            
+================================================================================
+
+JAXB Setting to prevent standalone = yes
+****************************************
+
+Do you know of a JAXB setting to prevent standalone="yes" from being generated in the resulting XML?
+
+A:
+    marshaller.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);
+
+
+or
+
+    marshaller.setProperty("com.sun.xml.bind.xmlDeclaration", Boolean.FALSE)
+
+ to disable the default XML declaration, and then add your custom XML declaration,
+
+    <?xml version="1.0" encoding="UTF-8"?>
+
+ to the generated xml, thus avoiding the standalone="yes" property.
+
+
+================================================================================
+
+    How to register XmlAdapter at the package level
+    ***********************************************
+    
+You can register your XmlAdapter at the package level and have it apply to all fields/properties of that type within that package:
+
+com/example/package-info.java
+
+@XmlJavaTypeAdapters({
+    @XmlJavaTypeAdapter(value=BigDecimalAdapter.class, type=BigDecimal.class)
+})
+
+package com.example;
+
+import javax.xml.bind.annotation.adapters.*;     
+
+
+NOTE: package-info.java: "This file is new in JDK 5.0, and is preferred over package.html
+
+
+
+================================================================================
+
+
+    JAXB and Joda-Time: Dates and Times
+    ***********************************
+    
+    
+JAXB and Joda-Time: Dates and Times
+Joda-Time provides an alternative to the Date and Calendar classes currently provided in Java SE.  Since they are provided in a separate library JAXB does not provide a default mapping for these classes.  We can supply the necessary mapping via XmlAdapters.  In this post we will cover the following Joda-Time types:  DateTime, DateMidnight, LocalDate, LocalTime, LocalDateTime.
+
+
+DateMidnight
+
+     DateMidnight defines a date where the time component is fixed at midnight. The class uses a time zone, thus midnight is local unless a UTC time zone is used.
+    
+    It is important to emphasise that this class represents the time of midnight on any given day. Note that midnight is defined as 00:00, which is at the very start of a day.
+    
+    This class does not represent a day, but the millisecond instant at midnight. If you need a class that represents the whole day, then an Interval or a LocalDate may be more suitable. 
+
+LocalDate
+     LocalDate is an immutable datetime class representing a date without a time zone.
+    LocalDate differs from DateMidnight in that this class does not have a time zone and does not represent a single instant in time. 
+    
+    
+
+Java Model
+----------
+
+The following domain model will be used for this example:
+
+
+package blog.jodatime;
+ 
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
+ 
+import org.joda.time.DateMidnight;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalDateTime;
+import org.joda.time.LocalTime;
+ 
+@XmlRootElement
+@XmlType(propOrder={
+    "dateTime",
+    "dateMidnight",
+    "localDate",
+    "localTime",
+    "localDateTime"})
+public class Root {
+ 
+    private DateTime dateTime;
+    private DateMidnight dateMidnight;
+    private LocalDate localDate;
+    private LocalTime localTime;
+    private LocalDateTime localDateTime;
+ 
+    public DateTime getDateTime() {
+        return dateTime;
+    }
+ 
+    public void setDateTime(DateTime dateTime) {
+        this.dateTime = dateTime;
+    }
+ 
+    public DateMidnight getDateMidnight() {
+        return dateMidnight;
+    }
+ 
+    public void setDateMidnight(DateMidnight dateMidnight) {
+        this.dateMidnight = dateMidnight;
+    }
+ 
+    public LocalDate getLocalDate() {
+        return localDate;
+    }
+ 
+    public void setLocalDate(LocalDate localDate) {
+        this.localDate = localDate;
+    }
+ 
+    public LocalTime getLocalTime() {
+        return localTime;
+    }
+ 
+    public void setLocalTime(LocalTime localTime) {
+        this.localTime = localTime;
+    }
+ 
+    public LocalDateTime getLocalDateTime() {
+        return localDateTime;
+    }
+ 
+    public void setLocalDateTime(LocalDateTime localDateTime) {
+        this.localDateTime = localDateTime;
+    }
+ 
+}
+
+
+
+
+
+XmlAdapters
+-----------
+
+Since Joda-Time and XML Schema both represent data and time information according to ISO 8601 the implementation of the XmlAdapters is quite trivial.
+
+DateTimeAdapter
+
+
+
+package blog.jodatime;
+ 
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import org.joda.time.DateTime;
+ 
+public class DateTimeAdapter 
+    extends XmlAdapter<String, DateTime>{
+ 
+    public DateTime unmarshal(String v) throws Exception {
+        return new DateTime(v);
+    }
+ 
+    public String marshal(DateTime v) throws Exception {
+        return v.toString();
+    }
+ 
+}
+
+
+
+
+
+DateMidnightAdapter
+
+
+
+package blog.jodatime;
+ 
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import org.joda.time.DateMidnight;
+ 
+public class DateMidnightAdapter 
+    extends XmlAdapter<String, DateMidnight> {
+ 
+    public DateMidnight unmarshal(String v) throws Exception {
+        return new DateMidnight(v);
+    }
+ 
+    public String marshal(DateMidnight v) throws Exception {
+        return v.toString();
+    }
+ 
+}
+
+
+
+LocalDateAdapter
+
+
+package blog.jodatime;
+ 
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import org.joda.time.LocalDate;
+ 
+public class LocalDateAdapter 
+    extends XmlAdapter<String, LocalDate>{
+ 
+    public LocalDate unmarshal(String v) throws Exception {
+        return new LocalDate(v);
+    }
+ 
+    public String marshal(LocalDate v) throws Exception {
+        return v.toString();
+    }
+ 
+}
+
+
+LocalTimeAdapter
+
+
+package blog.jodatime;
+ 
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import org.joda.time.LocalTime;
+ 
+public class LocalTimeAdapter 
+    extends XmlAdapter<String, LocalTime> {
+ 
+    public LocalTime unmarshal(String v) throws Exception {
+        return new LocalTime(v);
+    }
+ 
+    public String marshal(LocalTime v) throws Exception {
+        return v.toString();
+    }
+ 
+}
+
+
+LocalDateTimeAdapter
+
+
+package blog.jodatime;
+ 
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import org.joda.time.LocalDateTime;
+ 
+public class LocalDateTimeAdapter 
+    extends XmlAdapter<String, LocalDateTime>{
+ 
+    public LocalDateTime unmarshal(String v) throws Exception {
+        return new LocalDateTime(v);
+    }
+ 
+    public String marshal(LocalDateTime v) throws Exception {
+        return v.toString();
+    }
+ 
+}
+
+
+
+Registering the XmlAdapters
+---------------------------
+
+This should go into package-info.java
+
+We will use the @XmlJavaTypeAdapters annotation to register the Joda-Time types at the package level.  This means that whenever these types are found on a field/property on a class within this package the XmlAdapter will automatically be applied.
+
+
+
+@XmlJavaTypeAdapters({
+    @XmlJavaTypeAdapter(type=DateTime.class, 
+        value=DateTimeAdapter.class),
+    @XmlJavaTypeAdapter(type=DateMidnight.class, 
+        value=DateMidnightAdapter.class),
+    @XmlJavaTypeAdapter(type=LocalDate.class, 
+        value=LocalDateAdapter.class),
+    @XmlJavaTypeAdapter(type=LocalTime.class, 
+        value=LocalTimeAdapter.class),
+    @XmlJavaTypeAdapter(type=LocalDateTime.class, 
+        value=LocalDateTimeAdapter.class)
+})
+package blog.jodatime;
+ 
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapters;
+ 
+import org.joda.time.DateMidnight;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalDateTime;
+import org.joda.time.LocalTime;
+
+
+
+
+
+Demo
+
+To run the following demo you will need the Joda-Time jar on your classpath.  It can be obtained here:
+http://sourceforge.net/projects/joda-time/files/joda-time/
+
+
+package blog.jodatime;
+ 
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.Marshaller;
+ 
+import org.joda.time.DateMidnight;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalDateTime;
+import org.joda.time.LocalTime;
+ 
+public class Demo {
+ 
+    public static void main(String[] args) throws Exception {
+        Root root = new Root();
+        root.setDateTime(new DateTime(2011, 5, 30, 11, 2, 30, 0));
+        root.setDateMidnight(new DateMidnight(2011, 5, 30));
+        root.setLocalDate(new LocalDate(2011, 5, 30));
+        root.setLocalTime(new LocalTime(11, 2, 30));
+        root.setLocalDateTime(new LocalDateTime(2011, 5, 30, 11, 2, 30));
+ 
+        JAXBContext jc = JAXBContext.newInstance(Root.class);
+ 
+        Marshaller marshaller = jc.createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        marshaller.marshal(root, System.out);
+    }
+ 
+
+    
+Output
+
+The following is the output from our demo code:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+    <dateTime>2011-05-30T11:02:30.000-04:00</dateTime>
+    <dateMidnight>2011-05-30T00:00:00.000-04:00</dateMidnight>
+    <localDate>2011-05-30</localDate>
+    <localTime>11:02:30.000</localTime>
+    <localDateTime>2011-05-30T11:02:30.000</localDateTime>
+</root>
+
+
+
+
+DateTime dt = new DateTime();
+DateTime dt = new DateTime("2004-12-13T21:39:45.618-08:00");
+
+
+
+assertEquals(new DateTime("2012-10-23T18:13:41.033Z"), tct.getCreatedTimestamp());
+
+    
+    
+================================================================================  
+
+
+    JAXB Compiler Ant task
+    **********************************
+
+Unfortunately JDK 6 does not come with the Ant task -- 
+
+    
+<!-- JAXB compiler task definition -->
+<taskdef name="xjc" classname="com.sun.tools.xjc.XJCTask"
+                    classpathref="master-classpath"/>
+                    
+<target name="process-resources" description="Process resources">
+    <taskdef name="xjc" classname="com.sun.tools.xjc.XJCTask"/>
+    <xjc destdir="${basedir}/target/generated-sources/jaxb"
+         extension="true">
+        <schema dir="src/main/xsd" 
+                includes="JaxbBindings.xsd,CoreTypes.xsd"/>
+    </xjc>
+</target>
+
+
+
+Here is how I got this to work - two options both produce the same result:
+
+
+1. xjc executable
+-----------------
+
+    <target name="xjc" description="JAXB Compiler" depends="clean.gen.src">
+        <property name="path.compile.classpath" refid="compile.classpath"/>
+        <exec executable="${java.home}/../bin/xjc.exe">
+            <arg value="-classpath"/>
+            <arg value="${path.compile.classpath}"/>
+            <arg value="-b"/>
+            <arg value="${dir.resources}/jaxb-bindings.xjb"/>
+            <arg value="-d"/>
+            <arg value="${dir.src}"/>
+            <arg value="-p" />
+            <arg value="${package.gen.src}"/>
+            <arg value="${dir.xsd.src}" />          
+        </exec>
+    </target>
+    
+    
+    
+
+2. XJCFacade class
+------------------
+
+
+    <target name="compile-jaxb-classes" depends="clean.gen.src">
+        <property name="path.compile.classpath" refid="compile.classpath"/>
+        <java 
+            classname="com.sun.tools.internal.xjc.XJCFacade">
+                <arg value="-classpath"/>
+                <arg value="${path.compile.classpath}"/>
+                <arg value="-b"/>
+                <arg value="${dir.resources}/jaxb-bindings.xjb"/>
+                <arg value="-d"/>
+                <arg value="${dir.src}"/>
+                <arg value="-p" />
+                <arg value="${package.gen.src}"/>
+                <arg value="${dir.xsd.src}" />
+        </java>
+    </target>
+
+
+Here is the complete build.xml
+------------------------------
+
+
+<project name="be-cud-events" default="dist" basedir=".">
+    
+    <!-- ============================================================== -->
+    <!-- Properties -->
+    <!-- ============================================================== -->
+    
+    <property name="app.name"       value="${ant.project.name}"/>
+    <property name="app.version"    value="1.0"/>
+    
+    <property name="dir.src"        value="src"/>
+    <property name="dir.resources"  value="resources"/>
+    <property name="dir.xsd.src"    value="xsd"/>
+    <property name="dir.build"      value="bin"/>
+    <property name="dir.lib"        value="lib"/>
+    <property name="dir.dist"       value="dist"/>
+    
+    <property name="dir.gen.src"        value="${dir.src}/com/go2uti/be/cud"/>
+    <property name="package.gen.src"    value="com.go2uti.be.cud"/>
+    
+        <!-- classpath -->
+    
+    <path id="compile.classpath">
+        <pathelement location="${dir.build}" />
+           
+        <fileset dir="${dir.lib}">
+            <include name="*.jar"/>
+        </fileset>
+    </path> 
+
+        <!-- targets -->
+    
+    <target name="init">
+        <mkdir dir="${dir.build}"/>
+        <mkdir dir="${dir.dist}"/>
+    </target>
+    
+    <target name="clean">
+        <delete dir="${dir.build}"/>
+        <delete file="${dir.dist}/${app.name}-${app.version}.jar"/>
+    </target>   
+    
+    <target name="clean.gen.src">
+        <delete dir="${dir.gen.src}"/>
+    </target>   
+    
+    <target name="compile" depends="init, compile-jaxb-classes" >
+        <javac
+                destdir="${dir.build}"
+                srcdir="${dir.src}">
+            <classpath refid="compile.classpath"/>
+            <include name="**/*.java" />
+        </javac>
+        <echo>compilation complete!</echo>
+    </target>       
+
+    
+    <target name="dist" depends="clean, compile" description="Create binary distribution">
+        <!-- Create application JAR file -->
+        <jar jarfile="${dir.dist}/${app.name}-${app.version}.jar"
+             basedir="${dir.build}"/>
+    </target>
+    
+    <target name="compile-jaxb-classes" depends="clean.gen.src">
+        <property name="path.compile.classpath" refid="compile.classpath"/>
+        <java 
+            classname="com.sun.tools.internal.xjc.XJCFacade">
+                <arg value="-classpath"/>
+                <arg value="${path.compile.classpath}"/>
+                <arg value="-b"/>
+                <arg value="${dir.resources}/jaxb-bindings.xjb"/>
+                <arg value="-d"/>
+                <arg value="${dir.src}"/>
+                <arg value="-p" />
+                <arg value="${package.gen.src}"/>
+                <arg value="${dir.xsd.src}" />
+        </java>
+    </target>
+    
+    <target name="xjc" description="JAXB Compiler" depends="clean.gen.src">
+        <property name="path.compile.classpath" refid="compile.classpath"/>
+        <exec executable="${java.home}/../bin/xjc.exe">
+            <arg value="-classpath"/>
+            <arg value="${path.compile.classpath}"/>
+            <arg value="-b"/>
+            <arg value="${dir.resources}/jaxb-bindings.xjb"/>
+            <arg value="-d"/>
+            <arg value="${dir.src}"/>
+            <arg value="-p" />
+            <arg value="${package.gen.src}"/>
+            <arg value="${dir.xsd.src}" />          
+        </exec>
+    </target>
+    
+    <target name="about">
+        <property name="path.compile.classpath" refid="compile.classpath"/>
+        <echo>java.home: ${java.home}</echo>
+        <echo>classpath: ${path.compile.classpath}</echo>
+    </target>
+    
+    
+</project>
+
+
+
+                    
+================================================================================
+
+    element missing an @XmlRootElement annotation
+    ***********************************************************
+
+
+the rules by which JAXB XJC decides whether or not to put the @XmlRootElement annotation on a generated class are non trivial (see this article: http://weblogs.java.net/blog/2006/03/03/why-does-jaxb-put-xmlrootelement-sometimes-not-always).
+
+@XmlRootElement exists because the JAXB runtime requires certain information in order to marshal/unmarshal a given object, specifically the XML element name and namespace. You can't just pass any old object to the Marshaller. @XmlRootElement provides this information.
+
+The annotation is just a convenience, however - JAXB does not require it. The alternative to is to use JAXBElement wrapper objects, which provide the same information as @XmlRootElement, but in the form of an object, rather than an annotation.
+
+However, JAXBElement objects are awkward to construct, since you need to know the XML element name and namespace, which business logic usually doesn't.
+
+Thankfully, when XJC generates a class model, it also generates a class called ObjectFactory. This is partly there for backwards compatibility with JAXB v1, but it's also there as a place for XJC to put generated factory methods which create JAXBElement wrappers around your own objects. It handles the XML name and namespace for you, so you don't need to worry about it. You just need to look through the ObjectFactory methods (and for large schema, there can be hundreds of them) to find the one you need.
+
+
+
+public JAXBElement<IBTradeInfo> getTradeXML()
+{
+    if(null == mTrade || mTrade.size() == 0) {
+        return null;
+    }
+    IBTradeInfo tradeInfo = mTrade.get(0);
+    QName qname = new QName("http://www.example.com", "trade-info");
+    return new JAXBElement(qname, IBTradeInfo.class, tradeInfo);
+}
+
+
+
+        ObjectFactory factory = new ObjectFactory();
+        BEInvoice invoice = factory.createBEInvoice();
+        CUDInvoice cudInvoice = factory.createCUDInvoice();
+
+        cudInvoice.getInvoice().add(invoice);
+        
+        invoice.setInvoiceIdentifier(new Long(2147483647));
+        invoice.setBaseDateTypeCode("ABC");
+        invoice.setBillDate("2012-01-01");
+        
+        File file = new File("CUDInvoice.xml");
+        JAXBContext jaxbContext = JAXBContext.newInstance(CUDInvoice.class);
+        Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
+        
+        // output pretty printed
+        jaxbMarshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        
+
+        JAXBElement<CUDInvoice> cudInvoiceJAXBElement = new JAXBElement<CUDInvoice>(new QName("www.tibco.com/be/ontology/_public/Concepts/Payload/CUDInvoice/CUDInvoice","CUDInvoice"), CUDInvoice.class, cudInvoice);
+        jaxbMarshaller.marshal(cudInvoiceJAXBElement, System.out);
+
+
+Output:
+
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:CUDInvoice xmlns:ns2="www.tibco.com/be/ontology/_public/Concepts/Payload/CUDInvoice/CUDInvoice">
+    <invoice>
+        <invoiceIdentifier>2147483647</invoiceIdentifier>
+        <billDate>2012-01-01</billDate>
+        <baseDateTypeCode>ABC</baseDateTypeCode>
+    </invoice>
+</ns2:CUDInvoice>
+
+================================================================================
+
+import java.io.File;
+import java.io.StringWriter;
+
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.Marshaller;
+import javax.xml.namespace.QName;
+
+import com.go2uti.be.cud.BEInvoice;
+import com.go2uti.be.cud.CUDInvoice;
+import com.go2uti.be.cud.ObjectFactory;
+
+
+public class Test
+{
+    
+    public static void main(String[] args) throws Exception
+    {
+        ObjectFactory factory = new ObjectFactory();
+        BEInvoice invoice = factory.createBEInvoice();
+        CUDInvoice cudInvoice = factory.createCUDInvoice();
+
+        cudInvoice.getInvoice().add(invoice);
+        
+        invoice.setInvoiceIdentifier(new Long(2147483647));
+        invoice.setBaseDateTypeCode("ABC");
+        invoice.setBillDate("2012-01-01");
+        
+        JAXBElement<CUDInvoice> cudInvoiceJAXBElement = new JAXBElement<CUDInvoice>(new QName("www.tibco.com/be/ontology/_public/Concepts/Payload/CUDInvoice/CUDInvoice","CUDInvoice"), CUDInvoice.class, cudInvoice);
+
+        // to file
+//      File file = new File("CUDInvoice.xml");
+//      jaxbMarshaller.marshal(cudInvoiceJAXBElement, file);
+        
+        JAXBContext jaxbContext = JAXBContext.newInstance(CUDInvoice.class);
+        Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
+        // output pretty printed
+        jaxbMarshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        
+        // to System.out
+//      jaxbMarshaller.marshal(cudInvoiceJAXBElement, System.out);
+        
+        // to String
+        StringWriter sw = new StringWriter();
+        jaxbMarshaller.marshal(cudInvoiceJAXBElement, sw);
+        
+        System.out.println(sw);
+        
+    }
+
+}
+
+
+================================================================================
+
+    java.net.URISyntaxException: Illegal character in path at index
+    ***************************************************************
+    
+This error is most likely caused by a character that is either illigal or needs to be encoded.    
+
+
+
+[ERROR] Error while parsing schema(s).Location [ file:/C:/ws/amx/gi/v1.3/GI-BatchInvoiceService/generate-be-cud-event-classes-mvn/src/main/resources/xsd/_public/Concepts/Messages/Message.xsd{3,106}].
+java.net.URISyntaxException: Illegal character in path at index 2: ..\..\..\BaseConcept.xsd
+
+
+In this case, schemaLocation URI needed to be changed to "/"
+
+    schemaLocation="../../../../_BaseConcept.xsd"/>
+    
+    
+
+
+===================================================================================
+
+    XMLGregorianCalendar Date with TimeZone
+    ***************************************
+    
+    
+    How do I represent dates without the timezone using Apache CXF? 
+    ***************************************************************
+http://stackoverflow.com/questions/6143224/how-do-i-represent-dates-without-the-timezone-using-apache-cxf
+
+
+Q:
+
+    I have a WSDL that specifies an element's type to be xs:date.
+    
+    When I use Apache CXF to generate the Java classes, it renders the variable as an javax.xml.datatype.XMLGregorianCalendar (all good so far).
+    
+    When CXF renders an XML document containing this, it renders it in this form (where -06:00 represents the time zone):
+    
+    2000-01-18-06:00
+    
+    How can I configure CXF not to render the timezone?
+
+
+A:
+
+    By default wsdl's xsd:date gets mapped to XMLGregorianCalendar. If this is not what you want then if you are using CXF's wsdl to java tool then you can provide a binding file to override this default mapping:
+    
+    <jaxws:bindings wsdlLocation="YOUR_WSDL_LOCATION"
+              xmlns:jaxws="http://java.sun.com/xml/ns/jaxws"
+              xmlns:xs="http://www.w3.org/2001/XMLSchema"
+              xmlns:jxb="http://java.sun.com/xml/ns/jaxb"
+              xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+      <jaxws:bindings  node="wsdl:definitions/wsdl:types/xs:schema[@targetNamespace='THE_NAMESPACE_OF_YOUR_SCHEMA']">
+          <jxb:globalBindings xmlns:jxb="http://java.sun.com/xml/ns/jaxb" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <jxb:javaType name="java.util.Date" xmlType="xs:date"
+                          parseMethod="org.apache.cxf.tools.common.DataTypeAdapter.parseDate"
+                          printMethod="org.apache.cxf.tools.common.DataTypeAdapter.printDate"/>
+          </jxb:globalBindings>
+      </jaxws:bindings>
+    </jaxws:bindings>
+    
+You can refer to http://cxf.apache.org/docs/wsdl-to-java.html section "How to map xsd:dateTime to java.util.Date?" for more details.
+    
+
+A:
+    GregorianCalendar gcal = new GregorianCalendar();
+    start = DatatypeFactory.newInstance().newXMLGregorianCalendar(gcal);
+    start.setTimezone(DatatypeConstants.FIELD_UNDEFINED);
+    
+    
+    Don't ask me why in every bit of the sane logic - when marshalling the XMLgregorianCalendar to xs:date it retains the time zone.
+    
+    I always thought - the time zone could be more applicable to xs:dateTime, but what I know ... about types.
+    
+    For me, it doesn't make sense to have the time zone by default, for a xs:date type and this is a problem in the marshalling logic.
+    
+    
+A:
+
+    Awesome. That did the trick for me (where custom JAXB bindings or other data types are not an option)
+
+===================================================================================
+
+  jaxb2-maven-plugin
+  ******************
+
+  > mvn generate-sources
+
+
+As of 11/2015, v2.1 has a bunch of issues, so using 1.6 instead.
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>jaxb2-maven-plugin</artifactId>
+                <version>1.6</version>
+                <executions>
+                    <execution>
+                        <id>xjc-member</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>xjc</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- The schema directory or xsd files. -->
+                    <schemaDirectory>${project.basedir}/src/main/resources</schemaDirectory>
+                    <schemaFiles>MemberDataHubOutputEvent.xsd</schemaFiles>
+                    <!-- The package in which the source files will be generated. -->
+                    <packageName>jv.demo.member</packageName>
+                    <!-- The working directory to create the generated java source files. -->
+                    <outputDirectory>${project.basedir}/target/generated-sources/src/main/java</outputDirectory>
+                    <bindingDirectory>${project.basedir}/src/main/resources</bindingDirectory>
+                    <bindingFiles>binding.xml</bindingFiles>
+                    <!-- arguments to XJC -->
+                    <arguments>-Xequals -XhashCode -XtoString</arguments>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jvnet.jaxb2_commons</groupId>
+                        <artifactId>jaxb2-basics</artifactId>
+                        <version>0.9.5</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <!-- this adds JAXB-generated sources as a source directory -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${build-helper-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.basedir}/target/generated-sources/src/main/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+
+NOTE: if using jaxb2-basics, make sure to add it as a dependency as well so code compiles.
+
+
+  generating equals, hashCode and toString methods
+  ************************************************
+
+  see jaxb2-basics above
+
+  http://stackoverflow.com/questions/9062539/generating-hashcode-and-equals-when-creating-java-classes-using-mojo-jaxb2-m
+
+
+==================================================================================
+
+  can I use regular expressions in bindings?
+  *******************************************
+
+Q: Something like
+
+  <jaxb:bindings schemaLocation="*.xsd" node="/xsd:schema[@value=.*/schema/(.*)/(.*)">
+    <jaxb:schemaBindings>
+        <jaxb:package name="com.domain.$1.$2"/>
+    </jaxb:schemaBindings>
+</jaxb:bindings>
+
+http://stackoverflow.com/questions/32767134/is-there-a-way-to-create-jaxb-binding-rules-based-on-regex-for-all-xsds-as-opp
+
+A: 
+  NO
+
+
+===================================================================================
+
+  Java 8 / JDK 8 JAXB/xjc accessExternalSchema property
+  *****************************************************
+
+JAXB xjc fails with the following error:  
+
+Failed to read schema document 'xjc.xsd', because 'file' access is not allowed due to restriction set by the accessExternalSchema property.
+
+http://stackoverflow.com/questions/23011547/webservice-client-generation-error-with-jdk8
+http://docs.oracle.com/javase/7/docs/api/javax/xml/XMLConstants.html#ACCESS_EXTERNAL_SCHEMA
+
+Solution 1
+-----------
+
+based on http://docs.oracle.com/javase/7/docs/api/javax/xml/XMLConstants.html#ACCESS_EXTERNAL_SCHEMA)
+
+Create a file named jaxp.properties (if it doesn't exist) under /path/to/jdk1.8.0/jre/lib and then write this line in it:
+
+javax.xml.accessExternalSchema = all
+
+Solution 2  !!!!
+----------
+
+http://stackoverflow.com/questions/23011547/webservice-client-generation-error-with-jdk8
+
+Add this plugin to your maven build:
+
+            <plugin>
+                <!-- Needed to run the plugin xjc en Java 8 or superior -->
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.0-alpha-2</version>
+                <executions>
+                    <execution>
+                        <id>set-additional-system-properties</id>
+                        <goals>
+                            <goal>set-system-properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <properties>
+                        <property>
+                            <name>javax.xml.accessExternalSchema</name>
+                            <value>all</value>
+                        </property>
+                        <property>
+                            <name>javax.xml.accessExternalDTD</name>
+                            <value>all</value>
+                        </property>
+                    </properties>
+                </configuration>
+            </plugin>
+
+===================================================================================
+
+  JAXB generation with imported / included XSD Schema and Binding
+  ***************************************************************
+
+http://stackoverflow.com/questions/29763259/jaxb-class-generation-with-imported-xsd-and-binding
+
+Provided separate binding element for each schema:
+
+  - one for Common.xsd
+  - one for Person.xsd
+
+<jxb:bindings
+        xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+        xmlns:jxb="http://java.sun.com/xml/ns/jaxb"
+        version="2.1">
+
+    <jxb:globalBindings>
+        <!-- use java8 localDate for xsd:date -->
+        <jxb:javaType name="java.time.LocalDate" xmlType="xsd:date"
+                      parseMethod="jv.demo.jaxb.LocalDateConverter.parseDate"
+                      printMethod="jv.demo.jaxb.LocalDateConverter.printDate"/>
+        <!-- use Joda-Time dateTime for xsd:dateTime -->
+        <jxb:javaType name="java.time.LocalDateTime" xmlType="xsd:dateTime"
+                      parseMethod="jv.demo.jaxb.LocalDateTimeConverter.parseDate"
+                      printMethod="jv.demo.jaxb.LocalDateTimeConverter.printDate"/>
+    </jxb:globalBindings>
+
+    <jxb:bindings schemaLocation="Common.xsd">
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Actor']">
+            <jxb:class name="Actor"/>
+        </jxb:bindings>
+        . . .
+    </jxb:bindings>
+
+    <jxb:bindings schemaLocation="Person.xsd">
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Address']">
+            <jxb:class name="Address"/>
+        </jxb:bindings>
+        . . .
+    </jxb:bindings>
+</jxb:bindings>    
+
+
+
+===================================================================================
+
+  simpleType enumeration to generate Java enums
+  *********************************************
+
+http://stackoverflow.com/questions/6031572/howto-generate-java-enum-from-xml-schema-with-jaxb  
+
+  <!--TransactionType-->
+  <xsd:simpleType name="DataType_TransactionType">
+    <xsd:restriction base="xsd:string">
+      <xsd:enumeration value="SynchronousRequest"/>
+      <xsd:enumeration value="SynchronousResponse"/>
+      <xsd:enumeration value="AsynchronousRequest"/>
+      <xsd:enumeration value="AsynchronousResponse"/>
+      <xsd:enumeration value="Publish"/>
+      <xsd:enumeration value="Subscription"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+
+
+        <jxb:bindings node="//xsd:simpleType[@name='DataType_TransactionType']">
+            <jxb:typesafeEnumClass name="TransactionType"/>
+        </jxb:bindings>    
+
+
+===================================================================================        
+
+  force schema-compiled classes to extend specific class outside the schema
+  *************************************************************************
+
+http://stackoverflow.com/questions/1271980/generating-a-jaxb-class-that-implements-an-interface
+
+
+<?xml version="1.0"?>
+<jxb:bindings version="1.0" 
+  xmlns:jxb="http://java.sun.com/xml/ns/jaxb" 
+  xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+  xmlns:xjc="http://java.sun.com/xml/ns/jaxb/xjc"
+  xmlns:inheritance="http://jaxb2-commons.dev.java.net/basic/inheritance"
+  jxb:extensionBindingPrefixes="xjc">
+
+    <jxb:bindings schemaLocation="xsd/adult.xsd">
+      <jxb:bindings node="//xs:complexType[@name='Person']">
+        <inheritance:implements>mypackage.Hello</inheritance:implements> 
+      </jxb:bindings>
+    </jxb:bindings>
+
+</jxb:bindings>
+The JAXB2 Basics Plugins documentation includes instructions for using the plugin with Ant and Maven. You can also use it straight from the command line, but the command is a bit messy (due to the number of jars you have to add to the classpath):
+
+java -jar jaxb-xjc.jar 
+     -classpath jaxb2-basics-0.5.3.jar,jaxb2-basics-runtime-0.5.3.jar,
+                jaxb2-basics-tools-0.5.3.jar,commons-beanutils-0.5.3.jar,
+                commons-lang.jar,commons-logging.jar
+     -p mypackage.myxml -extension -Xinheritance xsd/adult.xsd -b binding.xjb
+
+
+
+
+
+my implementation:
+
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>jaxb2-maven-plugin</artifactId>
+                <version>1.6</version>
+                <executions>
+                    <execution>
+                        <id>xjc-member</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>xjc</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- The schema directory or xsd files. -->
+                    <schemaDirectory>${project.basedir}/src/main/resources</schemaDirectory>
+                    <schemaFiles>Person.xsd, Common.xsd</schemaFiles>
+                    <!-- The package in which the source files will be generated. -->
+                    <packageName>com.standard.eb.member</packageName>
+                    <!-- The working directory to create the generated java source files. -->
+                    <outputDirectory>${project.basedir}/target/generated-sources/jaxb2</outputDirectory>
+                    <bindingDirectory>${project.basedir}/src/main/resources</bindingDirectory>
+                    <bindingFiles>binding.xml</bindingFiles>
+                    <!-- arguments to XJC -->
+                    <arguments>-extension -Xinheritance -Xequals -XhashCode -XtoString</arguments>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.jvnet.jaxb2_commons</groupId>
+                        <artifactId>jaxb2-basics</artifactId>
+                        <version>0.9.5</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <!-- this adds JAXB-generated sources as a source directory -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${build-helper-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.basedir}/target/generated-sources/jaxb2</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Needed to run the plugin xjc en Java 8 or superior -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.0-alpha-2</version>
+                <executions>
+                    <execution>
+                        <id>set-additional-system-properties</id>
+                        <goals>
+                            <goal>set-system-properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <properties>
+                        <property>
+                            <name>javax.xml.accessExternalSchema</name>
+                            <value>all</value>
+                        </property>
+                        <property>
+                            <name>javax.xml.accessExternalDTD</name>
+                            <value>all</value>
+                        </property>
+                    </properties>
+                    <outputFile> </outputFile>
+                </configuration>
+            </plugin>            
+
+
+<jxb:bindings
+        xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+        xmlns:jxb="http://java.sun.com/xml/ns/jaxb"
+        xmlns:inheritance="http://jaxb2-commons.dev.java.net/basic/inheritance"
+        jxb:extensionBindingPrefixes="xjc"
+        version="2.1">
+
+
+    <jxb:bindings schemaLocation="Person.xsd">
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Address']">
+            <jxb:class name="Address"/>
+            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+        </jxb:bindings>
+        <jxb:bindings node="//xsd:complexType[@name='DataType_Addresses']">
+            <jxb:class name="Addresses"/>
+        </jxb:bindings>
+
+    </jxb:bindings>        
+
+</jxb:bindings?        
+
+
+
+===================================================================================
+
+    java.lang.NoSuchFieldError: INSTANCE
+    ************************************
+
+        at some.jaxb.generated.Thing.toString(Thing.java:1452)
+
+org.codehouse.mojo:jaxb2-maven-plugin uses
+
+jaxb2-basics to implement things like JAXBToStringStrategy
+
+
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>jaxb2-maven-plugin</artifactId>
+        <version>${jaxb2-maven-plugin.version}</version>
+        <executions>
+            . . .
+        </executions>
+        <configuration>
+            . . .
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.jvnet.jaxb2_commons</groupId>
+            <artifactId>jaxb2-basics</artifactId>
+            <version>0.9.5</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+
+
+
+JAXBToStringStrategy looks like this
+
+    public String toString() {
+        final ToStringStrategy strategy = JAXBToStringStrategy.INSTANCE;
+        final StringBuilder buffer = new StringBuilder();
+        append(null, buffer, strategy);
+        return buffer.toString();
+    }
+
+If you do not have jaxb2-basics on the classpath, you'll get that 
+NoSuchFieldError: INSTANCE b/c it wouldn't know anything about 
+
+
+    JAXBToStringStrategy.INSTANCE
+
+
+===================================================================================
