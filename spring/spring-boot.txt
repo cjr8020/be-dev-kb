@@ -1430,3 +1430,27 @@ server:
 7 The password of the trust store.
 
 ================================================================================
+
+  WebMvcConfigurerAdapter is deprecated
+  *************************************
+
+This warning will appear if we’re using Spring version 5 (or Spring Boot 2), either when upgrading an existing application or building a new application with the old API.
+
+In earlier versions of Spring, up to and including version 4, if we wanted to configure a web application, we could make use of the WebMvcConfigurerAdapter class:
+
+  @Configuration
+  public WebConfig extends WebMvcConfigurerAdapter {
+       
+      // ...
+  }  
+
+Java 8 added the concept of default methods in interfaces. Naturally, the Spring team updated the framework to make full use of the new Java language features.
+
+Now, use
+
+  @Configuration
+  public WebConfig implements WebMvcConfigurer {
+      // ...
+  }
+
+================================================================================
