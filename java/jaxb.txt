@@ -1941,5 +1941,14 @@ NoSuchFieldError: INSTANCE b/c it wouldn't know anything about
 
     JAXBToStringStrategy.INSTANCE
 
+Another reason for this error: you have 2+ models in your project.. 
+some from other projects, some may be yours .. 
+generated with different versions of jaxb2-basics.. 
+
+If one model is generated with, say, jaxb2-basics v 0.9.5, and the other one - 
+with jaxb2-basics version 1.11.1, you will get this error...
+
+If you can align their versions - great - if not, you may have to split the 
+use of these models into different microservices.
 
 ===================================================================================
