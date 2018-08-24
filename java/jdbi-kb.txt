@@ -6,6 +6,10 @@
 	@@@@@@@@@@@@
 
 
+Examples:
+
+https://github.com/qualidafial/jdbi-examples/tree/master/src/test/java/org/jdbi/examples/v3
+
 ================================================================================
 
 	JDBI 3	
