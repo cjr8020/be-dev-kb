@@ -60,6 +60,7 @@ Handle objects provide two ways to open a transaction:
 
 	has no return value.
 
+3. Transactional
 
 
 As with connection handles, we introduce a transaction by calling a method with a closure:
@@ -85,6 +86,123 @@ handle.inTransaction((Handle h) -> {
     h.commit();
     return true;
 });
+
+
+3. Transactional
+----------------
+
+A mixin interface to expose transaction methods on the sql object.
+
+Use caution with on-demand Transactional instances. Handle throws TransactionException if closed while a transaction is open. Since on-demand extensions open and close a handle around each method invocation, calling begin() on an on-demand Transactional will always leave a transaction open, and thus always throw this exception.
+
+Users of on-demand Transactional instances should use the inTransaction and useTransaction methods to execute transactions. It is safe to call other Transactional methods from inside these callbacks.
+
+    Something s = dao.inTransaction(transactional -> {
+
+      ...
+
+      return s;
+    });
+
+
+================================================================================	
+
+	OracleCustomGeneratedKeyMapper in JDBI v2
+	*****************************************
+
+This addresses the use case where the PK is generated from a sequence with an
+Oracle pre-insert trigger.  In this case, I provide a custom mapper that will
+read `currval` from the sequence to return as `GeneratedKey`.
+
+
+DAO
+------------------
+
+The goal is for the "create" method to return the PK ID of the newly-created 
+record via @GetGeneratedKeys configured with a custom Mapper.
+
+  @SqlUpdate
+  @GetGeneratedKeys(columnName = "PERSON_IDENTIFIER_SEQ", value = PersonIdentifierGeneratedKeyMapper.class)
+  Long create(@Bind(value = "create", binder = PersonIdentifierBinder.class) PersonIdentifier personIdentifier);
+
+PersonIdentifierGeneratedKeyMapper
+-----------------------------------
+
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
+
+/**
+ * @see OracleCustomGeneratedKeyMapper for details
+ */
+public class PersonIdentifierGeneratedKeyMapper extends OracleCustomGeneratedKeyMapper implements ResultSetMapper<Long> {
+
+  public static final String seqCurrvalQuery = "select PERSON_IDENTIFIER_SEQ.currval from DUAL";
+
+  @Override
+  public String getSeqCurrvalQuery() {
+    return seqCurrvalQuery;
+  }
+}
+
+
+OracleCustomGenereatedKeyMapper.java
+-------------------------------------
+
+import com.google.common.base.Throwables;
+
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+/**
+ * The whole reason for this oracle-specific generated key mapper is Oracle's non-standard
+ * implementation of JDBC 3.0 feature "Retrieval of Auto-Generated Keys".
+ * The World returns the actual auto-generated PK value when getGeneratedKeys() method is called.
+ * Oracle, in its infinite wisdom, returns ROWID - something completely meaningless in the context of JDBC.
+ * Technically, all you need is to call resultSet.getLong(1).
+ * Oracle ROWID looks like this "AACy6+AC6AAEI5WAAA", so of course, you will get NumberFormatException.
+ * I catch the error, and make a 2nd call - thanks for the help Oracle - to fetch currval from sequence
+ * and use that as generated key value.  This 2nd call is done on the same connection and within the
+ * same transaction, so we are guaranteed that the correct currval is returned..
+ */
+public abstract class OracleCustomGeneratedKeyMapper implements ResultSetMapper<Long> {
+
+  private static final Logger log = LoggerFactory.getLogger(OracleCustomGeneratedKeyMapper.class);
+
+  @Override
+  public Long map(int index, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+
+    Long generatedKey;
+
+    try {
+      generatedKey = resultSet.getLong(1);
+    } catch (Throwable throwable) {
+      log.debug("unable to convert ROWID to Long: " + throwable.getMessage());
+      /*
+       * note: this java 7 automatic resource management for the RS and PS..
+       * however, leave connection management to JDBI.
+       */
+      try (PreparedStatement ps = statementContext.getConnection().prepareStatement(getSeqCurrvalQuery())) {
+        try (ResultSet currval = ps.executeQuery()) {
+          currval.next();
+          generatedKey = currval.getLong(1);
+        }
+      } catch (SQLException ex) {
+        log.error(" *** getting currval failed ***");
+        throw Throwables.propagate(ex);
+      }
+
+    }
+
+    return generatedKey;
+  }
+
+  public abstract String getSeqCurrvalQuery();
+}
 
 
 ================================================================================	
