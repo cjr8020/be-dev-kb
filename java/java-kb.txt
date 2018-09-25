@@ -200,3 +200,200 @@ Deserialize unknown JSON into Java Map
 
 ================================================================================
 
+	HMAC
+	****
+
+
+HMAC-SHA1 generation
+--------------------
+In cryptography, an HMAC (sometimes expanded as either keyed-hash message authentication code or hash-based message authentication code) is a specific type of message authentication code (MAC) involving a cryptographic hash function and a secret cryptographic key. It may be used to simultaneously verify both the data integrity and the authentication of a message, as with any MAC.	
+
+Resources:
+----------
+https://linkmobility.atlassian.net/wiki/spaces/DD/pages/88670850/Authentication
+https://linkmobility.atlassian.net/wiki/spaces/DD/pages/250282553/Hmac+example+java
+https://www.jokecamp.com/blog/examples-of-creating-base64-hashes-using-hmac-sha256-in-different-languages/#java
+
+
+HMAC Util
+------------
+
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidKeyException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+/**
+ * HMAC utilities.
+ */
+public class HmacUtil {
+
+  /**
+   * The encoding used for the header.
+   */
+  private static final String ENCODING = "UTF-8";
+
+  /**
+   * Identifier for the HmacSHA256 algorithm as expected from {@link javax.crypto.Mac}.
+   */
+  private static final String HMAC_SHA256_ALGORITHM_NAME = "HmacSHA256";
+
+  /**
+   * Identifier for the MD5 algorithm as expected.
+   * from {@link MessageDigest java.security.MessageDigest}
+   */
+  private static final String MD5_ALGORITHM_NAME = "MD5";
+
+
+  /**
+   * Creates HmacSHA256 hash of a message using the provided secret key.
+   *
+   * @param message the message to be hashed and authenticated/validated later
+   * @param secretKey a secret key used to create the hash
+   * @return the created hash as binary data
+   * @throws NoSuchAlgorithmException in case the selected algorithm (HmacSHA256) is not supported
+   * @throws InvalidKeyException in case the provided key is inappropriate for the MAC
+   */
+  public static byte[] createSha256Hash(
+      byte[] message,
+      byte[] secretKey
+  ) throws NoSuchAlgorithmException, InvalidKeyException {
+    Mac algorithm = Mac.getInstance(HMAC_SHA256_ALGORITHM_NAME);
+    SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey, HMAC_SHA256_ALGORITHM_NAME);
+    algorithm.init(secretKeySpec);
+    byte[] hash = algorithm.doFinal(message);
+
+    return hash;
+  }
+
+  /**
+   * Creates a MD5 hash from the provided input.
+   *
+   * @param input the input string to hash
+   * @return the creates hash as binary data
+   * @throws NoSuchAlgorithmException in case the selected algorithm (MD4) is not supported
+   * @throws UnsupportedEncodingException
+   *         in case the encoding of the input character set is not supported
+   */
+  public static byte[] createMd5Hash(String input)
+      throws NoSuchAlgorithmException, UnsupportedEncodingException {
+    MessageDigest md5Digest = MessageDigest.getInstance(MD5_ALGORITHM_NAME);
+    md5Digest.update(input.getBytes(ENCODING));
+    byte[] hash = md5Digest.digest();
+
+    return hash;
+  }
+
+  /**
+   * Converts bytes to hex string.
+   *
+   * @param bytes array
+   * @return string
+   */
+  public static String bytesToHex(byte[] bytes) {
+    final char[] hexArray = "0123456789ABCDEF".toCharArray();
+    char[] hexChars = new char[bytes.length * 2];
+    for (int j = 0; j < bytes.length; j++) {
+      int v = bytes[j] & 0xFF;
+      hexChars[j * 2] = hexArray[v >>> 4];
+      hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+    }
+    return new String(hexChars);
+  }
+
+
+  /**
+   * Encodes to base64.
+   *
+   * @param bytes array
+   * @return string
+   */
+  public static String base64Encode(byte[] bytes) {
+    return Base64.getEncoder().encodeToString(bytes);
+  }
+
+  /**
+   * Encodes to base64 without padding.
+   *
+   * @param bytes array
+   * @return string
+   */
+  public static String base64EncodeWithoutPadding(byte[] bytes) {
+    return Base64.getEncoder().withoutPadding().encodeToString(bytes);
+  }
+
+
+Generate HMAC Headers
+---------------------------
+
+  private Map<String, String> getHmacHeaders(
+      final String targerApiHttpVerb,
+      final String targerApiUri,
+      final String requestBody) {
+
+    Map<String, String> headers = new HashMap<>();
+
+    try {
+      final String hmacApplicationUuid = config.getHmacApplicationUuid();
+      final String hmacSecretKey = config.getHmacApplicationKey();
+
+      // The MD5 base64 encoded string for an empty string is "1B2M2Y8AsgTpgAmY7PhCfg=="
+      final String targetApiRequestBodyMd5Hash
+          = HmacUtil.base64Encode(HmacUtil.createMd5Hash(requestBody));
+
+      final String formattedCurrentTimeStamp = ZonedDateTime.now().format(timestampFormatter);
+
+      // removes `https://` from URL
+      Matcher matcher = _URI_NO_PROTOCOL_PATTERN.matcher(targerApiUri);
+      String canonicalizedUriNoProtocol = matcher.replaceFirst("");
+
+      if (logger.isDebugEnabled()) {
+        logger.debug("targetApiRequestBodyMd5Hash base64-encoded={}", targetApiRequestBodyMd5Hash);
+        logger.debug("formattedCurrentTimeStamp={}", formattedCurrentTimeStamp);
+        logger.debug("canonicalizedUriNoProtocol={}", canonicalizedUriNoProtocol);
+      }
+
+      final String contentToSign = targerApiHttpVerb + '\n'
+          + targetApiRequestBodyMd5Hash + '\n'
+          + formattedCurrentTimeStamp + '\n'
+          + canonicalizedUriNoProtocol + '\n';
+
+      byte[] sha256SignedContent = HmacUtil.createSha256Hash(
+          contentToSign.getBytes(Charset.forName("UTF-8")),
+          hmacSecretKey.getBytes(Charset.forName("UTF-8")));
+
+      String base64EncodedSignedContent = HmacUtil.base64Encode(sha256SignedContent);
+
+      String authorizationHeader = "-hmac" + " "
+          + hmacApplicationUuid + ":" + base64EncodedSignedContent + ":" + "internal-applications";
+      String base64OfEncodedRequest
+          = HmacUtil.base64Encode(contentToSign.getBytes(Charset.forName("UTF-8")));
+
+      logger.info("x--authorization: {}", authorizationHeader);
+      logger.info("x--request: {}", base64OfEncodedRequest);
+      logger.info("x--date: {}", formattedCurrentTimeStamp);
+
+      headers.put(_HEADER_NAME_AUTHORIZATION, authorizationHeader);
+      headers.put(_HEADER_NAME_REQUEST, base64OfEncodedRequest);
+      headers.put(_HEADER_NAME_DATE, formattedCurrentTimeStamp);
+      headers.put(HttpHeaders.CONTENT_TYPE, "application/json");
+    } catch (NoSuchAlgorithmException
+        | UnsupportedEncodingException
+        | InvalidKeyException exception) {
+      logger.error(
+          "{}, method=getHmacUserByUuid failed: {}",
+          sfgAuditor.auditableLogMessage(ExecutionContextHolder.get()),
+          exception
+      );
+      throw new IllegalStateException("Error generating OrhcIS HMAC authorization headers. ");
+    }
+
+    return headers;
+  }
+
+
+================================================================================
+
