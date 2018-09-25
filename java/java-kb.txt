@@ -187,3 +187,16 @@ Example:
 
 ================================================================================
 
+	Jackson FasterXML
+	*****************
+
+Deserialize unknown JSON into Java Map
+--------------------------------------
+
+   Map<String, Object> errorResponse = objectMapper.readValue(
+              httpResponse.getEntity().getContent(),
+              new TypeReference<Map<String,Object>>() {});	
+
+
+================================================================================
+
