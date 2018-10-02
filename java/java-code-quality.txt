@@ -1,0 +1,38 @@
+	*************************
+		java code quality
+	*************************
+
+================================================================================	
+
+	Checkstyle
+	**********
+
+maven-checkstyle-plugin
+-----------------------
+
+    <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
+    <checkstyle.version>8.12</checkstyle.version>
+    <checkstyle.config.location>google_checks.xml</checkstyle.config.location>
+    <checkstyle.suppressions.file>checkstyle-suppressions.xml</checkstyle.suppressions.file>	
+
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${maven-checkstyle-plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>${checkstyle.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <configLocation>${checkstyle.config.location}</configLocation>
+          <failOnViolation>false</failOnViolation>
+          <suppressionsLocation>${checkstyle.suppressions.file}</suppressionsLocation>
+          <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
+        </configuration>
+      </plugin>
+
+================================================================================	
