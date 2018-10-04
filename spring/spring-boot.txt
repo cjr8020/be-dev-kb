@@ -1650,7 +1650,7 @@ public class HttpRequestLoggingFilter extends OncePerRequestFilter implements Or
         logContent(content, response.getContentType(), response.getCharacterEncoding(), prefix);
       }
     }
-    
+
   }
 
   private void logContent(byte[] content, String contentType, String contentEncoding,
@@ -1730,6 +1730,27 @@ To enable validate on a resource
     }
 
   and annotate your REST resource class fields with appropriate validators.
+
+
+Examples of validation
+----------------------
+
+  @JsonProperty
+  @NotNull
+  @Pattern(regexp = "[^\\d+$]")
+  private String digitsOnly;
+
+  @JsonProperty
+  @NotNull
+  @Digits(integer = 6, fraction = 0) <-- Did not work for me, @Pattern instead.
+  private String blah;  // string of 6 digit chars
+
+  @JsonProperty
+  @NotNull
+  @Pattern(regexp = "[^\\d{4}-\\d{2}-\\d{2}$]")
+  private Date birthDate;  // 2000-12-31
+
+
 
 
 Custom Validators
