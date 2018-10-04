@@ -1737,13 +1737,18 @@ Examples of validation
 
   @JsonProperty
   @NotNull
-  @Pattern(regexp = "[^\\d+$]")
+  @Pattern(regexp = "^[\\d+]$")
   private String digitsOnly;
 
   @JsonProperty
   @NotNull
+  @Pattern(regexp = "^[\\d]{6}$")
+  private String sixDigits;
+
+  @JsonProperty
+  @NotNull
   @Digits(integer = 6, fraction = 0) <-- Did not work for me, @Pattern instead.
-  private String blah;  // string of 6 digit chars
+  private String blah;  
 
   @JsonProperty
   @NotNull
