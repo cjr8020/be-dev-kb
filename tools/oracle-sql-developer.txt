@@ -1,0 +1,18 @@
+
+	******************************
+
+		Oracle SQL Developer
+
+	******************************
+
+
+
+How do I change default schema to another schema?
+**************************************************
+
+Just right click on the created connection and select "Schema browser", 
+then use the filter to display the desired one.
+
+
+
+================================================================================	
