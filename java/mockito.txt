@@ -10,6 +10,15 @@ http://static.javadoc.io/org.mockito/mockito-core/2.21.0/org/mockito/Mockito.htm
 
 ================================================================================
 
+    mock vs spy
+    ***********
+
+When Mockito creates a mock – it does so from the Class of an Type, not from an actual instance. The mock simply creates a bare-bones shell instance of the Class, entirely instrumented to track interactions with it.
+
+On the other hand, the spy will wrap an existing instance. It will still behave in the same way as the normal instance – the only difference is that it will also be instrumented to track all the interactions with it.    
+
+================================================================================
+
 Real Partial Mocks
 ------------------			
 
@@ -31,7 +40,24 @@ public void testSomething() {
     
     when(builder.build()).thenCallRealMethod(); // method under test    
 
-}    
+}  
+
+
+
+
+You cannot use argument matchers outside of verification or stubbing.                                    
+Examples of correct usage of argument matchers:                                                          
+    when(mock.get(anyInt())).thenReturn(null);                                                           
+    doThrow(new RuntimeException()).when(mock).someVoidMethod(anyObject());                              
+    verify(mock).someMethod(contains("foo"))                                                             
+                                                                                                         
+This message may appear after an NullPointerException if the last matcher is returning an object         
+like any() but the stubbed method signature expect a primitive argument, in this case,                   
+use primitive alternatives.                                                                              
+    when(mock.get(any())); // bad use, will raise NPE                                                    
+    when(mock.get(anyInt())); // correct usage use                                                       
+
+
 
 ================================================================================
 
@@ -63,5 +89,225 @@ public class MyLauncherTest
     }
 }    
 
+
+================================================================================
+
+    mockito spy collect return values
+    *********************************
+
+First thing, you should be passing spy in as the constructor argument.
+
+
+public class ResultCaptor<T> implements Answer {
+    private T result = null;
+    public T getResult() {
+        return result;
+    }
+
+    @Override
+    public T answer(InvocationOnMock invocationOnMock) throws Throwable {
+        result = (T) invocationOnMock.callRealMethod();
+        return result;
+    }
+}    
+
+
+Intended usage:
+
+    RealFactory factory     = new RealFactory();
+    RealFactory spy         = spy(factory);
+    TestedClass testedClass = new TestedClass(spy);
+
+    // At this point I would like to get a reference to the object created
+    // and returned by the factory.
+
+
+    // let's capture the return values from spy.create()
+    ResultCaptor<RealThing> resultCaptor = new ResultCaptor<>();
+    doAnswer(resultCaptor).when(spy).create();
+
+    // do something that will trigger a call to the factory
+    testedClass.doSomething();
+
+    // validate the return object
+    assertThat(resultCaptor.getResult())
+            .isNotNull()
+            .isInstanceOf(RealThing.class);
+
+================================================================================
+
+    verify cookbook
+    ***************
+
+public class MyList extends AbstractList<String> {
+ 
+    @Override
+    public String get(final int index) {
+        return null;
+    }
+    @Override
+    public int size() {
+        return 0;
+    }
+}
+
+
+verify simple invocation on mock
+--------------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    mockedList.size();
+    verify(mockedList).size();
+
+verify number of interactions with mock
+----------------------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    mockedList.size();
+    verify(mockedList, times(1)).size();
+
+verify no interaction with the whole mock occurred
+--------------------------------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    verifyZeroInteractions(mockedList);
+
+verify no interaction with a specific method occurred
+-----------------------------------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    verify(mockedList, times(0)).size();
+
+verify there are no unexpected interactions – this should fail:
+---------------------------------------------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    mockedList.size();
+    mockedList.clear();
+    verify(mockedList).size();
+    verifyNoMoreInteractions(mockedList);
+
+verify order of interactions
+-----------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    mockedList.size();
+    mockedList.add("a parameter");
+    mockedList.clear();
+     
+    InOrder inOrder = Mockito.inOrder(mockedList);
+    inOrder.verify(mockedList).size();
+    inOrder.verify(mockedList).add("a parameter");
+    inOrder.verify(mockedList).clear();
+
+
+verify an interaction has not occurred
+---------------------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    mockedList.size();
+    verify(mockedList, never()).clear();
+
+verify an interaction has occurred at least certain number of times
+--------------------------------------------------------------------
+    List<String> mockedList = mock(MyList.class);
+    mockedList.clear();
+    mockedList.clear();
+    mockedList.clear();
+     
+    verify(mockedList, atLeast(1)).clear();
+    verify(mockedList, atMost(10)).clear();
+
+verify interaction with exact argument
+---------------------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    mockedList.add("test");
+    verify(mockedList).add("test");
+
+
+verify interaction with flexible/any argument
+---------------------------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    mockedList.add("test");
+    verify(mockedList).add(anyString());
+
+verify interaction using argument capture
+-----------------------------------------
+
+    List<String> mockedList = mock(MyList.class);
+    mockedList.addAll(Lists.<String> newArrayList("someElement"));
+    ArgumentCaptor<List> argumentCaptor = ArgumentCaptor.forClass(List.class);
+    verify(mockedList).addAll(argumentCaptor.capture());
+    List<String> capturedArgument = argumentCaptor.<List<String>> getValue();
+    assertThat(capturedArgument, hasItem("someElement"));
+
+
+
+
+================================================================================
+
+    verify mocked object method return values
+    *****************************************
+
+void someMethodUnderTest() {
+    ...
+    someMockedObject.someMockedObjectMethod(blah, bleh);
+}
+
+
+@RunWith(MockitoJUnitRunner.class)
+public class SomeStufTest {
+
+    @Mock
+    private SomeMockedObject someMockedObject;
+
+    @Inject
+    SomeStuff someStuff;
+
+    public void testSomeStuff() {
+
+        // set up test
+        someExpectedId
+        someOtherExpectedId
+
+        // run 
+        someStuff.someMethodUnderTest();
+
+        // assert
+        ArgumentCaptor<String> uuidCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<HmacUser> updateContentCaptor
+            = ArgumentCaptor.forClass(HmacUser.class);
+        verify(someMockedObject)
+            .someMockedObjectMethod(uuidCaptor.capture(), updateContentCaptor.capture());
+        assertThat(uuidCaptor.getValue(), equalTo(uuid));
+        assertThat(updateContentCaptor.getValue().getSomeId(), equalTo(someExpectedId));
+        assertThat(updateContentCaptor.getValue().getSomeOtherId(), equalTo(someOtherExpectedId));
+    }
+
+}
+
+
+@Captor
+-----------------
+
+
+You can also define ArgumentCaptors using  @Captor at the TestCase level:
+
+    @Captor
+    private ArgumentCaptor<String> fileNameCaptor;
+
+    @Captor
+    private ArgumentCaptor<List<String>> dataCaptor;
+
+
+================================================================================
+
+    one liner list initializer
+    **************************
+
+    String agencyIdOne = "1234566789";
+    List<String> agencyIds = new ArrayList<String>() {{ add(agencyIdOne); }};    
 
 ================================================================================

@@ -1737,7 +1737,7 @@ Examples of validation
 
   @JsonProperty
   @NotNull
-  @Pattern(regexp = "^[\\d+]$")
+  @Pattern(regexp = "^[\\d]+$")
   private String digitsOnly;
 
   @JsonProperty

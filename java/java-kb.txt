@@ -397,3 +397,91 @@ Generate HMAC Headers
 
 ================================================================================
 
+	lambda expressions
+	******************
+
+interface DoSomething {
+	void do(Object o);
+}	
+
+DoSomething cool = (o) -> (o.doHighFive();
+DoSomething meh = (0) -> (o.meh());
+
+Object highFive = new HighFive();
+cool.do(highFive);
+
+Object lowFive = new LowFive();
+meh.do(lowFive);
+
+Examples:
+
+	() -> {}                     // No parameters; void result
+
+	() -> 42                     // No parameters, expression body
+	() -> null                   // No parameters, expression body
+	() -> { return 42; }         // No parameters, block body with return
+	() -> { System.gc(); }       // No parameters, void block body
+
+	(int x) -> x+1             	// Single declared-type argument
+	(int x) -> { return x+1; }  // same as above
+	(x) -> x+1                  // Single inferred-type argument, same as below
+	x -> x+1                    // Parenthesis optional for single inferred-type case
+
+	(String s) -> s.length()     // Single declared-type argument
+	(Thread t) -> { t.start(); } // Single declared-type argument
+	s -> s.length()              // Single inferred-type argument
+	t -> { t.start(); }          // Single inferred-type argument
+
+	(int x, int y) -> x+y      // Multiple declared-type parameters
+	(x,y) -> x+y               // Multiple inferred-type parameters
+	(x, final y) -> x+y        // Illegal: can't modify inferred-type parameters
+	(x, int y) -> x+y          // Illegal: can't mix inferred and declared types
+
+
+// Complex block body with multiple returns
+
+	() -> {
+	  if (true) return 10;
+	  else {
+	    int result = 15;
+	    for (int i = 1; i < 10; i++)
+	      result *= i;
+	    return result;
+	  }
+	} 
+
+Method and Constructor References
+---------------------------------
+
+method reference is used to refer to a method without invoking it.
+a constructor reference is used to refer to a constructor without creating
+a new instance of the named class or array type.
+
+	System::getProperty
+	System.out::println
+	"abc"::length
+	ArrayList::new
+	int[]::new
+
+================================================================================
+
+	Functional Inteface
+	*******************
+
+Represents a function that accepts exactly one argument and produces a result:
+	R apply(T t);
+
+@FunctionalInterface
+	should use this annotation with functional interface to avoid addition of
+	extra methods accidentally.
+
+Main benefit of functional interfaces is that we can use lambda expressions
+to instantiate them and avoid bulky anon class implementation.
+
+java.lang.Runnable is an example of a functional interface with one method:
+	run()
+
+
+
+================================================================================
+

@@ -851,3 +851,16 @@ Written with Spring 4.1.6.
 
 
 ================================================================================
+
+	ThreadLocalTargetSource
+	***********************
+
+This is a ThreadLocal target source implementation.
+Similar to ThreadLocal, an object will be created for each incoming request
+(per thread, that is).
+
+
+
+	
+
+================================================================================

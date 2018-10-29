@@ -4,6 +4,8 @@
 
 	*****************
 
+https://microservices.io/patterns/
+
 
 ================================================================================
 
@@ -100,7 +102,7 @@ https://microservices.io/patterns/data/saga.html
 
 https://dzone.com/articles/distributed-sagas-for-microservices
 
-first mentioned in Cornell university research paper in 1987
+first mentioned in Princeton university research paper in 1987
 http://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf
 conceptual alternative for long lived database transactions
 2015
