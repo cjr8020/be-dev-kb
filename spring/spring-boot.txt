@@ -1791,3 +1791,21 @@ public class AdultValidator implements ConstraintValidator<Adult, LocalDate> {
 
 
 ================================================================================
+
+  Respond with 303 "See Other"
+  ****************************
+
+  header("HTTP/1.1 303 See Other");
+  header("Location: http://some.host/new/location/here");  
+
+spring-boot:
+
+  HttpHeaders headers = new HttpHeaders();
+  headers.add("Location", something.getRedirectUrl());
+  return new ResponseEntity<>(
+      "See Other",
+      headers,
+      HttpStatus.SEE_OTHER);
+
+
+================================================================================
