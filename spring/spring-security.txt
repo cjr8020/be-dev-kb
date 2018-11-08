@@ -836,7 +836,11 @@ public class MultipleEntryPointsSecurityConfig {
     public static class App3ConfigurationAdapter extends WebSecurityConfigurerAdapter {
 
         protected void configure(HttpSecurity http) throws Exception {
-            http.antMatcher("/guest/**").authorizeRequests().anyRequest().permitAll();
+            http
+            	.antMatcher("/guest/**")
+            	.authorizeRequests()
+            	.anyRequest()
+            	.permitAll();
         }
     }
 

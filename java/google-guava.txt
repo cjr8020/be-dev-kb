@@ -1,0 +1,49 @@
+	*********************
+		google guava
+	*********************
+
+================================================================================
+
+	Preconditions
+	*************
+
+checkElementIndex
+-----------------
+
+Checks that index is a valid element index into a list, string, or array with the specified size. 
+An element index may range from 0 inclusive to size exclusive. 
+
+Returns index.
+
+=> You don't pass the list, string, or array directly; you just pass its size.
+
+replaces 
+
+	if (index < 0) {
+		throw new IllegalArgumentException("index must be positive");
+	} else if (index >= list.size()) {
+		throw new IllegalArgumentException("index must be less that size of the list");
+	}
+
+with 
+
+	Preconditions.checkElementIndex(index, list.size());
+
+
+checkArgument
+-------------
+
+checkArgument(boolean)
+
+	Checks that the boolean is true. Use for validating arguments to methods.
+
+	List<Integer> listUnderTest = Arrays.asList(1, 2);
+    assertThat(listUnderTest.size(), equalTo(2));
+
+    thrown.expect(IllegalArgumentException.class);
+    Matcher<String> nullMatcher = new IsNull<>();
+    thrown.expectMessage(nullMatcher);
+
+    checkArgument(listUnderTest.size() == 1);
+
+================================================================================
