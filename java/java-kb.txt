@@ -485,3 +485,26 @@ java.lang.Runnable is an example of a functional interface with one method:
 
 ================================================================================
 
+	finally is always executed
+	==========================
+
+public static void main(String[] args) {
+    System.out.println(Test.test());
+}
+
+public static int test() {
+    try {
+        return 0;
+    }
+    finally {
+        System.out.println("finally trumps return.");
+    }
+}
+
+Output:
+
+finally trumps return. 
+0	
+
+================================================================================
+
