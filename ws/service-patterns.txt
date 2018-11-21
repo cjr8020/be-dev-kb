@@ -132,3 +132,215 @@ https://aws.amazon.com/step-functions/
 
 
 ================================================================================
+
+	Command Pattern
+	***************
+
+Receiver
+--------
+
+public class Light {
+  public  void turnOn() {
+    System.out.println("Light is on");
+  }
+
+  public void turnOff() {
+    System.out.println("Light is off");
+  }
+}
+
+Command
+--------
+
+public class TurnOnLightCommand implements Runnable {
+
+  Light light;
+
+  public TurnOnLightCommand(Light light) {
+    super();
+    this.light = light;
+  }
+
+  @Override
+  public void run() {
+    System.out.println("Turning on light.");
+    light.turnOn();
+  }
+}
+
+Invoker
+-----------
+
+public class HomeAutomationRemote {
+
+  // command holder
+  Runnable command;
+
+  public void setCommand(Runnable command) {
+    this.command = command;
+  }
+
+  public void buttonPressed() {
+    command.run();
+  }
+}
+
+Light livingRoomLight = new Light();    //receiver 1
+HomeAutomationRemote remote = new HomeAutomationRemote();   //Invoker
+
+remote.setCommand(new TurnOnLightCommand( livingRoomLight ));
+remote.buttonPressed();
+
+================================================================================
+
+	Saga experimentation
+	********************
+
+Process step
+---------------
+
+public class ProcessStep {
+
+  private Runnable action;
+  private Runnable compensatingAction;
+
+  ProcessStep(Runnable action, Runnable compensatingAction) {
+    this.action = action;
+    this.compensatingAction = compensatingAction;
+  }
+
+  public Runnable getAction() {
+    return action;
+  }
+
+  public void setAction(Runnable action) {
+    this.action = action;
+  }
+
+  public Runnable getCompensatingAction() {
+    return compensatingAction;
+  }
+
+  public void setCompensatingAction(Runnable compensatingAction) {
+    this.compensatingAction = compensatingAction;
+  }
+
+  @Override
+  public String toString() {
+    return new StringJoiner(", ", "ProcessStep{", "}")
+        .add("action=" + action)
+        .add("compensatingAction=" + compensatingAction)
+        .toString();
+  }
+}
+
+Saga
+-------
+
+public class Saga {
+
+  private LinkedHashSet<ProcessStep> processSteps = new LinkedHashSet<>();
+  private String processName;
+
+  public Saga(final String processName) {
+    this.processName = processName;
+  }
+
+  public Saga add(ProcessStep processStep) {
+    processSteps.add(processStep);
+    return this;
+  }
+
+  public LinkedHashSet<ProcessStep> getProcessSteps() {
+    return this.processSteps;
+  }
+
+  @Override
+  public String toString() {
+    return new StringJoiner(", ", "Saga{", "}")
+        .add("processSteps=" + processSteps)
+        .toString();
+  }
+}
+
+SagaExecutor
+------------------
+
+public class SagaExecutor {
+
+  private Saga saga;
+  private Deque<ProcessStep> sagaLog = new LinkedList<>();
+
+  public SagaExecutor (final Saga saga) {
+    this.saga = saga;
+  }
+
+  public SagaExecutor execute() {
+
+    try {
+
+      for (ProcessStep processStep : this.saga.getProcessSteps()) {
+        this.sagaLog.push(processStep);
+        Runnable action = processStep.getAction();
+        action.run();
+      }
+
+    } catch (RuntimeException exception) {
+      System.err.println("ERROR: " + exception.getMessage());
+      rollback();
+    }
+
+    return this;
+  }
+
+  private void rollback() {
+    sagaLog.descendingIterator().forEachRemaining(processStep -> processStep.getCompensatingAction().run());
+  }
+
+}
+
+
+Test
+--------------
+
+  @Test
+  public void testSaga_withFailure() {
+
+    ProcessStep processStepOne = new ProcessStep(
+        () -> System.out.println("Action 1"),
+        () -> System.out.println("Undo Action 1")
+    );
+
+    ProcessStep processStepTwo = new ProcessStep(
+        () -> System.out.println("Action 2"),
+        () -> System.out.println("Undo Action 2")
+    );
+
+    ProcessStep processStepThree = new ProcessStep(
+        () -> {
+          System.out.println("Action 3");
+          throw new RuntimeException("Action 3 Error");
+        },
+        () -> System.out.println("Undo Action 3")
+    );
+
+    ProcessStep processStepFour = new ProcessStep(
+        () -> System.out.println("Action 4"),
+        () -> System.out.println("Undo Action 4")
+    );
+
+    Saga saga = new Saga("test-process")
+        .add(processStepOne)
+        .add(processStepTwo)
+        .add(processStepThree)
+        .add(processStepFour);
+
+    SagaExecutor executor = new SagaExecutor(saga)
+        .execute();
+  }
+
+
+
+
+
+================================================================================
