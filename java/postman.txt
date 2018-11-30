@@ -8,6 +8,8 @@
 	pre-request script
 	******************
 
+examples: https://gist.github.com/madebysid/b57985b0649d3407a7aa9de1bd327990	
+
 pm.sendRequest({
     url: 'https://' 
         + pm.environment.get("some-api-hostname") + ':' + pm.environment.get("some-api-port")
