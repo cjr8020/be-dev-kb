@@ -1,0 +1,33 @@
+	****************
+		Postman
+	****************
+
+
+================================================================================
+
+	pre-request script
+	******************
+
+pm.sendRequest({
+    url: 'https://' 
+        + pm.environment.get("some-api-hostname") + ':' + pm.environment.get("some-api-port")
+        + '/api/authn/identifierpassword',
+    method: 'POST',
+    header: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },    
+    body: {
+        mode: 'raw',
+        raw: JSON.stringify({ 
+            identifier: pm.environment.get("user-identifier"), 
+            password: pm.environment.get("user-password") 
+        })
+    }    
+}, function (err, res) {
+    let token = res.json().token;
+    console.log('token=' +  token);
+    pm.environment.set("authToken", token);
+});
+
+================================================================================
