@@ -59,6 +59,30 @@ use primitive alternatives.
 
 
 
+note: 
+
+    anyObject() is now deprecated.
+
+
+================================================================================
+
+    dealing with overloaded methods
+    *******************************
+
+    doSomething(final String s1, final String s2);
+    doSomething(final String s, final MyObject obj);
+
+something like this:
+
+    verify(blah, times(1)).doSomething(any(), any());
+
+will generate "ambiguous" compilation error .. 
+so you need to get more specific:
+
+    verify(blah, times(1)).doSomething(anyString(), any(MyObject.class));
+
+when mocking it ..     
+
 ================================================================================
 
     Injecting @Autowired private field during testing
