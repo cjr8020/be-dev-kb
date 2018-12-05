@@ -123,12 +123,13 @@ Distributed Saga Guarantee
 
 Sagas as state machines
 
-AWS Step Functions
---------------------
-https://aws.amazon.com/step-functions/
 
- can be used as an Saga Execution Coordinator to oversee the execution of our distributed sagas.
+Sage with Camunda and spring-boot
+---------------------------------
 
+https://blog.bernd-ruecker.com/saga-how-to-implement-complex-business-transactions-without-two-phase-commit-e00aa41a1b1b
+src: 
+https://github.com/berndruecker/flowing-trip-booking-saga
 
 
 ================================================================================
