@@ -1455,6 +1455,69 @@ Now, use
 
 ================================================================================
 
+  logback configuration for spring-boot
+  *************************************
+
+spring-boot injects spring environment into system properties.
+https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-logging.html#boot-features-custom-log-configuration
+
+so application.yml properties like:
+
+logging:
+  config: classpath:logback-spring.xml
+  path: /var/log
+  file: my-cool-app.log
+  pattern:
+    file: "[%d] [%-5level] [%thread] [%logger] - [%msg]%n"
+
+get translated to
+
+  LOG_PATH
+  LOG_FILE
+  FILE_LOG_PATTERN    
+
+respectively.  Now you can use them in `logback-spring.xml`:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+
+  <appender name="FILE"
+    class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_PATH}/${LOG_FILE}.log</file>
+    <rollingPolicy
+      class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <!-- daily rollover -->
+      <fileNamePattern>${LOG_PATH}/${LOG_FILE}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <!-- each file should be at most 100MB, keep 30 days worth of history, 
+        but at most 500MB -->
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>500MB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>${FILE_LOG_PATTERN}</pattern>
+    </encoder>
+  </appender>
+  
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+    </encoder>
+  </appender>
+  
+  <root level="DEBUG">
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="FILE" />
+  </root>
+
+</configuration>
+
+CONSOLE appender is just an example - probably won't need it in prod .. 
+
+
+================================================================================
+
   log REST request/response HTTP Headers 
   **************************************
 
