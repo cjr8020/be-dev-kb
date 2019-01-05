@@ -1,0 +1,2005 @@
+
+
+  @@@@@@@@@@@@@@@
+
+      Linux KB
+
+  @@@@@@@@@@@@@@@
+
+
+which linux distribution?
+
+Options:
+a] /etc/*-release file.
+b] lsb_release command.
+c] /proc/version file.
+
+
+$ ls -l /etc/*-release
+-rw-r--r--. 1 root root  38 Dec  9 01:59 /etc/centos-release
+-rw-r--r--. 1 root root 393 Dec  9 01:59 /etc/os-release
+lrwxrwxrwx. 1 root root  14 Feb 16 05:46 /etc/redhat-release -> centos-release
+lrwxrwxrwx. 1 root root  14 Feb 16 05:46 /etc/system-release -> centos-release
+
+$ cat /etc/centos-release
+CentOS Linux release 7.2.1511 (Core) 
+
+
+$ cat /proc/version
+Linux version 3.10.0-327.el7.x86_64 (builder@kbuilder.dev.centos.org) (gcc version 4.8.3 20140911 (Red Hat 4.8.3-9) (GCC) ) #1 SMP Thu Nov 19 22:10:57 UTC 2015
+
+
+
+System Resources
+****************
+
+===============================================
+
+CPU
+
+  # cat /proc/cpuinfo
+
+Number of cores:
+
+  # cat /proc/cpuinfo | grep physical | grep id | sort -u | wc -l
+
+RAM
+
+  # free
+  # cat /proc/meminfo
+  # vmstat -s
+
+===========================================================================================
+
+Run Levels
+==========
+
+/etc/inittab
+
+# Default runlevel. The runlevels used by RHS are:
+   0 - halt (Do NOT set initdefault to this)
+   1 - Single user mode
+   2 - Multiuser, without NFS (The same as 3, if you do not have networking)
+   3 - Full multiuser mode
+   4 - unused
+   5 - X11
+   6 - reboot (Do NOT set initdefault to this)
+
+
+
+chkconfig
+---------
+
+
+Configuring a Service using chkconfig
+
+    1. creating a /etc/init.d/somescript script
+
+    2. make it executable
+
+        chmod u+x /etc/init.d/somescript
+
+    3. add the script to the services managed by chkconfig
+
+        chkconfig --add somescript
+
+
+    4. verify
+
+        chkconfig --list somescript
+
+
+    5. add startup at default runlevel
+
+        chkconfig somescript on
+
+
+    6. add startup at desired runlevel(s)
+
+        chkconfig --level 35 somescript on
+
+    7. turn service off 
+
+        chkconfig <service> off
+
+
+
+===========================================================================================
+
+Network Configuration Filez
+===========================
+
+/etc/HOSTNAME
+
+/etc/sysconfig/network-scripts/ifcfg-ethN
+/etc/sysconfig/network
+
+/etc/resolv.conf = used by the resolver
+/etc/host.conf   = specifies how names are resolved
+
+/etc/sysconfig/network = desired network configuration
+
+/etc/sysctl.conf = set network-related kernel params at boot time
+
+# ignore pint request
+net.ipv4.icmp_echo_ignore_all = 1
+# ignore directed broadcast ping request
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+# disable source routing
+net.ipv4.conf.all.accept_source_route = 0
+# enable tcp SYN cookie protection
+net.ipv4.tcp_syncookies = 1
+# disable icmp redirect
+net.ipv4.conf.all.accept_redirects = 0
+
+# enable defrag protection - must (or, should?) enable to use
+# IP_Masquerading. Sounds like the "Do_Not_Fragment" bit to me...
+# the problem with allowing fragments is that the port information
+# is only stored in the first fragment, so packets can be inserted
+# (teardrop attack). So, set it to "1" as "do not fragment"
+net.ipv4.ip_always_defrag = 1
+
+# enable bad error message protection
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+# enable ip spoofing protection - turn on Src Address Verification
+net.ipv4.conf.all.rp_filter = 1
+# log spoofed, src routed, redirect packets
+net.ipv4.conf.all.log_martians = 1
+
+These and other kernel params are reflected in
+/proc/sys
+/proc/sys/net/
+/proc/sys/net/ipv4/
+
+
+NOTE: to see the full list, check out
+
+    /usr/doc/kernel-doc-2.2.14/sysctl/README
+    or
+    run `sysctl -a`
+
+To Restart Network Services so the above changes take effect:
+=============================================================
+
+/etc/rc.d/init.d/network restart
+
+To Reload NIC configuration:
+============================
+
+ifdown eth?
+ifup eth?
+
+
+  list open ports
+  ***************
+
+netstat -lnptu
+
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address               Foreign Address             State       PID/Program name   
+tcp        0      0 127.0.0.1:32000             0.0.0.0:*                   LISTEN      30566/java          
+tcp        0      0 0.0.0.0:1920                0.0.0.0:*                   LISTEN      2660/klzagent       
+
+
+
+linuxconf
+=========
+
+linuxconf stream tcp wait root /bin/linuxconf linuxconf --http
+
+/bin/netconf -> /bin/linuxconf
+
+
+creating a boot diskette
+========================
+
+/sbin/mkbootdisk
+
+disable "Ctrl+Alt+Del" key sequence:
+====================================
+
+
+in /etc/inittab, comment out the line that reads:
+
+ca::ctrlaltdel:/sbin/shutdown -t3 -r now
+
+
+require root password when entering single user mode
+====================================================
+
+in /etc/inittab,
+after the entry "si::sysinit...",
+ add the following line:
+
+~~:S:wait:/sbin/sulogin
+
+tell init to re-examine /etc/inittab (so that changes take effect):
+====================================
+
+init {q|Q}
+
+
+to enable root rlogin/telnet to the system
+==========================================
+
+in /etc/pam.d, there are files "login" and "rlogin" which contain
+the following line:
+
+auth       required     /lib/security/pam_securetty.so
+
+If you comment this line out, root will be able to telnet/rlogin.
+
+
+who's NOT allowed to login via FTP
+==================================
+
+/etc/ftpusers contains all user account NOT allowed to login via ftp
+
+
+which system accounts can/cannot log into the system
+====================================================
+
+/etc/security/access.conf
+
+
+file attributes in 2ext fs (second extended file system)
+========================================================
+
+/usr/bin/chattr
+/usr/bin/lsattr
+
+
+chattr [ -RV ] [ -v version ] [ mode ] files...
+
+operator:
++  causes  the  selected attributes to be
+   added to the existing attributes of the files;
+-  causes them  to  be  removed;
+=  causes them to be the only attributes that the files have.
+
+don't  update  atime (A),
+synchronous updates (S),
+append only (a),
+compressed (c),
+immutable  (i),
+no  dump (d),
+secure deletion (s),
+undeletable (u).
+
+
+adding/deleting users/groups
+============================
+
+/usr/sbin/useradd
+
+Add user to group that doesn't exist:
+
+  # useradd -G {group-name} username
+
+Add user to group that already exists
+
+  # useradd -g {group-name} username  
+
+
+  nologin user
+  ------------
+
+You can use the -M switch (make sure it's a capital) to ensure no home directory will be created:
+
+  # useradd -M <username>
+
+  creates an entry like:
+
+  keycloak:x:21637:21637::/home/keycloak:/sbin/nologin
+
+  where /home/keycloak has not been created.. 
+
+then lock the account to prevent logging in:
+
+  # usermod -L <username>  
+
+or .. configure their accounts such that their login shell is set to /sbin/nologin. 
+To modify an existing user:
+
+  # usermod -s /sbin/nologin <username >  
+
+
+  This account is currently not available
+  ---------------------------------------
+
+  When you `su - <user>` to userid that has no login shell you will get this error.
+  Then, supply your shell of choice at login:
+
+    # su - -s /bin/bash keycloak
+
+
+
+/usr/sbin/userdel
+
+- will not allow you to remove  an  account  if  the
+       user  is  currently  logged in.  You must kill any running
+       processes which belong to an account that you  are  delet-
+       ing.
+
+/usr/sbin/groupdel
+
+
+list NFS mounted partitions
+===========================
+
+  $ df -i[h]
+
+  Filesystem                  Inodes IUsed IFree IUse% Mounted on
+  /dev/mapper/VolGroup01-root   384K  162K  223K   42% /
+  devtmpfs                      2.0M   372  2.0M    1% /dev
+  /dev/sda1                      39K   335   38K    1% /boot
+  /dev/mapper/VolGroup01-tmp    1.0M    29  1.0M    1% /tmp
+  /dev/mapper/VolGroup01-opt    1.7M   11K  1.7M    1% /opt
+  /dev/mapper/VolGroup01-var    256K   13K  244K    5% /var
+  sfglogs:/vol/pojologs/        3.6M   611  3.6M    1% /opt/apps/logs
+
+
+system info
+===========
+
+{124} cat /etc/redhat-release
+Red Hat Linux release 6.2 (Zoot)
+
+architecture:
+
+{125} uname -m
+i686
+
+kernel:
+
+{126} uname -r
+2.2.14-5.0
+
+Login Banner
+============
+
+/etc/issue
+/etc/issue.net
+
+The above files are re-created by "/etc/rc.d/rc.local"
+
+
+Looking for SUID or SGID files
+==============================
+
+find / -type f \( -perm -04000 -o -perm 02000 \) -exec ls -lg {} \;
+
+Looking for Unusual or Hidden files:
+====================================
+
+find / -name ".. " -print -xdev
+find / -name ".*"  -print -xdev | cat -v
+
+note:   -xdev = Don't descend directories on other filesystems
+    cat -v =  --show-nonprinting
+                  use ^ and M- notation, except for LFD and TAB
+
+Looking for Group/World-writable files and directories:
+=======================================================
+
+find / -type f \( -perm -2 -o -perm -02 \) -exec ls -lg {} \;
+
+Looking for Unowned files
+=========================
+
+find / -nouser -o -nogroup
+
+
+Creating a boot disk
+====================
+
+mkbootdisk --device /dev/fd0 2.2.x
+
+
+Starting programs at X startup:
+===============================
+
+By placing scripts in /etc/X11/xinitrc/xinitrc.d, it is now possible
+to automatically start programs whenever X starts.
+
+
+Virtual Consoles
+================
+
+- it is a character cell interface.
+To get there, Ctrl-Alt-[ F1 ... F6 ]
+To get back, Ctrl-Alt-F7
+
+
+Documentation
+=============
+
+/usr/src/linux-2.2.14/Documentation
+
+
+Formatting a Floppy
+===================
+
+fdformat /dev/fd0H1440
+
+If you want an autodetecting device (e.g., /dev/fd0), first set
+the parameters of the device with 'setfdprm':
+
+setfdprm /dev/fd0 1440/1440
+fdformat /dev/fd0
+
+
+Checking file's integrity
+=========================
+
+you should have:
+
+    freeswan-1.5.tar.gz
+    freeswan-1.5.tar.gz.sig
+    freeswan-sigkey.asc
+
+pgp freeswan-1.5.tar.gz.sig freeswan-1.5.tar.gz
+
+Using RPM
+=========
+
+rpm -i [install-options] <package_file>
+
+-U  This upgrades or installs the package currently installed to  the
+    versio  n in the  new  RPM.  his  is the same as install, except
+    all other version of the package are removed from the system.
+
+-h, --hash
+    Print 50 hash marks as the package archive is unpacked.
+    Use  with  -v for a nice display.
+
+
+To install an rpm file
+----------------------
+
+rpm -ivh <file.rpm>
+
+    --force
+        to force the installation even if there are errors, or
+        install over the previous version
+
+query the rpm database
+----------------------
+
+rpm -q gcc
+
+    all installed packages
+
+rpm -qa | grep gcc
+
+    list all files in the package
+
+rpm -ql xmms
+
+
+        [root@morpheus /boot]# rpm -q --whatprovides module-info
+        kernel-2.2.16-22
+
+        [root@morpheus /boot]# rpm -q --whatrequires module-info
+        kernelcfg-0.6-9
+
+
+
+upgrading an RPM
+----------------
+
+rpm -U  apache-1.2.5.1.i386.rpm // while v.1.2.4 is already installed
+
+
+removing an RPM
+---------------
+
+rpm -e XFree86-devel
+
+
+Verifying an RPM
+----------------
+
+rpm -V apache   // any discrepancies will be reported
+
+
+================================================================================
+
+  list dot files first
+  ********************
+
+.bashrc
+
+alias ll='LC_COLLATE=C ls -alF'
+
+or
+
+LC_ALL="C"
+
+NOTE: output of local:
+
+$ locale
+LANG=en_US.UTF-8
+LC_CTYPE="en_US.UTF-8"
+LC_NUMERIC="en_US.UTF-8"
+LC_TIME="en_US.UTF-8"
+LC_COLLATE=C
+LC_MONETARY="en_US.UTF-8"
+LC_MESSAGES="en_US.UTF-8"
+LC_PAPER="en_US.UTF-8"
+LC_NAME="en_US.UTF-8"
+LC_ADDRESS="en_US.UTF-8"
+LC_TELEPHONE="en_US.UTF-8"
+LC_MEASUREMENT="en_US.UTF-8"
+LC_IDENTIFICATION="en_US.UTF-8"
+LC_ALL=
+
+
+Setting LC_ALL to C will render unicode filesnames as ?????
+So, this
+
+  LC_ALL="C.UTF-8"
+
+works fine for me - umlauts and "ls -la" lists dot-files first.
+
+
+
+================================================================================
+
+  location of executable
+  **********************
+
+% sudo ls -l /proc/PID/exe
+
+example
+
+
+[root@pdxlmicni001 member-update-service]# ps -ef | grep java
+pojouser 18212     1  0  2016 ?        00:32:16 java -Xmx4096m -jar member-update-service.jar server config.yml
+
+[root@pdxlmicni001 member-update-service]# ls -l /proc/18212/exe
+lrwxrwxrwx 1 pojouser pojogroup 0 Dec 28 17:03 /proc/18212/exe -> /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.111-2.b15.el7_3.x86_64/jre/bin/java
+
+================================================================================
+
+
+
+
+
+Configuring a Network Card Driver
+=================================
+
+Add'l information on ethernet drivers can be found at
+
+http://www.scyld.com    -- Donald Becker
+
+Testing a new network card loading as module
+--------------------------------------------
+
+load the module as root using 'insmod driver.o' and execute the
+appropriate 'route add -net ...' command for your LAN.
+If the networking card works correctly, add the module to your system
+configuration. RedHat users should add the insmod line to /etc/rc.d/rc.modules
+OR (RedHat 6 and above) copy driver.o file to /lib/modules/`uname -r`/net/ and
+add the following line to /etc/modules.conf:
+
+        alias eth0 <driver.o>
+
+    e.g.    alias eth0 3c59x
+
+
+
+When loaded as a module, the following variables may be set:
+
+name        type        description
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+debug       int     debug msg level, 0 (no msgs) to 6 (wordy)
+options     int[]       media type override and card op setting (below)
+full_duplex int[]       force full duplex
+max_interrupt_work  int     max number of events to handle at each interrupt
+                default = 20.
+rx_copybreak    int     see driver source for tuning details
+---------------------------------------------------------------------------
+
+Possible media type settings:
+---------------------------------------------------------------------------
+index       media
+---------------------------------------------------------------------------
+0       auto-select (default to the 10baseT link)
+1       AUI
+2       undefined (special case: 10baseT from the LILO prompt)
+3       10base2 (BNC)
+4       100baseTx Symbol mode, valid for 3c595 only
+5       100baseFx Symbol mode, valid for 3c595 only
+6       MII (the correct transceiver type on the 3c905A)
+
+8       Cyclone internal transceiver (the correct type for most 3c905B)
+9       Cyclone external MII, for the 3c905B w/ 100baseFx or 100baseT4
+0x200       Add to above values to force full-duplex
+---------------------------------------------------------------------------
+
+Example 1
+---------
+
+To test an option, load the module with the following command:
+
+    /sbin/insmod 3c59x.o full_duplex=1,0,1
+
+This command sets the full duplex flag for the first and third cards of this
+type.
+
+Example 2
+---------
+To set module parameters when the module is loaded automatically, add
+the following to /etc/modules.conf:
+
+alias eth0 3c59x
+options 3c59x full_duplex=1,0,1 debug=0
+
+Example 3
+---------
+
+An example of loading the vortex module:
+
+    insmod 3c59x.o debug=1 options=0,,4 full_duplex=0,0,1
+
+This sets the debug message level to min msgs, sets the 1st card to
+10baseT transceiver, the 2nd card to EEPROM-set transceiver, and the
+3d card, a 3c595, to operate in full-duplex mode using its 100baseTx
+transceiver.
+
+NOTE: the preferred method of using full duplex is to allow auto-negotiation
+to take place.  Forcing full duplex is almost always an operational error.
+
+Drivers are designed with the goal that no options should be needed in most
+environments.  However, not all cards and networks can be automatically
+configured, thus drivers allow operational parameters to be modified when
+they are loaded as a module.
+
+
+Linux and Intel PCI EtherExpress Pro 100 series
+-----------------------------------------------
+
+When loaded as a module the following variables may be set:
+
+name        type        description
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+debug       int     debug msg level, 0 (no msgs) to 6 (wordy)
+options     int[]       media type override and card op setting (below)
+full_duplex int[]       force full duplex
+max_interrupt_work  int     max number of events to handle at each interrupt
+                default = 20.
+rx_copybreak    int     see driver source for tuning details
+---------------------------------------------------------------------------
+
+In most cases, not transceiver override option need be set.  A notable
+exception is when connecting an older ethernet switch that operates in
+full-duplex mode but does not do NWay autonegotiation. The following
+driver option flags are recognized:
+
+Hex     Decimal     Meaning
+----------------------------------------------------------------------------
+0x10        16Force     full-duplex operation (must be used w/
+                0x20 or 0x40)
+0x20        32Force     100Mbps only operation
+0x40        64Force     10Mbps only operation
+
+Add the above decimal values to get the complete option setting.
+
+Example 1
+---------
+
+The option flags are passed as follows when loading the driver as a module:
+
+    insmod eepro100.o debug=1 options=0x20,0,0x50
+
+This sets the 1st adapter to 100Mbps-only operation, the 2nd to the
+default NWay autoneg, and the 3d to 10Mbps full-duplex.
+
+Example 2
+---------
+
+The option flags are passed as the third parameter when using the driver
+statically linked into the kernel:
+
+    ether=0,0,0x20,eth0 ether=0,0,0,eth1 ether=0,0,0x50,eth2
+
+
+Hard Drive Operations
+=====================
+
+List available disks:
+---------------------
+
+root(root)@morpheus ~ {15} fdisk -l
+
+Disk /dev/sda: 255 heads, 63 sectors, 528 cylinders
+Units = cylinders of 16065 * 512 bytes
+
+   Device Boot    Start       End    Blocks   Id  System
+/dev/sda1   *         1       462   3710983+  83  Linux
+/dev/sda2           463       528    530145    5  Extended
+/dev/sda5           463       495    265041   82  Linux swap
+/dev/sda6           496       528    265041   83  Linux
+
+Disk /dev/sdb: 255 heads, 63 sectors, 1106 cylinders
+Units = cylinders of 16065 * 512 bytes
+
+   Device Boot    Start       End    Blocks   Id  System
+/dev/sdb1   *         1        17    136521   83  Linux
+/dev/sdb2            18      1106   8747392+   5  Extended
+/dev/sdb5            18        83    530113+  83  Linux
+/dev/sdb6            84       116    265041   82  Linux swap
+/dev/sdb7           117      1106   7952143+  83  Linux
+
+
+To administer partitions on disk /dev/sdb
+-----------------------------------------
+
+fdisk /dev/sdb
+
+
+To create an ext2 file system on a disk
+----------------------------------
+
+mke2fs -c /dev/sdb1
+
+(checking for bad blocks)
+
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#   ERROR MESSAGES
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ifup: SIOCADDRT: Network is unreachable
+
+- one reason is that you have a multi-homed host, and you didnot
+define GATEWAYDEV=eth? in "/etc/sysconfig/network", so during
+initialization process aparantly the default gateway isn't always
+"reachable" when it needs to be.
+
+
+Cloning a disk
+--------------
+
+dd if=/dev/sda1 of=/dev/sdb1 bs=1024k
+dd if=/dev/sda2 of=/dev/sdb2 bs=1024k
+dd if=/dev/sda5 of=/dev/sdb5 bs=1024k   (swap)
+dd if=/dev/sda6 of=/dev/sdb6 bs=1024k
+
+clean-up:
+
+fsck -y /dev/sdb1
+mount /dev/sdb1 /target
+
+(if it is a new kernel, run to update lilo:
+
+    lilo -v -r /target
+)
+
+finally:
+
+sync
+
+
+
+Mounting a disk
+---------------
+
+1. Partition the disk if it needs to be partitioned
+
+2. Create a FS on each partition that needs to be mounted.
+
+[root@eiffel sbin]# mkfs.ext3 -c /dev/sdb1
+mke2fs 1.27 (8-Mar-2002)
+Filesystem label=
+OS type: Linux
+Block size=4096 (log=2)
+Fragment size=4096 (log=2)
+1111936 inodes, 2220978 blocks
+111048 blocks (5.00%) reserved for the super user
+First data block=0
+68 block groups
+32768 blocks per group, 32768 fragments per group
+16352 inodes per group
+Superblock backups stored on blocks:
+    32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632
+
+Checking for bad blocks (read-only test): done
+Writing inode tables: done
+Creating journal (8192 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+This filesystem will be automatically checked every 37 mounts or
+180 days, whichever comes first.  Use tune2fs -c or -i to override.
+
+
+3. Test mounting the disk
+
+[root@eiffel sbin]# mount -t ext3 /dev/sdb1 /x/space
+
+
+4. Modify /etc/fstab so the disk is mounted at boot time
+
+[root@eiffel root]# more /etc/fstab
+LABEL=/1       /                       ext3    defaults        1 1
+none           /dev/pts                devpts  gid=5,mode=620  0 0
+none           /proc                   proc    defaults        0 0
+none           /dev/shm                tmpfs   defaults        0 0
+/dev/sda2      swap                    swap    defaults        0 0
+/dev/cdrom     /mnt/cdrom              iso9660 noauto,owner,kudzu,ro
+0 0/dev/fd0    /mnt/floppy             auto    noauto,owner,kudzu
+0 0
+/dev/sdb1       /x/space                ext3   defaults        0 2
+
+5. run mount -a if appropriate to verify that the disk is mounted.
+
+6. look at /etc/mtab to see what FS are mounted.
+
+
+================================================================
+
+adduser(8) - Linux man page
+===========================
+
+useradd - Create a new user or update default new user information
+SYNOPSIS
+useradd [-c comment] [-d home_dir]
+
+[-e expire_date] [-f inactive_time]
+[-g initial_group] [-G group[,...]]
+[-m [-k skeleton_dir] | -M] [-n] [-o] [-p passwd] [-r]
+[-s shell] [-u uid] login
+useradd -D [-g default_group] [-b default_home]
+
+[-e default_expire_date] [-f default_inactive]
+[-s default_shell]
+DESCRIPTION
+
+Creating New Users
+When invoked without the -D option, the useradd command creates a new user account using the values specified on the command line and the default values from the system. The new user account will be entered into the system files as needed, the home directory will be created, and initial files copied, depending on the command line options. The version provided with Red Hat Linux will create a group for each user added to the system, unless the -n option is given. The options which apply to the useradd command are:
+
+-c comment
+The new user's password file comment field.
+
+-d home_dir
+The new user will be created using home_dir as the value for the user's login directory. The default is to append the login name to default_home and use that as the login directory name.
+
+-e expire_date
+The date on which the user account will be disabled. The date is specified in the format YYYY-MM-DD.
+
+-f inactive_days
+The number of days after a password expires until the account is permanently disabled. A value of 0 disables the account as soon as the password has expired, and a value of -1 disables the feature. The default value is -1.
+
+-g initial_group
+The group name or number of the user's initial login group. The group name must exist. A group number must refer to an already existing group. The default group number is 1 or whatever is specified in /etc/default/useradd.
+
+-G group,[...]
+A list of supplementary groups which the user is also a member of. Each group is separated from the next by a comma, with no intervening whitespace. The groups are subject to the same restrictions as the group given with the -g option. The default is for the user to belong only to the initial group.
+
+-m
+The user's home directory will be created if it does not exist. The files contained in skeleton_dir will be copied to the home directory if the -k option is used, otherwise the files contained in /etc/skel will be used instead. Any directories contained in skeleton_dir or /etc/skel will be created in the user's home directory as well. The -k option is only valid in conjunction with the -m option. The default is to not create the directory and to not copy any files.
+
+-M
+The user home directory will not be created, even if the system wide settings from /etc/login.defs is to create home dirs.
+
+-n
+A group having the same name as the user being added to the system will be created by default. This option will turn off this Red Hat Linux specific behavior.
+
+-o
+Allow create user with duplicate (non-unique) UID.
+
+-p passwd
+The encrypted password, as returned by crypt(3). The default is to disable the account.
+
+-r
+This flag is used to create a system account. That is, a user with a UID lower than the value of UID_MIN defined in /etc/login.defs and whose password does not expire. Note that useradd will not create a home directory for such an user, regardless of the default setting in /etc/login.defs. You have to specify -m option if you want a home directory for a system account to be created. This is an option added by Red Hat.
+
+-s shell
+The name of the user's login shell. The default is to leave this field blank, which causes the system to select the default login shell.
+
+-u uid
+The numerical value of the user's ID. This value must be unique, unless the -o option is used. The value must be non-negative. The default is to use the smallest ID value greater than 99 and greater than every other user. Values between 0 and 99 are typically reserved for system accounts.
+
+Changing the default values
+When invoked with the -D option, useradd will either display the current default values, or update the default values from the command line. The valid options are
+
+-b default_home
+The initial path prefix for a new user's home directory. The user's name will be affixed to the end of default_home to create the new directory name if the -d option is not used when creating a new account.
+
+-e default_expire_date
+The date on which the user account is disabled.
+-f default_inactive
+The number of days after a password has expired before the account will be disabled.
+
+-g default_group
+The group name or ID for a new user's initial group. The named group must exist, and a numerical group ID must have an existing entry .
+
+-s default_shell
+The name of the new user's login shell. The named program will be used for all future new user accounts.
+If no options are specified, useradd displays the current default values.
+
+NOTES
+
+The system administrator is responsible for placing the default user files in the /etc/skel directory.
+This version of useradd was modified by Red Hat to suit Red Hat user/group conventions.
+CAVEATS
+You may not add a user to an NIS group. This must be performed on the NIS server.
+FILES
+/etc/passwd - user account information
+/etc/shadow - secure user account information
+/etc/group - group information
+/etc/gshadow - secure group information
+/etc/default/useradd - default information
+/etc/login.defs - system-wide settings
+/etc/skel - directory containing default files
+
+==================================================================
+
+
+Getting Contrib Linux Software
+------------------------------
+
+    E.g. KSH
+
+    ftp://rpmfind.net/linux/contrib/libc6/i386/ksh93-2000.10.31.0-1.i386.rpm
+
+
+
+==========================================================================================
+
+
+  OS system resources, CPU, memory
+  ********************************
+
+
+    OS Resources
+    ************
+
+    /proc/cpuinfo
+    -------------
+
+NOTE:
+1. field "physical id" is unique per physical CPU.  Cores of the same CPU are reported as different processors with the same physical id, while physically separate processors will have different physical ids.  
+
+If you're on a VM, you cannot know anything about the actual hardware (CPU, etc.), all you know is what the VM tells you.  So, if your machines has 1 quad-core cpu, and your vm is configured to report 2 single core CPUs, you'll see 2 single core cpus in cpuinfo (two processors with different physical ids).
+
+
+[root@hlblsnexd001 logs]# cat /proc/cpuinfo
+processor       : 0
+vendor_id       : GenuineIntel
+cpu family      : 6
+model           : 47
+model name      : Intel(R) Xeon(R) CPU E7- 4850  @ 2.00GHz
+stepping        : 2
+microcode       : 55
+cpu MHz         : 1994.979
+cache size      : 24576 KB
+physical id     : 0
+siblings        : 1
+core id         : 0
+cpu cores       : 1
+apicid          : 0
+initial apicid  : 0
+fpu             : yes
+fpu_exception   : yes
+cpuid level     : 11
+wp              : yes
+flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts mmx fxsr sse sse2 ss syscall nx rdtscp lm constant_tsc arch_perfmon pebs bts xtopology tsc_reliable nonstop_tsc aperfmperf unfair_spinlock pni pclmulqdq ssse3 cx16 sse4_1 sse4_2 x2apic popcnt aes hypervisor lahf_lm ida arat epb dts
+bogomips        : 3989.95
+clflush size    : 64
+cache_alignment : 64
+address sizes   : 40 bits physical, 48 bits virtual
+power management:
+
+processor       : 1
+vendor_id       : GenuineIntel
+cpu family      : 6
+model           : 47
+model name      : Intel(R) Xeon(R) CPU E7- 4850  @ 2.00GHz
+stepping        : 2
+microcode       : 55
+cpu MHz         : 1994.979
+cache size      : 24576 KB
+physical id     : 2
+siblings        : 1
+core id         : 0
+cpu cores       : 1
+apicid          : 2
+initial apicid  : 2
+fpu             : yes
+fpu_exception   : yes
+cpuid level     : 11
+wp              : yes
+flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts mmx fxsr sse sse2 ss syscall nx rdtscp lm constant_tsc arch_perfmon pebs bts xtopology tsc_reliable nonstop_tsc aperfmperf unfair_spinlock pni pclmulqdq ssse3 cx16 sse4_1 sse4_2 x2apic popcnt aes hypervisor lahf_lm ida arat epb dts
+bogomips        : 3989.95
+clflush size    : 64
+cache_alignment : 64
+address sizes   : 40 bits physical, 48 bits virtual
+power management:    
+
+
+# cat /proc/cpuinfo | grep physical | grep id | sort -u | wc -l
+2
+
+
+    RAM
+    ----
+
+# free
+
+             total       used       free     shared    buffers     cached
+Mem:       8061448    2964328    5097120       1120     472920    1360144
+-/+ buffers/cache:    1131264    6930184 
+Swap:      8388604          0    8388604 
+
+
+# top
+
+Mem:   8061448k total,  2965088k used,  5096360k free,   472936k buffers
+
+[root@hlblsnexd001 logs]# cat /proc/meminfo
+
+MemTotal:        8061448 kB
+MemFree:         5096624 kB
+Buffers:          472940 kB
+Cached:          1360464 kB
+SwapCached:            0 kB
+Active:          2002888 kB
+Inactive:         563804 kB
+Active(anon):     733460 kB
+Inactive(anon):      932 kB
+Active(file):    1269428 kB
+Inactive(file):   562872 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       8388604 kB
+SwapFree:        8388604 kB
+
+[root@hlblsnexd001 logs]# vmstat -s
+      8061448  total memory
+      2964824  used memory
+      2003156  active memory
+       563500  inactive memory
+      5096624  free memory
+       472948  buffer memory
+      1360420  swap cache
+      8388604  total swap
+            0  used swap
+      8388604  free swap      
+
+
+==========================================================================================
+
+  view content of zip file on linux
+  **********************************
+
+$ unzip -l <zipfile>
+
+  $ unzip -l member-update-service-distro-0.2-20160211.175008-5.zip 
+  Archive:  member-update-service-distro-0.2-20160211.175008-5.zip
+    Length     Date   Time    Name
+   --------    ----   ----    ----
+       1393  02-11-16 09:48   config-template.yml
+       1484  02-04-16 14:36   member-update-service.sh
+   31218228  02-11-16 09:50   member-update-service-0.2-SNAPSHOT.jar
+   --------                   -------
+   31221105                   3 files
+
+`less` can peek into a zip file  
+
+$ less <zipfile>
+
+  $ less member-update-service-distro-0.2-20160211.175008-5.zip 
+  Archive:  member-update-service-distro-0.2-20160211.175008-5.zip   28034143   3
+  -rw-r--r--  2.0 unx     1393 bl defN 11-Feb-16 09:48 config-template.yml
+  -rw-r--r--  2.0 unx     1484 bl defN  4-Feb-16 14:36 member-update-service.sh
+  -rw-r--r--  2.0 unx 31218228 bl defN 11-Feb-16 09:50 member-update-service-0.2-SNAPSHOT.jar
+  3 files, 31221105 bytes uncompressed, 28033683 bytes compressed:  10.2%
+
+
+
+===================================================================================
+
+  Red Hat Linux
+  *************
+
+what RHEL version am I using?
+-----------------------------
+
+$ cat /etc/redhat-release
+Red Hat Enterprise Linux Server release 6.7 (Santiago)
+
+
+
+
+  what is SELinux?
+------------------
+
+Security-Enhanced Linux (SELinux) is a Linux kernel security module that provides a mechanism for supporting access control security policies.  
+
+How do I check the status of SELinux?
+--------------------------------------
+  # cat /etc/sysconfig/selinux
+
+    # This file controls the state of SELinux on the system.
+    # SELINUX= can take one of these three values:
+    #     enforcing - SELinux security policy is enforced.
+    #     permissive - SELinux prints warnings instead of enforcing.
+    #     disabled - No SELinux policy is loaded.
+    SELINUX=disabled
+    # SELINUXTYPE= can take one of these two values:
+    #     targeted - Targeted processes are protected,
+    #     mls - Multi Level Security protection.
+    SELINUXTYPE=targeted 
+
+  You have 3 options for configuring SELinux:
+
+    1. Disable SELinux
+
+      /etc/selinux/config
+
+        SELINUX=disabled
+
+    2. Set SELinux to "permissive"        
+
+        SELINUX=permissive
+
+        NOTE: You can use setenforce to change to permissive mode; this method does not require a reboot but is not persistent.
+
+    3. Enable access to the relevant ports (e.g. 27017) for SELinux if in enforcing mode. 
+
+      E.g. MongoDB default port is 27017
+
+      semanage port -a -t mongod_port_t -p tcp 27017
+
+
+
+  create a yum repository
+  ***********************
+
+https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Deployment_Guide/sec-Yum_Repository.html
+
+
+
+
+
+  mount Windows share on Red Hat RHEL
+  ***********************************
+
+https://access.redhat.com/solutions/448263
+
+Windows share can be mounted on RHEL system using cifs option of mount command as :
+
+  [root@host ~]# mount -t cifs -o username=<share user>,password=<share password> //WIN_PC_IP/<share name> /mnt
+
+In case your user is in windows domain then you can define the domain as follows:
+
+  [root@host ~]# mount -t cifs -o username=<share user>,password=<share password>,domain=example.com //WIN_PC_IP/<share name> /mnt
+
+By default windows share mounted with the full permission (777) in Linux. To change the default permission use the dir_mode and file_mode options to set directory and file permission.
+
+  [root@host ~]# mount -t cifs -o username=<share user>,password=<share password>,dir_mode=0755,file_mode=0755 //
+WIN_PC_IP/<share name> /mnt
+
+To make the mount persistant across reboots, make the below entry to the /etc/fstab
+
+ //WIN_PC_IP/<share name>    /<mntpoint>   cifs  _netdev,username=<share user>,password=<share password>,dir_mode=0755,file_mode=0755,uid=500,gid=500 0 0
+
+
+
+
+
+
+==========================================================================================  
+
+
+  centos CentOS
+  **************
+
+check to see if iptables is installed on your system by:
+
+$ rpm -q iptables
+iptables-1.4.7-5.1.el6_2.x86_64
+
+see if iptables is actually running, we can check that the iptables modules are loaded and use the -L switch to inspect the currently loaded rules:
+
+
+$ lsmod | grep ip_tables
+ip_tables              27240  5 iptable_security,iptable_filter,iptable_mangle,iptable_nat,iptable_raw
+
+BUT -- iptables are not running!
+
+
+date time control
+------------------
+
+$ sudo timedatectl
+$ sudo timedatectl set-time 22:31:14
+$ sudo timedatectl set-time "2015-04-15 22:37:22"
+$ sudo timedatectl set-timezone America/Los_Angeles
+$ sudo timedatectl list-timezones | grep -i york
+$ sudo timedatectl list-timezones | grep America
+$ sudo 
+$ sudo 
+
+==========================================================================================
+
+
+  firewalld (RHEL7 and CentOS 7)
+  ******************************
+
+Status:
+
+  $ sudo systemctl status firewalld
+
+Stop:
+
+  $ sudo systemctl stop firewalld
+
+Start: 
+
+  $ sudo systemctl start firewalld    
+
+
+More details
+---------------------------------------------------
+
+# systemctl status firewalld
+
+firewalld.service - firewalld - dynamic firewall daemon
+   Loaded: loaded (/usr/lib/systemd/system/firewalld.service; enabled; vendor preset: enabled)
+   Active: active (running) since Thu 2016-03-24 20:03:55 CDT; 21h ago
+  Main PID: 719 (firewalld)
+
+# ps -ef | grep firewall
+root       719     1  0 Mar24 ? 00:00:00 /usr/bin/python -Es /usr/sbin/firewalld --nofork --nopid
+
+
+Stop and Start RHEL7 firewall
+------------------------------
+The firewall on Redhat 7 Linux system can be stopped by a following command:
+
+  [root@rhel7 ~]# service firewalld stop
+  Redirecting to /bin/systemctl stop  firewalld.service
+  Stopped firewall will start again after system's reboot. 
+
+To start firewall on Redhat 7 Linux system use:
+
+  [root@rhel7 ~]# service firewalld start
+  Redirecting to /bin/systemctl start  firewalld.service
+
+
+# firewall-cmd --get-default-zone
+public
+
+To get the list of zones where you’ve got network interfaces or sources assigned to, type:
+
+# firewall-cmd --get-active-zones
+?? shows nothing on this RHEL7 VM for microservices in INT..
+
+
+show network interfaces
+
+# ip link show
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: ens192: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+    link/ether 00:50:56:99:16:6b brd ff:ff:ff:ff:ff:ff
+3: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT 
+    link/ether 52:54:00:c2:0e:cb brd ff:ff:ff:ff:ff:ff
+4: virbr0-nic: <BROADCAST,MULTICAST> mtu 1500 qdisc pfifo_fast master virbr0 state DOWN mode DEFAULT qlen 500
+    link/ether 52:54:00:c2:0e:cb brd ff:ff:ff:ff:ff:ff
+
+show IP address
+
+$ ip addr show
+
+2: ens192: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP qlen 1000
+    link/ether 00:50:56:99:16:6b brd ff:ff:ff:ff:ff:ff
+    inet 192.168.136.51/24 brd 192.168.136.255 scope global ens192
+       valid_lft forever preferred_lft forever
+    inet6 fe80::250:56ff:fe99:166b/64 scope link 
+       valid_lft forever preferred_lft forever
+3: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN 
+    link/ether 52:54:00:c2:0e:cb brd ff:ff:ff:ff:ff:ff
+    inet 192.168.122.1/24 brd 192.168.122.255 scope global virbr0
+       valid_lft forever preferred_lft forever
+
+
+# netstat -i
+Kernel Interface table
+Iface      MTU    RX-OK RX-ERR RX-DRP RX-OVR    TX-OK TX-ERR TX-DRP TX-OVR Flg
+ens192    1500  1096442      0  46760 0        272499      0      0      0 BMRU
+lo       65536        0      0      0 0             0      0      0      0 LRU
+virbr0    1500        0      0      0 0             0      0      0      0 BMU
+
+
+
+# firewall-cmd --get-zone-of-interface=virbr0
+no zone
+
+
+# firewall-cmd --list-all
+public (default)
+  interfaces: 
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+
+
+
+
+
+ https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-7
+
+ FirewallD is a firewall solution on CentOS 7
+ =============================================
+
+ $ sudo systemctl start firewalld.service
+ $ firewall-cmd --state
+ running
+
+
+Basic concepts:
+
+Zones
+  the firewalld daemon manages groups of rules using entities called "zones".
+  network interfaces are assigned to a zone to dictate the behavior ..
+  For computres that might move between networks this flexibility provides a good method of changing your rules depending on the environment.
+
+Default zone
+-------------
+
+$ sudo firewall-cmd --get-default-zone
+public
+
+$ sudo firewall-cmd --get-active-zones
+public
+  interfaces: eno1
+
+How do we know what rules are associated with the public zone though? We can print out the default zone's configuration by typing:
+
+$ sudo firewall-cmd --list-all
+public (default, active)
+  interfaces: eno1
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+Alternative zones
+-----------------
+
+To get a list of the available zones, type:
+
+$ firewall-cmd --get-zones
+block dmz drop external home internal public trusted work
+
+We can see the specific configuration associated with a zone by including the --zone= parameter in our --list-all command:
+
+$ firewall-cmd --zone=home --list-all
+home
+  interfaces: 
+  sources: 
+  services: dhcpv6-client ipp-client mdns samba-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+
+Changing the Zone of an Interface for the Current Session
+
+You can transition an interface between zones during a session by using the --zone= parameter in combination with the --change-interface= parameter. As with all commands that modify the firewall, you will need to use sudo.
+
+For instance, we can transition our eth0 interface to the "home" zone by typing this:
+
+$ sudo firewall-cmd --zone=home --change-interface=eth0
+success
+
+Changing the Zone of your Interface Permanently
+-----------------------------------------------
+
+Interfaces will always revert to the default zone if they do not have an alternative zone defined within their configuration. On CentOS, these configurations are defined within the /etc/sysconfig/network-scripts directory with files of the format ifcfg-interface.
+
+To define a zone for the interface, open up the file associated with the interface you'd like to modify. We'll demonstrate making the change we showed above permanent:
+
+sudo nano /etc/sysconfig/network-scripts/ifcfg-eth0
+
+At the bottom of the file, set the ZONE= variable to the zone you wish to associate with the interface. In our case, this would be the "home" interface:
+
+/etc/sysconfig/network-scripts/ifcfg-eth0
+. . .
+
+DNS1=2001:4860:4860::8844
+DNS2=2001:4860:4860::8888
+DNS3=8.8.8.8
+ZONE=home
+
+Save and close the file.
+
+To implement your changes, you'll have to restart the network service, followed by the firewall service:
+
+sudo systemctl restart network.service
+sudo systemctl restart firewalld.service
+After your firewall restarts, you can see that your eth0 interface is automatically placed in the "home" zone:
+
+firewall-cmd --get-active-zones
+output
+home
+  interfaces: eth0
+public
+  interfaces: eth1
+
+
+Setting Rules for your Applications
+-----------------------------------
+
+Adding a Service to your Zones
+
+The easiest method is to add the services or ports you need to the zones you are using. Again, you can get a list of the available services with the --get-services option:
+
+$ firewall-cmd --zone=public --list-services
+
+you can leave out '--zone=' if you're looking at the default zone:
+
+$ firewall-cmd --get-services
+RH-Satellite-6 amanda-client bacula bacula-client dhcp dhcpv6 dhcpv6-client dns freeipa-ldap freeipa-ldaps freeipa-replication ftp high-availability http https imaps ipp ipp-client ipsec iscsi-target kerberos kpasswd ldap ldaps libvirt libvirt-tls mdns mountd ms-wbt mysql nfs ntp openvpn pmcd pmproxy pmwebapi pmwebapis pop3s postgresql proxy-dhcp radius rpc-bind rsyncd samba samba-client smtp ssh telnet tftp tftp-client transmission-client vdsm vnc-server wbem-https
+
+You can get more details about each of these services by looking at their associated .xml file within the /usr/lib/firewalld/services directory. For instance, the SSH service is defined like this:
+
+/usr/lib/firewalld/services/ssh.xml
+
+  /usr/lib/firewalld/services/*
+
+
+For instance, if we are running a web server serving conventional HTTP traffic, we can allow this traffic for interfaces in our "public" zone for this session by typing:
+
+sudo firewall-cmd --zone=public --add-service=http
+
+Permanent change:
+-----------------
+
+Once you have tested that everything is working as it should, you will probably want to modify the permanent firewall rules so that your service will still be available after a reboot. We can make our "public" zone change permanent by typing:
+
+sudo firewall-cmd --zone=public --permanent --add-service=http
+
+Your "public" zone will now allow HTTP web traffic on port 80. If your web server is configured to use SSL/TLS, you'll also want to add the https service. We can add that to the current session and the permanent rule-set by typing:
+
+sudo firewall-cmd --zone=public --add-service=https
+sudo firewall-cmd --zone=public --permanent --add-service=https
+
+What If No Appropriate Service Is Available?
+--------------------------------------------
+
+The firewall services that are included with the firewalld installation represent many of the most common requirements for applications that you may wish to allow access to. However, there will likely be scenarios where these services do not fit your requirements.
+
+
+For instance, if our application runs on port 5000 and uses TCP, we could add this to the "public" zone for this session using the --add-port= parameter. Protocols can be either tcp or udp:
+
+sudo firewall-cmd --zone=public --add-port=5000/tcp
+
+After testing, we would likely want to add these to the permanent firewall. You can do that by typing:
+
+sudo firewall-cmd --zone=public --permanent --add-port=5000/tcp
+sudo firewall-cmd --zone=public --permanent --add-port=4990-4999/udp
+sudo firewall-cmd --zone=public --permanent --list-ports
+
+
+
+Example:
+
+$ firewall-cmd --zone=public --list-all
+public (default, active)
+  interfaces: eno1
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+$ sudo firewall-cmd --zone=public --add-port=8080/tcp  
+success
+
+$ firewall-cmd --list-ports
+8080/tcp
+
+$ sudo firewall-cmd --zone=public --permanent --add-port=8080/tcp
+success
+
+$ firewall-cmd --zone=public --list-all
+public (default, active)
+  interfaces: eno1
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 8080/tcp
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+
+Defining a Service
+------------------
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-7
+
+
+Creating Your Own Zones
+-----------------------
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-7
+
+
+
+Enable Your Firewall to Start at Boot
+-------------------------------------
+
+$ sudo systemctl enable firewalld
+
+
+==========================================================================================
+
+  systemd
+  *******
+
+  Units
+
+In systemd, the target of most actions are "units", which are resources that systemd knows how to manage. Units are categorized by the type of resource they represent and they are defined with files known as unit files. The type of each unit can be inferred from the suffix on the end of the file.
+
+  .service units
+
+For service management tasks, the target unit will be service units, which have unit files with a suffix of .service. 
+
+  systemctl
+  *********
+
+replaces chkconfig 
+
+The most important command for managing services on a RHEL 7 (systemd) system is the systemctl command. 
+
+Location of services:
+
+    Before systemd, services were stored as scripts in the /etc/init.d directory, then linked to different runlevel directories (such as /etc/rc3.d, /etc/rc5.d, and so on). 
+
+    Services with systemd are named something.service, such as firewalld.service, and are stored in /lib/systemd/system and /etc/systemd/system directories. 
+
+      /lib/systemd/system
+      /etc/systemd/system
+
+    Think of 
+      /lib files as being more permanent and the 
+      /etc files as the place you can modify configurations as needed.
+
+    When you enable a service in RHEL 7, the service file is linked to a file in the 
+
+      /etc/systemd/system/multi-user.target.wants 
+
+    directory. For example, if you run 'systemctl enable fcoe.service' a symbolic link is created from 
+    
+      /etc/systemd/system/multi-user.target.wants/fcoe.service 
+
+    that points to /lib/systemd/system/fcoe.service to cause the fcoe.service to start at boot time.
+
+    Also, the older System V init scripts were actual shell scripts. The systemd files tasked to do the same job are more like .ini files that contain the information needed to launch a service.
+
+Configuration files:
+
+    The /etc/inittab file was used by the init process in RHEL 6 and earlier to point to the initialization files (such as /etc/rc.sysinit) and runlevel service directories (such as /etc/rc5.d) needed to start up the system. Changes to those services was done in files (usually named after the service) in the /etc/sysconfig directory. 
+
+    For systemd in RHEL 7, there are still files in /etc/sysconfig used to modify how services behave. However, services can be modified by adding files to the /etc/systemd directory to override the permanent service files in the /lib/systemd directories.
+
+RHEL commands
+
+  For the time being, you can use commands such as service, chkconfig, runlevel, and init as you did in RHEL 6. They will cause appropriate systemd commands to run, with similar, if not exactly the same, results. 
+
+
+=================================================================================
+
+# systemctl list-units
+
+  Pass --all to see loaded but inactive units, too.
+
+  To show all installed unit files use 'systemctl list-unit-files'
+
+# systemctl list-units --all | grep member
+  member-update-service.service                                                                                  loaded    inactive dead      SYSV: member-update-service daemon  
+
+# systemctl status member-update-service.service
+
+# systemctl status member-update-service.service
+   member-update-service.service - SYSV: member-update-service daemon
+   Loaded: loaded (/etc/rc.d/init.d/member-update-service)
+   Active: inactive (dead) since Fri 2016-03-25 16:34:49 CDT; 20h ago
+
+
+=================================================================================
+
+removing a service
+------------------
+
+My recipe for service obliteration (be careful with the rm statements!)
+
+  systemctl stop [servicename]
+  systemctl disable [servicename]
+  rm /etc/systemd/system/[servicename]
+  rm /etc/systemd/system/[servicename] symlinks that might be related
+  systemctl daemon-reload
+  systemctl reset-failed
+
+=================================================================================
+
+create a new systemd service
+----------------------------
+
+1. create the unit file for your service
+
+  # touch /etc/systemd/system/[serivce-name].service
+  # chmod 644 !$
+
+2. edit the unit file created above
+
+
+    [Unit]
+    Description=service_description
+    After=network.target
+
+    [Service]
+    ExecStart=path_to_executable
+    Type=forking
+    PIDFile=path_to_pidfile
+
+    [Install]
+    WantedBy=default.target
+
+where
+
+service_description 
+  
+  is an informative description that is displayed in journal log files and in the output of the systemctl status command.
+
+After 
+  
+  the After setting ensures that the service is started only after the network is running. Add a space-separated list of other relevant services or targets.
+
+path_to_executable 
+  
+  stands for the path to the actual service executable.
+
+Type=forking 
+  
+  is used for daemons that make the fork system call. The main process of the service is created with the PID specified in path_to_pidfile. Find other startup types in Table 8.10, “Important [Service] Section Options”.
+
+WantedBy 
+  
+  states the target or targets that the service should be started under. Think of these targets as of a replacement of the older concept of runlevels, see Section 8.3, “Working with systemd Targets” for details.
+
+See more OPTIONS here:
+https://www.digitalocean.com/community/tutorials/understanding-systemd-units-and-unit-files
+
+
+
+3. Notify system that a new [service-name].service exists by
+
+  # systemctl daemon-reload
+  # systemctl start [service-name].service
+
+NOTE: always run 'systemctl  daemon-reload' after creating new unit files.
+
+
+  Example member-update-service.service systemd service file
+  ----------------------------------------------------------
+This was helpful:
+http://unix.stackexchange.com/questions/47695/how-to-write-startup-script-for-systemd
+
+
+Save this file as /lib/systemd/system/member-update-service.service
+
+[Unit]
+Description=EBMR Member Update service
+After=syslog.target network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=oneshot
+ExecStart=/apps/pojoapps/member-update-service/member-update-service.sh start
+ExecReload=/apps/pojoapps/member-update-service/member-update-service.sh restart
+ExecStop=/apps/pojoapps/member-update-service/member-update-service.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
+
+============================================================================
+
+  process background foreground control
+  *************************************
+
+^z (ctrl-z) puts a foreground process into background but STOPPED
+
+$ jobs
+[1]+  Stopped                 jstatd -p 12345 -J-Djava.security.policy=/home/pojouser/.jstatd.all.policy
+
+to get that stopped job running in the backgroun:
+
+$ bg 1
+[1]+ jstatd -p 12345 -J-Djava.security.policy=/home/pojouser/.jstatd.all.policy &
+
+$ jobs
+[1]+  Running                 jstatd -p 12345 -J-Djava.security.policy=/home/pojouser/.jstatd.all.policy &
+
+============================================================================
+
+  tar.gz managing archives
+  ************************
+
+Create
+-------
+
+    $ tar -zcvf <archive-name>.tar.gz <directory-name>
+
+    -z compress
+    -c create
+    -v verbose
+    -f archive filename
+
+Preview / List prior to extracting
+--------
+
+    $ tar -tf <archive-name>.tar.gz
+
+
+Extract
+-------  
+
+    $ tar -xzvf <archive-name>.tar.gz
+
+    -x extract
+    -z decompress using gzip
+    -v verbose
+    -f filename
+
+
+============================================================================
+
+  sudo: command not found
+  ***********************
+
+$ env | grep ^PATH
+PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/user/.local/bin:/home/user/bin
+
+$ sudo env | grep ^PATH
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin  
+
+The missing path may not be in "secure_path" - edit /etc/sudoers
+
+
+
+================================================================================
+
+  Remote SSH Setup
+  ***********************
+
+- permissions are very important on both server and client:
+  .ssh directory is 700.
+  authorized_keys file is 600.
+
+
+Step 1. Set up SSH on the client
+---------------------------------
+
+note: key file name/location:
+
+[17:31:16] [jenkins@hlblbldd001: ~/.ssh]$ ssh-keygen
+Generating public/private rsa key pair.
+Enter file in which to save the key (/var/lib/jenkins/.ssh/id_rsa): /var/lib/jenkins/.ssh/id_jboss.rsa
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /var/lib/jenkins/.ssh/id_jboss.rsa.
+Your public key has been saved in /var/lib/jenkins/.ssh/id_jboss.rsa.pub.
+The key fingerprint is:
+2b:5c:36:ba:cd:f3:6c:02:2c:60:2c:a2:c4:6e:50:9e jenkins@hlblbldd001.company.com
+The key's randomart image is:
++--[ RSA 2048]----+
+|                 |
+|  .              |
+|.+ .             |
+|+oE              |
+|*o . .  S        |
+|.o  ..o+ o       |
+|.    .+..        |
+|       =o..      |
+|      . o=o      |
++-----------------+
+
+[17:41:34] [jenkins@hlblbldd001: ~]$ chmod 700 .ssh
+[17:52:31] [jenkins@hlblbldd001: ~]$ ls -la ~/.ssh/
+-rw-------  1 jenkins jenkins 1675 Jan 23 17:33 id_jboss.rsa
+-rw-r--r--  1 jenkins jenkins  414 Jan 23 17:33 id_jboss.rsa.pub
+-rw-r--r--  1 jenkins jenkins  410 Jan 23 16:45 known_hosts
+
+
+Step 2. Put the public-key to the server
+-----------------------------------------
+
+[16:28:29] [jenkins@hlblbldd001: ~]$ cat ~/.ssh/id_rsa.pub
+ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAt4+rfdDykC4XyFCoV3AIJfAFPJL05C4n2jpXha/y1xlxyIBufZoGS5RK73wWspOIACIVAB893sQHHcZYO29LiuWywsu8QHu88v3VHj2gps5+2Ciz2GuawacPADqYOVr10aoxYWGW6HSe0fFwDOIMdETS4H/h2gfjZNOtdCclTTlDj36tD55/Vill3Qx5yQ61dJUEhCriWplG5KRS9mkC31LjNj02YBHRJAUiNB32AEyMXOQ2ulMwdUxy1XxoQZ//IQKUnltG6K4lZU/v6XCBtaxsnrdMyL+5BeSy3ne0QZW/9tZuZ90DfcwMYzAxJj9F7zqE+sAjqJoQKyzWjKyUiw== jenkins@hlblbldd001.company.com
+
+
+[16:34:15] [jboss@hlbljbosr016: ~]$ mkdir -p ~/.ssh
+[16:34:15] [jboss@hlbljbosr016: ~]$ chmod 700 ~/.ssh
+
+[16:34:26] [jboss@hlbljbosr016: ~]$ echo "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAt4+rfdDykC4XyFCoV3AIJfAFPJL05C4n2jpXha/y1xlxyIBufZoGS5RK73wWspOIACIVAB893sQHHcZYO29LiuWywsu8QHu88v3VHj2gps5+2Ciz2GuawacPADqYOVr10aoxYWGW6HSe0fFwDOIMdETS4H/h2gfjZNOtdCclTTlDj36tD55/Vill3Qx5yQ61dJUEhCriWplG5KRS9mkC31LjNj02YBHRJAUiNB32AEyMXOQ2ulMwdUxy1XxoQZ//IQKUnltG6K4lZU/v6XCBtaxsnrdMyL+5BeSy3ne0QZW/9tZuZ90DfcwMYzAxJj9F7zqE+sAjqJoQKyzWjKyUiw== jenkins@hlblbldd001.company.com" >> ~/.ssh/authorized_keys
+[16:34:15] [jboss@hlbljbosr016: ~]$ chmod 600 ~/.ssh/authorized_keys
+[17:56:12] [jboss@hlbljbosr016: ~]$ ls -la ~/.ssh/
+-rw------- 1 jboss jboss 414 Jan 23 17:33 authorized_keys
+
+==> !!!
+NOTE: you must also have user 'jboss' configured with proper /etc/shadow entry!
+
+
+Step 3. Validate Login
+----------------------
+
+[17:53:12] [jenkins@hlblbldd001: ~]$ ssh -i ~/.ssh/id_jboss.rsa jboss@hlbljbosr016
+
+Last login: Mon Jan 23 17:56:08 2017
+[17:57:06] [jboss@hlbljbosr016: ~]$ 
+
+
+================================================================================
+
+Optional: ssh config
+---------------------
+
+User-specific SSH client config file:
+
+  ~/.ssh/config
+
+There is also system-wide SSH client config file
+
+  /etc/ssh/ssh_config
+
+Syntax:
+  One config parameter per line is allowed in the configuration file with the 
+  parameter name followed by its value or values. The syntax is:
+    config value
+    config1 value1 value2
+  You can use an equal sign (=) instead of whitespace between the parameter name 
+  and the values.
+    config=value
+    config1=value1 value2
+  All empty lines are ignored.
+  All lines starting with the hash (#) are ignored.
+  All values are case-sensitive, but parameter names are not.
+
+Example:
+
+Local desktop client – Apple OS X or Ubuntu Linux.
+Remote Unix server – OpenBSD server running latest OpenSSH server.
+Remote OpenSSH server ip/host: 75.126.153.206 (server1.cyberciti.biz)
+Remote OpenSSH server user: nixcraft
+Remote OpenSSH port: 4242
+Local ssh private key file path : /nfs/shared/users/nixcraft/keys/server1/id_rsa
+
+Typical ssh command:
+
+$ ssh -i /nfs/shared/users/nixcraft/keys/server1/id_rsa -p 4242 nixcraft@server1.cyberciti.biz
+
+OR
+
+$ ssh -i /nfs/shared/users/nixcraft/keys/server1/id_rsa -p 4242 -l nixcraft server1.cyberciti.biz
+
+
+~/.ssh/config:
+
+Host server1
+     HostName server1.cyberciti.biz
+     User nixcraft
+     Port 4242
+     IdentityFile /nfs/shared/users/nixcraft/keys/server1/id_rsa
+
+Host nas01
+     HostName 192.168.1.100
+     User root
+     IdentityFile ~/.ssh/nas01.key
+
+
+Now:
+
+$ ssh server1
+$ ssh nas01
+
+
+A more extensive example:
+-----------------------------------
+
+### default for all ##
+Host *
+     ForwardAgent no
+     ForwardX11 no
+     ForwardX11Trusted yes
+     User nixcraft
+     Port 22
+     Protocol 2
+     ServerAliveInterval 60
+     ServerAliveCountMax 30
+ 
+## override as per host ##
+Host server1
+     HostName server1.cyberciti.biz
+     User nixcraft
+     Port 4242
+     IdentityFile /nfs/shared/users/nixcraft/keys/server1/id_rsa
+ 
+## Home nas server ##
+Host nas01
+     HostName 192.168.1.100
+     User root
+     IdentityFile ~/.ssh/nas01.key
+ 
+## Login AWS Cloud ##
+Host aws.apache
+     HostName 1.2.3.4
+     User wwwdata
+     IdentityFile ~/.ssh/aws.apache.key
+ 
+## Login to internal lan server at 192.168.0.251 via our public uk office ssh based gateway using ##
+## $ ssh uk.gw.lan ##
+Host uk.gw.lan uk.lan
+     HostName 192.168.0.251
+     User nixcraft
+     ProxyCommand  ssh nixcraft@gateway.uk.cyberciti.biz nc %h %p 2> /dev/null
+ 
+## Our Us Proxy Server ##
+## Forward all local port 3128 traffic to port 3128 on the remote vps1.cyberciti.biz server ## 
+## $ ssh -f -N  proxyus ##
+Host proxyus
+    HostName vps1.cyberciti.biz
+    User breakfree
+    IdentityFile ~/.ssh/vps1.cyberciti.biz.key
+    LocalForward 3128 127.0.0.1:3128
+
+
+
+
+Understanding ~/.ssh/config entries
+-----------------------------------
+
+Host : Defines for which host or hosts the configuration section applies. The section ends with a new Host section or the end of the file. A single * as a pattern can be used to provide global defaults for all hosts.
+
+HostName : Specifies the real host name to log into. Numeric IP addresses are also permitted.
+
+User : Defines the username for the SSH connection.
+
+IdentityFile : Specifies a file from which the user’s DSA, ECDSA or DSA authentication identity is read. The default is ~/.ssh/identity for protocol version 1, and ~/.ssh/id_dsa, ~/.ssh/id_ecdsa and ~/.ssh/id_rsa for protocol version 2.
+
+ProxyCommand : Specifies the command to use to connect to the server. The command string extends to the end of the line, and is executed with the user’s shell. In the command string, any occurrence of %h will be substituted by the host name to connect, %p by the port, and %r by the remote user name. The command can be basically anything, and should read from its standard input and write to its standard output. This directive is useful in conjunction with nc(1) and its proxy support. For example, the following directive would connect via an HTTP proxy at 192.1.0.253:
+ProxyCommand /usr/bin/nc -X connect -x 192.1.0.253:3128 %h %p
+LocalForward : Specifies that a TCP port on the local machine be forwarded over the secure channel to the specified host and port from the remote machine. The first argument must be [bind_address:]port and the second argument must be host:hostport.
+
+Port : Specifies the port number to connect on the remote host.
+
+Protocol : Specifies the protocol versions ssh(1) should support in order of preference. The possible values are 1 and 2.
+
+ServerAliveInterval : Sets a timeout interval in seconds after which if no data has been received from the server, ssh(1) will send a message through the encrypted channel to request a response from the server. See blogpost “Open SSH Server connection drops out after few or N minutes of inactivity” for more information.
+
+ServerAliveCountMax : Sets the number of server alive messages which may be sent without ssh(1) receiving any messages back from the server. If this threshold is reached while server alive messages are being sent, ssh will disconnect from the server, terminating the session.
+
+============================================================================
+

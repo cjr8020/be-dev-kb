@@ -17,3 +17,44 @@ Features:
  - Global locks
  - Leadership election and cluster state
  - Distributed messaging
+
+
+Spring Cloud Config
+--------------------------------------------------------------------------------
+
+centralized external CM backed by a git repo.
+configuration resources map directly to Spring `environment` but could be 
+used by non-spring apps if desired.
+
+
+Spring Cloud Consul
+--------------------------------------------------------------------------------
+
+service discovery and CM with Hashicorp Consul.
+
+
+================================================================================
+
+	Spring Cloud Vault
+	******************
+
+Spring Cloud Vault Config provides client-side support for externalized configuration in a distributed system. With HashiCorp's Vault you have a central place to manage external secret properties for applications across all environments. Vault can manage static and dynamic secrets such as username/password for remote applications/resources and provide credentials for external services such as MySQL, PostgreSQL, Apache Cassandra, MongoDB, Consul, AWS and more.
+
+
+
+================================================================================
+
+	Spring Cloud Consul
+	********************
+
+Features:
+
+- Service Discovery: instances can be registered with the Consul agent and clients can discover the instances using Spring-managed beans
+- Supports Ribbon, the client side load-balancer via Spring Cloud Netflix
+- Supports Zuul, a dynamic router and filter via Spring Cloud Netflix
+- Distributed Configuration: using the Consul Key/Value store
+- Control Bus: Distributed control events using Consul Events
+
+
+
+================================================================================

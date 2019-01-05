@@ -1,0 +1,234 @@
+================================================================================
+
+	*************
+		Vault
+	*************
+
+
+Installing
+--------------------------------------------------------------------------------
+https://learn.hashicorp.com/vault/operations/ops-deployment-guide
+
+
+Download
+VAULT_VERSION="0.10.3"
+curl --silent --remote-name https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip
+curl --silent --remote-name https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_SHA256SUMS
+curl --silent --remote-name https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_SHA256SUMS.sig
+
+
+Install
+
+Unzip the downloaded package and move the vault binary to /usr/local/bin/. Check vault is available on the system path.
+
+	unzip vault_${VAULT_VERSION}_linux_amd64.zip
+	sudo chown root:root vault
+	sudo mv vault /usr/local/bin/
+	vault --version
+
+The vault command features opt-in autocompletion for flags, subcommands, and arguments (where supported). Enable autocompletion.
+
+	$ vault -autocomplete-install
+	$ complete -C /usr/local/bin/vault vault
+
+Give Vault the ability to use the mlock syscall without running the process as root. The mlock syscall prevents memory from being swapped to disk.
+
+	sudo setcap cap_ipc_lock=+ep /usr/local/bin/vault
+
+Create a unique, non-privileged system user to run Vault.
+
+	sudo useradd --system --home /etc/vault.d --shell /bin/false vault
+
+
+Step 3: Configure systemd
+--------------------------------------------------------------------------------
+Systemd uses documented sane defaults so only non-default values must be set in the configuration file.
+
+Create a Vault service file at /etc/systemd/system/vault.service.
+
+	sudo touch /etc/systemd/system/vault.service
+
+Add the below configuration to the Vault service file:
+
+[Unit]
+Description="HashiCorp Vault - A tool for managing secrets"
+Documentation=https://www.vaultproject.io/docs/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/vault.d/vault.hcl
+
+[Service]
+User=vault
+Group=vault
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+SecureBits=keep-caps
+AmbientCapabilities=CAP_IPC_LOCK
+Capabilities=CAP_IPC_LOCK+ep
+CapabilityBoundingSet=CAP_SYSLOG CAP_IPC_LOCK
+NoNewPrivileges=yes
+ExecStart=/usr/local/bin/vault server -config=/etc/vault.d/vault.hcl
+ExecReload=/bin/kill --signal HUP $MAINPID
+KillMode=process
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target
+
+
+================================================================================
+
+	*************
+		Consul
+	*************
+
+Installing
+--------------------------------------------------------------------------------
+https://www.consul.io/docs/guides/deployment-guide.html
+
+Precompiled Consul binaries are available for download at https://releases.hashicorp.com/consul/ and Consul Enterprise binaries are available for download by following the instructions made available to HashiCorp Consul customers.
+
+
+CONSUL_VERSION="1.2.0"
+curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip
+curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS
+curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS.sig
+
+
+Unzip the downloaded package and move the consul binary to /usr/local/bin/. Check consul is available on the system path.
+
+	unzip consul_${CONSUL_VERSION}_linux_amd64.zip
+	sudo chown root:root consul
+	sudo mv consul /usr/local/bin/
+	consul --version
+
+The consul command features opt-in autocompletion for flags, subcommands, and arguments (where supported). Enable autocompletion.
+
+	consul -autocomplete-install
+	complete -C /usr/local/bin/consul consul
+
+Create a unique, non-privileged system user to run Consul and create its data directory.
+
+	sudo useradd --system --home /etc/consul.d --shell /bin/false consul
+	sudo mkdir --parents /opt/consul
+	sudo chown --recursive consul:consul /opt/consul
+
+Configure systemd
+--------------------------------------------------------------------------------A
+Systemd uses documented sane defaults so only non-default values must be set in the configuration file.
+
+Create a Consul service file at /etc/systemd/system/consul.service.
+
+	sudo touch /etc/systemd/system/consul.service
+
+Add this configuration to the Consul service file:
+
+[Unit]
+Description="HashiCorp Consul - A service mesh solution"
+Documentation=https://www.consul.io/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/consul.d/consul.hcl
+
+[Service]
+User=consul
+Group=consul
+ExecStart=/usr/local/bin/consul agent -config-dir=/etc/consul.d/
+ExecReload=/usr/local/bin/consul reload
+KillMode=process
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
+
+Configure consul (server)
+--------------------------------------------------------------------------------
+
+Consul uses documented sane defaults so only non-default values must be set in the configuration file. 
+https://www.consul.io/docs/agent/options.html
+
+Configuration can be read from multiple files and is loaded in lexical order. See the full description for more information about configuration loading and merge semantics.
+
+Consul server agents typically require a superset of configuration required by Consul client agents. 
+We will specify common configuration used by all Consul agents in consul.hcl and server specific configuration in server.hcl.
+
+
+/etc/consul.d/consul.hcl
+------------------------
+common configuration used by all Consul agents
+
+	sudo mkdir --parents /etc/consul.d
+	sudo touch /etc/consul.d/consul.hcl
+	sudo chown --recursive consul:consul /etc/consul.d
+	sudo chmod 640 /etc/consul.d/consul.hcl
+
+add as content to `consul.hcl`:
+
+datacenter = "dc1"
+data_dir = "/opt/consul"
+encrypt = "Luj2FZWwlt8475wD1WtwUQ=="
+
+
+**  Replace the encrypt parameter value with the output from running consul keygen on any host with the consul binary installed.
+
+Cluster auto-join
+------------------
+
+	retry_join - Address of another agent to join upon starting up.
+
+The retry_join parameter allows you to configure all Consul agents to automatically form a cluster using a common Consul server accessed via DNS address, IP address or using Cloud Auto-join. This removes the need to manually join the Consul cluster nodes together.
+
+Add the retry_join parameter to the consul.hcl configuration file:
+
+retry_join = ["172.16.0.11"]
+
+
+/etc/consul.d/server.hcl
+---------------------------
+
+	$ sudo mkdir --parents /etc/consul.d
+	$ sudo touch /etc/consul.d/server.hcl
+	$ sudo chown --recursive consul:consul /etc/consul.d
+	$ sudo chmod 640 /etc/consul.d/server.hcl
+
+Add this configuration to the server.hcl configuration file:
+** Replace the bootstrap_expect value with the number of Consul servers you will use; 
+three or five is recommended.
+
+server = true
+bootstrap_expect = 3
+
+	server 
+		- This flag is used to control if an agent is in server or client mode
+	
+	bootstrap-expect 
+		- This flag provides the number of expected servers in the datacenter. 
+		Either this value should not be provided or the value must agree with 
+		other servers in the cluster.
+
+Consul UI
+-----------
+** You should consider running the Consul UI on select Consul hosts rather than all hosts.
+Optionally, add the UI configuration to the server.hcl configuration file to enable the Consul UI:
+
+ui = true
+
+
+Configure consul (client)
+--------------------------------------------------------------------------------
+
+
+
+
+
+================================================================================
+

@@ -1,0 +1,1777 @@
+	********************
+		RedHat Linux
+	********************	
+
+
+	Determine RHEL version
+	**********************
+
+$ cat /etc/redhat-release
+
+	Determine base kernel architecture
+
+# uname -a
+Linux host.company.com 2.6.32-504.23.4.el6.x86_64 #1 SMP Fri May 29 10:16:43 EDT 2015 x86_64 x86_64 x86_64 GNU/Linux
+
+i386 and i686 are both 32-bit.
+x86_64 is 64-bit	
+
+===============================================================================
+
+	Install EPEL and other repos on RedHat Linux
+	********************************************
+
+http://www.rackspace.com/knowledge_center/article/install-epel-and-additional-repositories-on-centos-and-red-hat	
+
+EPEL = Fedora Extra Packages for Enterprise Linux (EPEL) repository
+
+The EPEL repository provides useful software packages that are not included in the official CentOS or Red Hat Enterprise Linux repositories.
+
+Install the EPEL Repo
+**********************
+
+Red Hat Enterprise Linux 5.x
+-----------------------------
+
+	# wget http://dl.fedoraproject.org/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
+	# sudo rpm -Uvh epel-release-5*.rpm
+
+Example:
+
+[root@user-rh1 ~]# http_proxy=http://172.20.100.122:3128; export http_proxy
+[root@user-rh1 ~]# wget http://dl.fedoraproject.org/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
+--2015-08-17 14:28:42--  http://dl.fedoraproject.org/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
+Connecting to 172.20.100.122:3128... connected.
+Proxy request sent, awaiting response... 200 OK
+Length: 12232 (12K) [application/x-rpm]
+Saving to: `epel-release-5-4.noarch.rpm'
+
+100%[============================================================>] 12,232      --.-K/s   in 0.004s  
+
+2015-08-17 14:28:42 (3.18 MB/s) - `epel-release-5-4.noarch.rpm' saved [12232/12232]
+
+[root@user-rh1 ~]# sudo rpm -Uvh epel-release-5-4.noarch.rpm 
+warning: epel-release-5-4.noarch.rpm: Header V3 DSA signature: NOKEY, key ID 217521f6
+Preparing...                ########################################### [100%]
+   1:epel-release           ########################################### [100%]
+
+
+Red Hat Enterprise Linux 6.x
+----------------------------
+
+wget http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+sudo rpm -Uvh epel-release-6*.rpm
+
+Red Hat Enterprise Linux 7.x
+----------------------------
+
+wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+sudo rpm -Uvh epel-release-7*.rpm
+
+
+
+
+
+[root@user-rh1 ~]# yum install git
+
+
+
+If you need to remove/reinstall EPEL:
+
+	yum remove epel-release
+
+then rerun
+
+	rpm -Uvh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+
+
+
+===============================================================================
+
+	Check available repositories
+	****************************
+
+	$ yum repolist
+
+Example	
+
+	[14:01:36] [user@user-rh1: ~]$ yum repolist
+	Loaded plugins: rhnplugin, security
+	*Note* Red Hat Network repositories are not listed below. You must run this command as root to access RHN repositories.
+	repo id                     repo name                                                           status
+	epel                        Extra Packages for Enterprise Linux 5 - x86_64                      6,772
+	repolist: 6,772	
+
+
+To list disabled repositories, run the following command:
+
+	$ yum repolist disabled
+
+===============================================================================
+
+	Run levels
+	**********
+
+0 — Halt
+1 — Single-user text mode
+2 — Not used (user-definable)
+3 — Full multi-user text mode
+4 — Not used (user-definable)
+5 — Full multi-user graphical mode (with an X-based login screen)
+6 — Reboot	
+
+
+===============================================================================
+
+	Public key for jenkins-1.597-1.1.noarch.rpm is not installed
+	************************************************************
+
+If you got this kind of key error you can resolve this issue using below 2 ways.
+
+ Error : Public key for *.rpm is not installed 
+
+
+Reason :This is because of private key verification for redhat RPMs got failed. While we install RPMs using yum default it will check and verify the private key.
+
+We can use this below ways to resolve the issue.
+
+1. Disable the rpm signature check in YUM repo config
+
+	Edit /etc/yum.conf and change the value of gpgcheck from 1 to 0
+
+2. Import the public keys on server
+
+	Download the key to the filesystem.
+	Run
+
+		rpm --import /path/to/jenkins-ci.org.key
+
+
+===============================================================================
+
+	64- or 32-bit?
+	***************
+
+uname -a
+	32-bit
+	    i686 and/or i386
+	64-bit
+	    would have x86_64 in uname -a output
+
+===============================================================================
+
+
+List installed packages 
+************************
+
+yum list installed <string>
+
+e.g. 
+
+yum list installed perl
+
+===============================================================================
+
+Installing RPM packages from a file
+***********************************
+
+Now you use 'yum' for everyting
+
+yum install package1 [package2]
+
+ upgrade
+ -------
+
+rpm -Uvh package_file.rpm 
+
+	installs/upgrades a package from a .rpm file
+
+rpm -e package_name 
+
+	removes a package		
+
+===============================================================================
+
+	*******
+	* yum *
+	*******
+
+	primary tool for getting, installing, deleting querying and managing RHEL RPM software packages from official RH software repositories, as well as other 3rd party repos.
+
+
+	help
+
+		yum help - show yum subcommands and options
+
+	list
+
+		yum list available
+
+		yum list installed
+
+		yum list all
+
+		yum list kernel
+
+	info
+
+		yum info vsftpd
+
+	deplist
+
+		yum deplist nfs-utils
+
+	provides
+
+		yum provides "*bin/top"
+			- show packages that contains top command
+
+	search
+
+		yum search samba
+			- show packages with samba in name or description
+
+	updateinfo
+
+		yum groupinfo "Web Server"
+			- see packages in Web Server group
+
+-------- install, remove and update with yum --------------
+
+	install
+
+		yum install vsftpd
+
+	update
+
+		yum update 
+			- update all packages with available updates
+		yum update httpd
+
+		yum update --security
+			apply security-related package updates
+
+	update-to  - update one or all packages to a particular version
+
+	upgrade		- update packages taking obsoletes into account
+
+	localinstall	- install a package from a local file, http or ftp
+
+		yum localinstall abc-1-1.i686.rpm
+			- install abc package from local directory
+
+		yum localinstall http://myrepo/abc-1-1.i686.rpm
+			- install abc from FTP site
+
+	downgrade	- downgrade a package to an earlier version
+
+		yum downgrade abc
+
+	reinstall	- reinstall the current version of the package
+
+		yum reinstall util-linux
+			- reinstall util-linux (to replace any deleted files)						
+
+	swap	- remove one package and install another
+
+		yum swap ftp lftp
+
+	erase	- erase a package (and possibly dependencies) from your system
+
+	remove	- same as erase
+
+	autoremove	- same as erase, plus removes add'l unneeded packages
+
+		yum autoremove httpd
+			- remove httpd and other unneeded packages
+
+	groupinstall - install all packages in the selected group
+
+		yum groupinstall "Java"			
+		yum groupinstall "Development tools"
+
+
+	groupinfo - desplay content of a yum group
+
+		yum groupinfo "Java Development"
+
+
+
+===================================================================================
+
+	Creating users and groups
+	*************************
+
+add
+
+	[root@pdxlltstd004 ~]# useradd -c "JIRA User" -d /home/jira jira
+
+create user without homedir
+
+	[root@pdxlltstd005 apps]# useradd -c "User for DW Services" -M dropwizard
+
+remove
+
+	[root@pdxlltstd004 ~]# userdel -r jira
+
+create group
+
+	[root@pdxlltstd004 ~]# groupadd dev
+
+add user to group
+
+	[root@pdxlltstd004 ~]# usermod -G dev jira
+
+
+===============================================================================
+
+	using chkconfig utility
+	***********************
+
+this utility allows you to specify in which run level to start a selected service as well as to list all available services along with their current setting.
+
+	must have root (except when listing)	
+
+
+Configuring a Service using chkconfig
+
+    1. creating a /etc/init.d/somescript script
+
+    2. make it executable
+
+        chmod u+x /etc/init.d/somescript
+
+    3. add the script to the services managed by chkconfig
+
+        chkconfig --add somescript
+
+
+    4. verify
+
+        chkconfig --list somescript
+
+
+    5. add startup at default runlevel
+
+        chkconfig somescript on
+
+
+    6. add startup at desired runlevel(s)
+
+        chkconfig --level 35 somescript on
+
+
+===============================================================================
+
+	disk usage
+	**********
+
+	$ df -h
+
+===============================================================================
+
+  list open ports
+  ***************
+
+netstat -lnptu
+
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address               Foreign Address             State       PID/Program name   
+tcp        0      0 127.0.0.1:32000             0.0.0.0:*                   LISTEN      30566/java          
+tcp        0      0 0.0.0.0:1920                0.0.0.0:*                   LISTEN      2660/klzagent    
+
+===============================================================================
+
+	configuring proxy shell variable
+	********************************
+
+http://www.cyberciti.biz/faq/linux-unix-set-proxy-environment-variable/	
+
+$ export http_proxy=http://server-ip:port/
+$ export http_proxy=http://127.0.0.1:3128/
+$ export http_proxy=http://proxy-server.mycom:3128/
+
+If the proxy server requires a username and password then add these to the URL. For example, to include the username foo and the password bar:
+
+$ export http_proxy=http://foo:bar@server-ip:port/
+$ export http_proxy=http://foo:bar@127.0.0.1:3128/
+$ export http_proxy=http://USERNAME:PASSWORD@proxy-server.mycom:3128/	
+
+How do I setup proxy variable for all users?
+---------------------------------------------
+
+To setup the proxy environment variable as a global variable, open /etc/profile file:
+
+	# vi /etc/profile
+
+Add the following information:
+
+	export http_proxy=http://proxy-server.mycom:3128/
+
+OR
+
+	export http_proxy=http://USERNAME:PASSOWRD@proxy-server.mycom:3128/
+
+How do I use password protected proxy server using various command line options?
+----------------------------------------------
+
+You can simply use wget command as follows:
+
+	$ wget --proxy-user=USERNAME --proxy-password=PASSWORD http://path.to.domain.com/some.html
+
+Lynx command has the following syntax:
+
+	$ lynx -pauth=USER:PASSWORD http://domain.com/path/html.file
+
+Curl command has following syntax:
+
+	$ curl --proxy-user user:password http://url.com/
+
+
+================================================================================
+
+	EPEL repository
+	***************
+
+http://www.rackspace.com/knowledge_center/article/install-epel-and-additional-repositories-on-centos-and-red-hat	
+
+Prereqs
+-------
+
+# https_proxy=http://127.0.0.1:3128; export https_proxy
+
+
+
+Enable EPEL Repository
+=======================
+
+RHEL/CentOS 5 32-64 Bit
+-----------------------
+
+wget http://dl.fedoraproject.org/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
+sudo rpm -Uvh epel-release-5*.rpm
+
+
+RHEL/CentOS 6 32-64 Bit
+------------------------
+wget http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+sudo rpm -Uvh epel-release-6*.rpm
+
+RHEL/CentOS 7 64 Bit
+--------------------
+wget https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+sudo rpm -Uvh epel-release-7*.rpm
+
+
+How Do I Verify EPEL Repo?
+===========================
+
+# yum repolist
+# yum repolist disabled // to list disabled repos
+
+
+What provides a particular dependency?
+======================================
+
+# yum whatprovides libc.so.6
+
+
+
+================================================================================
+
+
+# yum install cntlm-0.92.3-1.x86_64.rpm 
+
+Resolving Dependencies
+--> Running transaction check
+---> Package cntlm.x86_64 0:0.92.3-1 set to be updated
+--> Processing Dependency: libc.so.6(GLIBC_2.10)(64bit) for package: cntlm
+--> Finished Dependency Resolution
+cntlm-0.92.3-1.x86_64 from /cntlm-0.92.3-1.x86_64 has depsolving problems
+  --> Missing Dependency: libc.so.6(GLIBC_2.10)(64bit) is needed by package cntlm-0.92.3-1.x86_64 (/cntlm-0.92.3-1.x86_64)
+Error: Missing Dependency: libc.so.6(GLIBC_2.10)(64bit) is needed by package cntlm-0.92.3-1.x86_64 (/cntlm-0.92.3-1.x86_64)
+
+
+# yum whatprovides glibc
+
+...
+
+glibc-2.5-123.el5_11.1.i686 : The GNU libc libraries.
+Repo        : installed
+Matched from:
+Other       : Provides-match: glibc
+
+[root@pdxlltstd003 ~]# locate libc.so.6
+/lib/libc.so.6
+/lib/i686/nosegneg/libc.so.6
+/lib64/libc.so.6
+/opt/orahome/app/oracle/product/11.2.04/client_1/lib/stubs/libc.so.6
+
+ldconfig says it's there, rpm isn't finding it
+
+# ldconfig -p | grep libc.so.6
+        libc.so.6 (libc6,x86-64, OS ABI: Linux 2.6.9) => /lib64/libc.so.6
+        libc.so.6 (libc6, OS ABI: Linux 2.6.9) => /lib/libc.so.6
+
+
+Building CNTLM from source
+--------------------------
+
+download src.rpm
+
+extract content of src.rpm:
+---------------------------
+
+$ rpm2cpio ../cntlm-0.92.3-1.src.rpm | cpio -idmv
+
+extact source dir from tar.bz2:
+-------------------------------
+
+$ tar xvjf ../cntlm-0.92.3.tar.bz2
+
+
+$ ./configure
+$ make
+# make install
+
+	dest: /usr/sbin
+
+================================================================================
+
+	iptables
+	********
+
+# service iptables stop
+# service iptables start | restart
+
+
+REJECT vs DROP
+--------------
+REJECT = when you want the other end to know the port is unreachable (LAN use)
+DROP   = for connections to hosts you don't want people to see (internet)
+
+
+Allow only localhost access
+----------------------------
+
+iptables -A INPUT -p tcp -s localhost --dport 25 -j ACCEPT
+iptables -A INPUT -p tcp --dport 25 -j DROP
+
+I.e., anything coming from localhost to port 25, accept, and the 2nd rule says "drop anything coming from port 25".  The 1st rule is processed first, allowing localhost, and anything else will get dropped by the 2nd rule.
+
+
+
+	CHAIN POLICY
+	************
+
+Iptables’s filter table has the following built-in chains	
+
+Chain INPUT (policy ACCEPT)	
+Chain FORWARD (policy ACCEPT)
+Chain OUTPUT (policy ACCEPT)
+
+
+The default policy of a chain is ACCEPT.
+
+When the default policy is DROP for INPUT and OUTPUT chains, for every incoming firewall rule, you need to specify the following two rules:
+
+	Request rule: 
+		This is the request that comes from the client to the server for the incoming connection.
+	
+	Response rule: 
+		This is for the response that goes out from the server to the client (for the corresponding incoming request).
+
+
+
+
+
+Listing Rules
+--------------
+Current running iptables Rules can be viewed with the command
+
+	# iptables -nL -v --line-numbers
+
+	-L 		list
+	-n 		display port numbers (not service name)
+
+NOTE: 
+	ACCEPT tcp  
+	ACCEPT all  (this one is for "lo" local interface)
+
+	add -v to see interface explicitly
+
+[root@hlblbldd001 jenkins]# iptables -nL --line-numbers
+Chain INPUT (policy ACCEPT)
+num  target     prot opt source               destination         
+1    ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0           
+2    ACCEPT     all  --  0.0.0.0/0            0.0.0.0/0           
+3    ACCEPT     all  --  0.0.0.0/0            0.0.0.0/0           state RELATED,ESTABLISHED 
+4    DROP       icmp --  0.0.0.0/0            0.0.0.0/0           icmp type 13 
+5    ACCEPT     icmp --  0.0.0.0/0            0.0.0.0/0           
+6    ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0           state NEW,ESTABLISHED tcp dpt:22 
+7    ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0           state NEW,ESTABLISHED tcp dpt:80 
+8    ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0           state NEW,ESTABLISHED tcp dpt:443 
+9    REJECT     all  --  0.0.0.0/0            0.0.0.0/0           reject-with icmp-host-prohibited 
+
+Chain FORWARD (policy ACCEPT)
+num  target     prot opt source               destination         
+1    REJECT     all  --  0.0.0.0/0            0.0.0.0/0           reject-with icmp-host-prohibited 
+
+Chain OUTPUT (policy ACCEPT)
+num  target     prot opt source               destination 
+
+
+-v
+---------------
+
+[root@hlblbldd001 jenkins]# iptables -nL -v --line-numbers
+Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+num   pkts bytes target     prot opt in     out     source               destination         
+1      222 43493 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0           
+2        0     0 ACCEPT     all  --  lo     *       0.0.0.0/0            0.0.0.0/0           
+3        5   420 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0           state RELATED,ESTABLISHED 
+4        0     0 DROP       icmp --  *      *       0.0.0.0/0            0.0.0.0/0           icmp type 13 
+5       44  1760 ACCEPT     icmp --  *      *       0.0.0.0/0            0.0.0.0/0           
+6        0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0           state NEW,ESTABLISHED tcp dpt:22 
+7        0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0           state NEW,ESTABLISHED tcp dpt:80 
+8        0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0           state NEW,ESTABLISHED tcp dpt:443 
+9       24  6521 REJECT     all  --  *      *       0.0.0.0/0            0.0.0.0/0           reject-with icmp-host-prohibited 
+
+Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+num   pkts bytes target     prot opt in     out     source               destination         
+1        0     0 REJECT     all  --  *      *       0.0.0.0/0            0.0.0.0/0           reject-with icmp-host-prohibited 
+
+Chain OUTPUT (policy ACCEPT 238 packets, 91171 bytes)
+num   pkts bytes target     prot opt in     out     source               destination   
+
+
+
+
+Plain form listing
+-------------------
+
+[root@hlblbldd001 jenkins]# iptables -S
+-P INPUT ACCEPT
+-P FORWARD ACCEPT
+-P OUTPUT ACCEPT
+-A INPUT -p tcp -j ACCEPT 
+-A INPUT -i lo -j ACCEPT 
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT 
+-A INPUT -p icmp -m icmp --icmp-type 13 -j DROP 
+-A INPUT -p icmp -j ACCEPT 
+-A INPUT -p tcp -m state --state NEW,ESTABLISHED -m tcp --dport 22 -j ACCEPT 
+-A INPUT -p tcp -m state --state NEW,ESTABLISHED -m tcp --dport 80 -j ACCEPT 
+-A INPUT -p tcp -m state --state NEW,ESTABLISHED -m tcp --dport 443 -j ACCEPT 
+-A INPUT -j REJECT --reject-with icmp-host-prohibited 
+-A FORWARD -j REJECT --reject-with icmp-host-prohibited 
+
+
+
+
+
+Appending Rules
+---------------
+
+	# iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+
+
+Deleting Rules
+---------------
+
+To delete a Rule, you must know its position in the chain. The following example deletes an existing Rule created earlier that is currently in the fifth position:
+
+	# iptables -D INPUT 5
+
+Inserting Rules
+---------------
+
+# First, get the iptables list with the line numbers enabled
+
+$ iptables -nL --line-numbers
+
+	# Look up the line number you want to use (the existing rule will shift down)
+
+Create a Rule at the top (first) position:
+
+	# iptables -I INPUT 1 -p tcp --dport 80 -j ACCEPT
+
+
+Example: insert rule for INPUT chain in 6th position:
+
+# iptables -I INPUT 6 -p tcp --dport 9000 -j ACCEPT
+
+
+Making changes persistent
+=========================
+
+The iptables Rules changes using CLI commands will be lost upon system reboot. However, iptables comes with two useful utilities: iptables-save and iptables-restore.
+
+iptables-save 
+
+	prints a dump of current iptables rules to stdout. These may be redirected to a file:
+
+	# iptables-save > iptables.dump 
+
+iptables-restore : restore a dump of rules made by iptables-save.
+
+	# iptables-restore < iptables.dump
+
+Examine iptables.dump
+
+After that, the changes need to be persisted to
+
+for IPv4
+	/etc/sysconfig/iptables
+for IPv6
+	/etc/sysconfig/ip6tables
+
+These files can be generated using:
+
+	# iptables-restore < /tmp/iptables.dump
+	# iptables-save > /etc/sysconfig/iptables
+	# ip6tables-save > /etc/sysconfig/ip6tables
+
+
+
+================================================================================	
+
+	Creating Repos
+	***************
+
+		Determine RHEL version
+		**********************
+
+	$ cat /etc/redhat-release
+
+		Determine base kernel architecture
+
+	# uname -a
+	Linux host.company.com 2.6.32-504.23.4.el6.x86_64 #1 SMP Fri May 29 10:16:43 EDT 2015 x86_64 x86_64 x86_64 GNU/Linux
+
+	i386 and i686 are both 32-bit.
+	x86_64 is 64-bit		
+
+
+
+https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/System_Administrators_Guide/sec-Configuring_Yum_and_Yum_Repositories.html
+
+To add nginx yum repository, create a file named /etc/yum.repos.d/nginx.repo and paste one of the configurations below:
+
+CentOS:
+
+[nginx]
+name=nginx repo
+baseurl=http://nginx.org/packages/centos/$releasever/$basearch/
+gpgcheck=0
+enabled=1
+
+RHEL:
+
+[nginx]
+name=nginx repo
+baseurl=http://nginx.org/packages/rhel/$releasever/$basearch/
+gpgcheck=0
+enabled=1			
+
+Due to differences between how CentOS, RHEL, and Scientific Linux populate the $releasever variable, it is necessary to manually replace $releasever with either "5" (for 5.x) or "6" (for 6.x), depending upon your OS version.
+
+$releasever
+You can use this variable to reference the release version of Red Hat Enterprise Linux. Yum obtains the value of $releasever from the distroverpkg=value line in the /etc/yum.conf configuration file. If there is no such line in /etc/yum.conf, then yum infers the correct value by deriving the version number from the redhat-release file.
+
+
+$basearch
+You can use $basearch to reference the base architecture of the system. 
+
+For example, i686 and i586 machines both have a base architecture of i386, and AMD64 and Intel64 machines have a base architecture of x86_64.
+
+RHEL x64:
+
+[nginx]
+name=nginx repo
+baseurl=http://nginx.org/packages/rhel/6/x86_64/
+gpgcheck=0
+enabled=1
+
+================================================================================
+
+Installing Java 
+---------------
+
+Oracle Java 
+
+	download jdk-7u71-linux-x64.rpm
+	> yum install /path/to/jdk..rpm
+
+		It's not signed, so disable gpgcheck in /etc/yum.conf (change to 0)
+
+
+Installs in 
+
+$ /usr/java/latest/bin/java -version
+java version "1.8.0_121"
+Java(TM) SE Runtime Environment (build 1.8.0_121-b13)
+Java HotSpot(TM) 64-Bit Server VM (build 25.121-b13, mixed mode)
+
+================================================================================
+
+
+
+
+  firewalld (RHEL7 and CentOS 7)
+  ******************************
+
+# systemctl status firewalld
+
+firewalld.service - firewalld - dynamic firewall daemon
+   Loaded: loaded (/usr/lib/systemd/system/firewalld.service; enabled; vendor preset: enabled)
+   Active: active (running) since Thu 2016-03-24 20:03:55 CDT; 21h ago
+  Main PID: 719 (firewalld)
+
+# ps -ef | grep firewall
+root       719     1  0 Mar24 ? 00:00:00 /usr/bin/python -Es /usr/sbin/firewalld --nofork --nopid
+
+
+Stop and Start RHEL7 firewall
+------------------------------
+The firewall on Redhat 7 Linux system can be stopped by a following command:
+
+  [root@rhel7 ~]# service firewalld stop
+  Redirecting to /bin/systemctl stop  firewalld.service
+  Stopped firewall will start again after system's reboot. 
+
+To start firewall on Redhat 7 Linux system use:
+
+  [root@rhel7 ~]# service firewalld start
+  Redirecting to /bin/systemctl start  firewalld.service
+
+
+# firewall-cmd --get-default-zone
+public
+
+To get the list of zones where you’ve got network interfaces or sources assigned to, type:
+
+# firewall-cmd --get-active-zones
+?? shows nothing on this RHEL7 VM for microservices in INT..
+
+
+show network interfaces
+
+# ip link show
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: ens192: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+    link/ether 00:50:56:99:16:6b brd ff:ff:ff:ff:ff:ff
+3: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT 
+    link/ether 52:54:00:c2:0e:cb brd ff:ff:ff:ff:ff:ff
+4: virbr0-nic: <BROADCAST,MULTICAST> mtu 1500 qdisc pfifo_fast master virbr0 state DOWN mode DEFAULT qlen 500
+    link/ether 52:54:00:c2:0e:cb brd ff:ff:ff:ff:ff:ff
+
+show IP address
+
+$ ip addr show
+
+2: ens192: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP qlen 1000
+    link/ether 00:50:56:99:16:6b brd ff:ff:ff:ff:ff:ff
+    inet 192.168.136.51/24 brd 192.168.136.255 scope global ens192
+       valid_lft forever preferred_lft forever
+    inet6 fe80::250:56ff:fe99:166b/64 scope link 
+       valid_lft forever preferred_lft forever
+3: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN 
+    link/ether 52:54:00:c2:0e:cb brd ff:ff:ff:ff:ff:ff
+    inet 192.168.122.1/24 brd 192.168.122.255 scope global virbr0
+       valid_lft forever preferred_lft forever
+
+
+# netstat -i
+Kernel Interface table
+Iface      MTU    RX-OK RX-ERR RX-DRP RX-OVR    TX-OK TX-ERR TX-DRP TX-OVR Flg
+ens192    1500  1096442      0  46760 0        272499      0      0      0 BMRU
+lo       65536        0      0      0 0             0      0      0      0 LRU
+virbr0    1500        0      0      0 0             0      0      0      0 BMU
+
+
+
+# firewall-cmd --get-zone-of-interface=virbr0
+no zone
+
+
+# firewall-cmd --list-all
+public (default)
+  interfaces: 
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+
+
+
+
+
+ https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-7
+
+ FirewallD is a firewall solution on CentOS 7
+ =============================================
+
+ $ sudo systemctl start firewalld.service
+ $ firewall-cmd --state
+ running
+
+
+Basic concepts:
+
+Zones
+  the firewalld daemon manages groups of rules using entities called "zones".
+  network interfaces are assigned to a zone to dictate the behavior ..
+  For computres that might move between networks this flexibility provides a good method of changing your rules depending on the environment.
+
+Default zone
+-------------
+
+$ sudo firewall-cmd --get-default-zone
+public
+
+$ sudo firewall-cmd --get-active-zones
+public
+  interfaces: eno1
+
+How do we know what rules are associated with the public zone though? We can print out the default zone's configuration by typing:
+
+$ sudo firewall-cmd --list-all
+public (default, active)
+  interfaces: eno1
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+Alternative zones
+-----------------
+
+To get a list of the available zones, type:
+
+$ firewall-cmd --get-zones
+block dmz drop external home internal public trusted work
+
+We can see the specific configuration associated with a zone by including the --zone= parameter in our --list-all command:
+
+$ firewall-cmd --zone=home --list-all
+home
+  interfaces: 
+  sources: 
+  services: dhcpv6-client ipp-client mdns samba-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+
+Changing the Zone of an Interface for the Current Session
+
+You can transition an interface between zones during a session by using the --zone= parameter in combination with the --change-interface= parameter. As with all commands that modify the firewall, you will need to use sudo.
+
+For instance, we can transition our eth0 interface to the "home" zone by typing this:
+
+$ sudo firewall-cmd --zone=home --change-interface=eth0
+success
+
+Changing the Zone of your Interface Permanently
+-----------------------------------------------
+
+Interfaces will always revert to the default zone if they do not have an alternative zone defined within their configuration. On CentOS, these configurations are defined within the /etc/sysconfig/network-scripts directory with files of the format ifcfg-interface.
+
+To define a zone for the interface, open up the file associated with the interface you'd like to modify. We'll demonstrate making the change we showed above permanent:
+
+sudo nano /etc/sysconfig/network-scripts/ifcfg-eth0
+
+At the bottom of the file, set the ZONE= variable to the zone you wish to associate with the interface. In our case, this would be the "home" interface:
+
+/etc/sysconfig/network-scripts/ifcfg-eth0
+. . .
+
+DNS1=2001:4860:4860::8844
+DNS2=2001:4860:4860::8888
+DNS3=8.8.8.8
+ZONE=home
+
+Save and close the file.
+
+To implement your changes, you'll have to restart the network service, followed by the firewall service:
+
+sudo systemctl restart network.service
+sudo systemctl restart firewalld.service
+After your firewall restarts, you can see that your eth0 interface is automatically placed in the "home" zone:
+
+firewall-cmd --get-active-zones
+output
+home
+  interfaces: eth0
+public
+  interfaces: eth1
+
+
+Setting Rules for your Applications
+-----------------------------------
+
+Adding a Service to your Zones
+
+The easiest method is to add the services or ports you need to the zones you are using. Again, you can get a list of the available services with the --get-services option:
+
+$ firewall-cmd --zone=public --list-services
+
+you can leave out '--zone=' if you're looking at the default zone:
+
+$ firewall-cmd --get-services
+RH-Satellite-6 amanda-client bacula bacula-client dhcp dhcpv6 dhcpv6-client dns freeipa-ldap freeipa-ldaps freeipa-replication ftp high-availability http https imaps ipp ipp-client ipsec iscsi-target kerberos kpasswd ldap ldaps libvirt libvirt-tls mdns mountd ms-wbt mysql nfs ntp openvpn pmcd pmproxy pmwebapi pmwebapis pop3s postgresql proxy-dhcp radius rpc-bind rsyncd samba samba-client smtp ssh telnet tftp tftp-client transmission-client vdsm vnc-server wbem-https
+
+You can get more details about each of these services by looking at their associated .xml file within the /usr/lib/firewalld/services directory. For instance, the SSH service is defined like this:
+
+/usr/lib/firewalld/services/ssh.xml
+
+  /usr/lib/firewalld/services/*
+
+
+For instance, if we are running a web server serving conventional HTTP traffic, we can allow this traffic for interfaces in our "public" zone for this session by typing:
+
+sudo firewall-cmd --zone=public --add-service=http
+
+Permanent change:
+-----------------
+
+Once you have tested that everything is working as it should, you will probably want to modify the permanent firewall rules so that your service will still be available after a reboot. We can make our "public" zone change permanent by typing:
+
+sudo firewall-cmd --zone=public --permanent --add-service=http
+
+Your "public" zone will now allow HTTP web traffic on port 80. If your web server is configured to use SSL/TLS, you'll also want to add the https service. We can add that to the current session and the permanent rule-set by typing:
+
+sudo firewall-cmd --zone=public --add-service=https
+sudo firewall-cmd --zone=public --permanent --add-service=https
+
+What If No Appropriate Service Is Available?
+--------------------------------------------
+
+The firewall services that are included with the firewalld installation represent many of the most common requirements for applications that you may wish to allow access to. However, there will likely be scenarios where these services do not fit your requirements.
+
+
+For instance, if our application runs on port 5000 and uses TCP, we could add this to the "public" zone for this session using the --add-port= parameter. Protocols can be either tcp or udp:
+
+sudo firewall-cmd --zone=public --add-port=5000/tcp
+
+After testing, we would likely want to add these to the permanent firewall. You can do that by typing:
+
+sudo firewall-cmd --zone=public --permanent --add-port=5000/tcp
+sudo firewall-cmd --zone=public --permanent --add-port=4990-4999/udp
+sudo firewall-cmd --zone=public --permanent --list-ports
+
+
+
+Example:
+
+$ firewall-cmd --zone=public --list-all
+public (default, active)
+  interfaces: eno1
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+$ sudo firewall-cmd --zone=public --add-port=8080/tcp  
+success
+
+$ firewall-cmd --list-ports
+8080/tcp
+
+$ sudo firewall-cmd --zone=public --permanent --add-port=8080/tcp
+success
+
+$ firewall-cmd --zone=public --list-all
+public (default, active)
+  interfaces: eno1
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 8080/tcp
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+
+Defining a Service
+------------------
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-7
+
+
+Creating Your Own Zones
+-----------------------
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-7
+
+
+
+Enable Your Firewall to Start at Boot
+-------------------------------------
+
+$ sudo systemctl enable firewalld
+
+
+==========================================================================================
+
+  systemd
+  *******
+
+  Units
+
+In systemd, the target of most actions are "units", which are resources that systemd knows how to manage. Units are categorized by the type of resource they represent and they are defined with files known as unit files. The type of each unit can be inferred from the suffix on the end of the file.
+
+  .service units
+
+For service management tasks, the target unit will be service units, which have unit files with a suffix of .service. 
+
+  systemctl
+  *********
+
+replaces chkconfig 
+
+The most important command for managing services on a RHEL 7 (systemd) system is the systemctl command. 
+
+Location of services:
+
+    Before systemd, services were stored as scripts in the /etc/init.d directory, then linked to different runlevel directories (such as /etc/rc3.d, /etc/rc5.d, and so on). 
+
+    Services with systemd are named something.service, such as firewalld.service, and are stored in /lib/systemd/system and /etc/systemd/system directories. 
+
+      /lib/systemd/system
+      /etc/systemd/system
+
+    Think of 
+      /lib files as being more permanent and the 
+      /etc files as the place you can modify configurations as needed.
+
+    When you enable a service in RHEL 7, the service file is linked to a file in the 
+
+      /etc/systemd/system/multi-user.target.wants 
+
+    directory. For example, if you run 'systemctl enable fcoe.service' a symbolic link is created from 
+    
+      /etc/systemd/system/multi-user.target.wants/fcoe.service 
+
+    that points to /lib/systemd/system/fcoe.service to cause the fcoe.service to start at boot time.
+
+    Also, the older System V init scripts were actual shell scripts. The systemd files tasked to do the same job are more like .ini files that contain the information needed to launch a service.
+
+Configuration files:
+
+    The /etc/inittab file was used by the init process in RHEL 6 and earlier to point to the initialization files (such as /etc/rc.sysinit) and runlevel service directories (such as /etc/rc5.d) needed to start up the system. Changes to those services was done in files (usually named after the service) in the /etc/sysconfig directory. 
+
+    For systemd in RHEL 7, there are still files in /etc/sysconfig used to modify how services behave. However, services can be modified by adding files to the /etc/systemd directory to override the permanent service files in the /lib/systemd directories.
+
+RHEL commands
+
+  For the time being, you can use commands such as service, chkconfig, runlevel, and init as you did in RHEL 6. They will cause appropriate systemd commands to run, with similar, if not exactly the same, results. 
+
+=================================================================================
+
+# systemctl start | stop | restart | reload | status <service-name>
+
+# systemctl enable | disable <service-name>
+
+# systemctl is-active | is-enabled <service-name>
+
+=================================================================================
+
+
+	list all enabled
+	----------------
+
+# systemctl list-unit-files | grep enabled
+
+	all running
+
+# systemctl | grep running
+
+# systemctl list-units
+
+  Pass --all to see loaded but inactive units, too.
+
+  To show all installed unit files use 'systemctl list-unit-files'
+
+# systemctl list-units --all | grep member
+  member-update-service.service                                                                                  loaded    inactive dead      SYSV: member-update-service daemon  
+
+# systemctl status member-update-service.service
+
+# systemctl status member-update-service.service
+   member-update-service.service - SYSV: member-update-service daemon
+   Loaded: loaded (/etc/rc.d/init.d/member-update-service)
+   Active: inactive (dead) since Fri 2016-03-25 16:34:49 CDT; 20h ago
+
+
+# # systemctl list-units --type=target
+
+=================================================================================
+
+removing a service
+------------------
+
+My recipe for service obliteration (be careful with the rm statements!)
+
+  systemctl stop [servicename]
+  systemctl disable [servicename]
+  rm /etc/systemd/system/[servicename]
+  rm /etc/systemd/system/[servicename] symlinks that might be related
+  systemctl daemon-reload
+  systemctl reset-failed
+
+=================================================================================
+
+create a new systemd service
+----------------------------
+
+1. create the unit file for your service
+
+  # touch /etc/systemd/system/[serivce-name].service
+  # chmod 644 !$
+
+2. edit the unit file created above
+
+
+    [Unit]
+    Description=service_description
+    After=network.target
+
+    [Service]
+    ExecStart=path_to_executable
+    Type=forking
+    PIDFile=path_to_pidfile
+
+    [Install]
+    WantedBy=default.target
+
+where
+
+service_description 
+  
+  is an informative description that is displayed in journal log files and in the output of the systemctl status command.
+
+After 
+  
+  the After setting ensures that the service is started only after the network is running. Add a space-separated list of other relevant services or targets.
+
+path_to_executable 
+  
+  stands for the path to the actual service executable.
+
+Type=forking 
+  
+  is used for daemons that make the fork system call. The main process of the service is created with the PID specified in path_to_pidfile. Find other startup types in Table 8.10, “Important [Service] Section Options”.
+
+WantedBy 
+  
+  states the target or targets that the service should be started under. Think of these targets as of a replacement of the older concept of runlevels, see Section 8.3, “Working with systemd Targets” for details.
+
+See more OPTIONS here:
+https://www.digitalocean.com/community/tutorials/understanding-systemd-units-and-unit-files
+
+
+3. auto-start
+
+	4.1 Make sure the service has a functional systemd init script located at /etc/systemd/system/multi-user.target.wants/service.service
+
+	# cd /etc/systemd/system/multi-user.target.wants/
+	# ln -s /etc/systemd/system/httpd.service httpd.service
+
+	4.2 use the `systemctl` command to enable the service
+
+	# systemctl enabled [service].service
+
+
+4. Notify system that a new [service-name].service exists by
+
+  # systemctl daemon-reload
+  # systemctl start [service-name].service
+
+NOTE: always run 'systemctl  daemon-reload' after creating new unit files.
+
+================================================================================
+
+	Example configuring auto-start for JBOSS EWS apache server
+	----------------------------------------------------------
+
+0. list services
+
+	# systemctl list-unit-files | grep enabled
+	# systemctl | grep running
+	# systemctl list-units --all | grep httpd 
+	# systemctl status httpd.service
+
+1. create a custom unit file - /etc/systemd/system/httpd.service
+
+[Unit]
+Description=JBOSS EWS Apache Web Server
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=forking
+PIDFile=/opt/jboss-ews-2.1/httpd/run/httpd.pid
+ExecStart=/opt/jboss-ews-2.1/httpd/sbin/apachectl start
+ExecStop=/opt/jboss-ews-2.1/httpd/sbin/apachectl graceful-stop
+ExecReload=/opt/jboss-ews-2.1/httpd/sbin/apachectl graceful
+PrivateTmp=true
+LimitNOFILE=infinity
+
+[Install]
+WantedBy=multi-user.target
+
+2. auto-start
+
+	# cd /etc/systemd/system/multi-user.target.wants/
+	# ln -s /etc/systemd/system/httpd.service httpd.service
+
+3. enable
+
+	# systemctl enabled httpd.service
+
+4. Notify system by restarting httpd.service
+
+  # systemctl daemon-reload
+  # systemctl restart httpd.service
+
+
+
+  Example member-update-service.service systemd service file
+  ----------------------------------------------------------
+This was helpful:
+http://unix.stackexchange.com/questions/47695/how-to-write-startup-script-for-systemd
+
+
+Save this file as /lib/systemd/system/member-update-service.service
+
+[Unit]
+Description=EBMR Member Update service
+After=syslog.target network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=oneshot
+ExecStart=/apps/pojoapps/member-update-service/member-update-service.sh start
+ExecReload=/apps/pojoapps/member-update-service/member-update-service.sh restart
+ExecStop=/apps/pojoapps/member-update-service/member-update-service.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
+
+============================================================================
+
+  process background foreground control
+  *************************************
+
+^z (ctrl-z) puts a foreground process into background but STOPPED
+
+$ jobs
+[1]+  Stopped                 jstatd -p 12345 -J-Djava.security.policy=/home/pojouser/.jstatd.all.policy
+
+to get that stopped job running in the backgroun:
+
+$ bg 1
+[1]+ jstatd -p 12345 -J-Djava.security.policy=/home/pojouser/.jstatd.all.policy &
+
+$ jobs
+[1]+  Running                 jstatd -p 12345 -J-Djava.security.policy=/home/pojouser/.jstatd.all.policy &
+
+============================================================================		
+
+	installing compilers gcc g++ .. etc
+	************************************
+
+
+RHEL 6
+******
+
+	[root@hlblbldd001 ~]# yum install gcc gcc-c++ automake autoconf libtoolize make
+	Loaded plugins: product-id, refresh-packagekit, rhnplugin, search-disabled-repos, subscription-manager
+	This system is receiving updates from RHN Classic or RHN Satellite.
+	Setting up Install Process
+	Package gcc-4.4.7-17.el6.x86_64 already installed and latest version
+	Package automake-1.11.1-4.el6.noarch already installed and latest version
+	Package autoconf-2.63-5.1.el6.noarch already installed and latest version
+	No package libtoolize available.
+	Package 1:make-3.81-23.el6.x86_64 already installed and latest version
+	Resolving Dependencies
+	--> Running transaction check
+	---> Package gcc-c++.x86_64 0:4.4.7-17.el6 will be installed
+	--> Finished Dependency Resolution
+
+	Dependencies Resolved
+
+	==============================================================================================================
+	 Package            Arch              Version                 Repository                                 Size
+	==============================================================================================================
+	Installing:
+	 gcc-c++            x86_64            4.4.7-17.el6            rhel6-x86_64-server_2016.10.18            4.7 M
+
+	Transaction Summary
+	==============================================================================================================
+	Install       1 Package(s)
+
+	Total download size: 4.7 M
+	Installed size: 11 M
+	Is this ok [y/N]: y
+	Downloading Packages:
+	gcc-c++-4.4.7-17.el6.x86_64.rpm                                                        | 4.7 MB     00:00     
+	Running rpm_check_debug
+	Running Transaction Test
+	Transaction Test Succeeded
+	Running Transaction
+	  Installing : gcc-c++-4.4.7-17.el6.x86_64                                                                1/1 
+	  Verifying  : gcc-c++-4.4.7-17.el6.x86_64                                                                1/1 
+
+	Installed:
+	  gcc-c++.x86_64 0:4.4.7-17.el6                                                                               
+
+	Complete!	
+
+
+Install GCC 4.8+ on rhel 6 x86_64 
+---------------------------------
+
+http://unix.stackexchange.com/questions/270356/install-gcc-4-8-on-rhel-x86-64-workstation-6
+
+Since the package is either not available, or using a different name, the first step is to find which is the case. Use
+
+	# yum list available |grep gcc
+	# yum list available |grep devtoolset
+
+According to Red Hat's article (https://access.redhat.com/solutions/19458) "What gcc versions are available in Red Hat Enterprise Linux?", gcc 4.8 is available for Red Hat Enterprise 7. 
+
+If you need gcc 4.8 for RHEL 6, you may have to compile it yourself.
+
+http://stackoverflow.com/questions/25433142/installing-gcc-4-8-2-on-red-hat-enterprise-linux-6-5
+https://gist.github.com/stephenturner/e3bc5cfacc2dc67eca8b
+
+The official way to have gcc 4.8.2 on RHEL 6 is via installing Red Hat Developer Toolset (yum install devtoolset-2), and in order to have it you need to have one of the below subscriptions:
+
+If you don't have any of these subscriptions, you won't succeed in "yum install devtoolset-2". However, luckily cern provide a "back door" for their SLC6 which can also be used in RHEL 6. Run below three lines via root, and you should be able to have it:
+
+	# wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
+
+	# wget -O /etc/pki/rpm-gpg/RPM-GPG-KEY-cern http://ftp.scientificlinux.org/linux/scientific/5x/x86_64/RPM-GPG-KEYs/RPM-GPG-KEY-cern
+
+	# yum install devtoolset-2
+
+Once the install is complete, you should have the new dev package in:
+
+	/opt/rh/devtoolset-2/root
+
+To enable the new dev environment:
+
+	$ scl enable devtoolset-2 bash
+
+	Optional:
+
+		Optional: Permanently enable scl toolchain by putting this in your .bashrc (warning: don't try to use the scl enable devtoolset-2 bash command from before in your .bashrc. This spawns a new bash shell, and if that's in your .bashrc, it creates a new shell, which loads your .bashrc, which creates a new shell, etc.)
+
+			source /opt/rh/devtoolset-2/enable
+
+
+NOTE: Devtoolset-3 is now available..
+
+	https://www.softwarecollections.org/en/scls/rhscl/devtoolset-3/
+
+
+
+export CC=/opt/rh/devtoolset-2/root/usr/bin/gcc
+export CPP=/opt/rh/devtoolset-2/root/usr/bin/cpp
+export CXX=/opt/rh/devtoolset-2/root/usr/bin/c++
+
+
+
+============================================================================		
+
+	set up microservices
+	********************
+
+                Environment Setup
+            *****************
+
+1. Create 'pojogroup' GID
+
+                $ groupadd pojogroup
+
+2. Create parent directory for Java microservces
+
+                $ mkdir /apps/pojoapps               
+
+3. Create 'pojouser' UID
+
+                $ useradd -rM -d /home/pojouser -s /sbin/nologin -g pojogroup pojouser
+
+                -rM create a system user and do not create homedir
+                -d  homedir=/
+                -s  login shell = /sbin/nologin
+                -g  login group = pojogroup
+
+                create .profile and .bashrc in /home/pojouser and make sure (see below)
+
+                                umask 007
+
+
+4. directory permissions 
+
+$ chmod 0770 /apps/pojoapps
+$ chgrp pojogroup /apps/pojoapps
+$ chmod g+s /apps/pojoapps  -> files created in this directory will in group 'pojogroup'
+
+whoever is member of 'pojogroup' MUST have umask set in their ~/.profile
+
+umask 007
+
+
+5. Keystores setup
+
+1. Create directories
+
+                $ mkdir -p /var/apps/shared/keystores/identity
+                $ mkdir -p /var/apps/shared/keystores/truststore
+
+2. Make them readable by group 'pojogroup'
+
+                # chgrp -R pojogroup /var/apps
+
+3. Change permissions so that root can Write, group - Read, world - None
+
+                # chmod -R 0750 /var/apps
+
+4. Copy keystore files and set permissions:
+
+                # ls -l ./identity/
+                
+                -rw-r----- 1 root pojogroup 4565 Mar 25 12:29 keystore.jks
+
+                # ls -l truststore/
+                
+                -rw-r----- 1 root pojogroup 2101 Mar 25 12:29 truststore.jks
+
+Permissions overview for each level of keystores path:
+
+[root@pdxlmicni001 apps]# ls -ld /var/apps
+drwxr-x--- 3 root pojogroup 4096 Mar 25 12:20 /var/apps
+[root@pdxlmicni001 apps]# ls -ld /var/apps/shared/
+drwxr-x--- 3 root pojogroup 4096 Mar 25 12:20 /var/apps/shared/
+[root@pdxlmicni001 apps]# ls -ld /var/apps/shared/keystores/
+drwxr-x--- 4 root pojogroup 4096 Mar 25 12:21 /var/apps/shared/keystores/
+[root@pdxlmicni001 apps]# ls -ld /var/apps/shared/keystores/truststore/
+drwxr-x--- 2 root pojogroup 4096 Mar 25 12:29 /var/apps/shared/keystores/truststore/
+
+[root@pdxlmicni001 apps]# ls -l /var/apps/shared/keystores/truststore/
+total 4
+-rw-r----- 1 root root 2101 Mar 25 12:29 truststore.jks
+
+[root@pdxlmicni001 apps]# ls -ld /var/apps/shared/keystores/identity/
+drwxr-x--- 2 root pojogroup 4096 Mar 25 12:29 /var/apps/shared/keystores/identity/
+
+[root@pdxlmicni001 apps]# ls -l /var/apps/shared/keystores/identity/keystore.jks 
+-rw-r----- 1 root root 4565 Mar 25 12:29 /var/apps/shared/keystores/identity/keystore.jks
+
+
+member-update-service Initial setup
+----------------------------------------------------------
+
+0. assume 'pojouser' identity
+
+                # su - -s /bin/bash pojouser
+
+1. Create service directory
+
+                $ mkdir /apps/pojoapps/member-update-service
+
+                [pojouser@pdxlmicni001 pojoapps]$ ls -ld /apps/pojoapps/member-update-service/
+                drwxrws--- 2 pojouser pojogroup 4096 Mar 25 12:51 /apps/pojoapps/member-update-service/                
+
+
+2. Deploy the service distro manually (the first time)
+
+                - Extract service startup script, JAR and config template out of service distro
+                - copy into the service directory
+                
+                                $ mv config-template.yml config.yml
+
+                - convert the .sh script AND config.yml to UNIX format
+
+                                $ dos2unix config.yml
+                                $ dos2unix member-update-service.sh
+
+                - resolve the config template
+
+                                See below on service port assignment logic
+
+                NOTE:
+
+                                logs: 
+for now, logs are local to the service until we have the log share mounted
+                                dos2unix (for conversion from DOS to UNIX format): 
+was not installed on this Linux VM so installed it:
+                                                # yum install dos2unix
+
+
+3. Generate key for encrypted passwords encrtypion/decryption
+
+                [pojouser@pdxlmicni001 member-update-service]$ pwd
+                /apps/pojoapps/member-update-service
+                [pojouser@pdxlmicni001 member-update-service]$ mkdir -p var/conf
+                
+                $ java -jar member-update-service.jar generate-random-key -a AES
+                Wrote key to var/conf/encrypted-config-value.key
+                Wrote private key to var/conf/encrypted-config-value.key.private
+
+                Generate encrypted password value for any password in the config.yml
+
+                Example: generating for "secret"
+
+                [pojouser@pdxlmicni001 member-update-service]$ java -jar member-update-service.jar encrypt-config-value -v secret
+                
+                enc:+SeaZRBZ7RE24yI70KCtxM0+tyxfaYpdoI8NesjQw22jJCvfZE1v9v9+O0n9cjxDcuQ4sG6uqIZL9ak=
+
+                Update config.yml with encrypted passwords
+
+
+Set up OS-level Linux service for member-update-service
+----------------------------------------------
+
+RHEL7 systemd and systemctl are replacing ‘chkconfig’ and ‘service’ commands that we used for RHEL 6 and below.
+Supposedly, ‘chkconfig’ and ‘service’ are still supported (delegated to systemctl under the cover), and I tried to use them to setup the service, but in the end 
+                # service member-update-service stop | start | restart
+wasn’t functional… so I scraped that and had to learn systemd and systemctl (another 3 hrs I will never get back..)
+
+Here are the steps:
+
+1. create the unit file for "member-update-service" service
+
+  # touch /etc/systemd/system/member-update-service.service
+  # chmod 644 !$
+
+2. edit the unit file created above:
+
+# vi  /etc/systemd/system/member-update-service.service
+
+[Unit]
+Description=EBMR Member Update service
+After=syslog.target network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=oneshot
+ExecStart=/apps/pojoapps/member-update-service/member-update-service.sh start
+ExecReload=/apps/pojoapps/member-update-service/member-update-service.sh restart
+ExecStop=/apps/pojoapps/member-update-service/member-update-service.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
+
+3. Notify systemd that a new [service-name].service exists by
+
+  # systemctl daemon-reload
+
+
+4. Enable the service
+
+                # systemctl enable member-update-service.service
+
+5. Control the service
+
+                # systemctl start|stop|restart member-update-servie.service
+
+
+
+
+
+Removing OpenJDK and replacing with Oracle JDK 1.8
+------------------------------------------------------------------
+
+# yum list installed "java*"
+
+Installed Packages
+java-1.7.0-openjdk.x86_64                 1:1.7.0.95-2.6.4.0.el7_2         @rhel-x86_64-server-7
+java-1.7.0-openjdk-headless.x86_64        1:1.7.0.95-2.6.4.0.el7_2         @rhel-x86_64-server-7
+java-1.8.0-openjdk.x86_64                 1:1.8.0.71-2.b15.el7_2           @rhel-x86_64-server-7
+java-1.8.0-openjdk-headless.x86_64        1:1.8.0.71-2.b15.el7_2           @rhel-x86_64-server-7
+javapackages-tools.noarch                 3.4.1-11.el7                     @rhel-x86_64-server-7
+
+# yum remove [.. the above ..]
+
+Install latest Oracle Java 8
+
+> yum install /path/to/jdk..rpm
+
+# yum list installed "jdk*"
+Installed Packages
+jdk1.8.0_77.x86_64                        2000:1.8.0_77-fcs                     @/jdk-8u77-linux-x64
+
+# java -version
+java version "1.8.0_77"
+
+
+
+Openning up firewalld
+=======================
+
+# firewall-cmd --list-all
+public (default)
+  interfaces: 
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  masquerade: no
+  forward-ports: 
+  icmp-blocks: 
+  rich rules: 
+
+# firewall-cmd --zone=public --permanent --add-port=9000-10999/tcp
+
+# firewall-cmd --zone=public --list-all
+public (default)
+  interfaces: 
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 9000-10999/tcp
+
+
+Port Assignment to Java Microservices
+
+I started a table to illustrate the logic:
+http://collab.company.com/sites/Collaboration/AppEngCoE/devwiki/Pages/service-transport-port-number-registry.aspx
+
+After working on this for a little bit, it occurred to me that mixing both business endpoint and admin/monitoring endpoint in the same port range will be confusing for the folks that configure F5s, etc..
+
+Therefore, I thought it would make more sense to have:
+9000-9999
+all services’ business endpoints in the 9000s range
+10000-10999
+and all admin/monitoring endpoints in 10000s range
+
+So, in the table below, Business endpoints are:
+
+member-update              9001
+cah-billing-division       9002
+
+If we had another node, then port assignments on that node would be the same.
+
+Admin/monitoring endpoints are:
+
+member-update              10001
+cah-billing-division       10002
+
+
+============================================================================		
