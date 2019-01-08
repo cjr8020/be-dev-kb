@@ -5,38 +5,6 @@
 	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 
-================================================================================
-
-    RestTemplate
-    ************
-
-https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-resttemplate.html
-
-If you need to call remote REST services from your application, you can use the Spring Framework’s RestTemplate class. 
-
-Since RestTemplate instances often need to be customized before being used, Spring Boot does not provide any single auto-configured RestTemplate bean. It does, however, auto-configure a RestTemplateBuilder, which can be used to create RestTemplate instances when needed. 
-
-    NEW HttpConnection EVERY TIME
-
-    By default RestTemplate creates new Httpconnection every time and closes the connection once done.
-
-
-================================================================================
-
-    RestTemplate SimpleClientHttpRequestFactory
-    *******************************************
-
-   @Bean
-    public RestTemplate restTemplate() {
-        RestTemplate restTemplate = new RestTemplate();
-        ((SimpleClientHttpRequestFactory) restTemplate.getRequestFactory()).setConnectTimeout(15000);
-        ((SimpleClientHttpRequestFactory) restTemplate.getRequestFactory()).setReadTimeout(15000);
-
-        return restTemplate;
-    }   
-
-
-================================================================================
 
     RestTemplate vs straight Apache HttpClient
     ******************************************
@@ -128,127 +96,6 @@ the maximum number of connections per a single, specific route:
 
 ================================================================================
 
-
-
-	Configure RestTemplate with HttpClient
-	**************************************
-
-	using Apache HttpClient 4
-
-https://howtodoinjava.com/spring-restful/resttemplate-httpclient-java-config/
-
-HttpClient Configuration
-----------------------------
-
-/**
- * - Supports both HTTP and HTTPS
- * - Uses a connection pool to re-use connections and save overhead of creating connections.
- * - Has a custom connection keep-alive strategy 
- *   to apply a default keep-alive if one isn't specified via header
- * - Starts an idle connection monitor to continuously clean up stale connections.
- */
-@Configuration
-@EnabledScheduling
-
-	// Determines the timeout in milliseconds until a connection is established.
-    private static final int CONNECT_TIMEOUT = 30000; // 30 sec
-
-    // The timeout when requesting a connection from the connection manager.
-    private static final int REQUEST_TIMEOUT = 30000; // 30 sec
-
-    // The timeout for waiting for data
-    private static final int SOCKET_TIMEOUT = 60000; // 60 sec
-
-    private static final int MAX_TOTAL_CONNECTIONS = 50;
-
-    // default keep-alive - 20 sec
-    private static final int DEFAULT_KEEP_ALIVE_TIME_MILLIS = 20 * 1000;
-
-    // close idle connections after 30 sec
-    private static final int CLOSE_IDLE_CONNECTION_WAIT_TIME_SECS = 30;
-
-
-    @Bean
-    public PoolingHttpClientConnectionManager poolingConnectionManager() 
-
-		it's a connection pool manager
-		https://hc.apache.org/httpcomponents-client-ga/tutorial/html/connmgmt.html
-
-
-	@Bean
-    public ConnectionKeepAliveStrategy connectionKeepAliveStrategy()
-
-    	sets time to decide how long a connection can remain idle before 
-    	being reused
-
-    @Bean
-    public CloseableHttpClient httpClient()
-
-    @Bean
-    public Runnable idleConnectionMonitor(final PoolingHttpClientConnectionManager connectionManager)    
-
-    	idleConnectionMonitor thread to periodically check all connections
-    	and free up which have not been used and idle time has elapsed.
-
-    	this monitor relies on @Scheduled annotation.
-
-    	This example uses a taskScheduler bean, but you should be able to 
-    	just @EnableScheduling in your spring-boot application.
-
-
-RestTemplateConfiguration
--------------------------
-
-Here, we are configuring RestTemplate bean to be used when invoking REST APIs.
-It uses CloseableHttpClient bean instance to build ClientHttpRequestFactory
-which is used to create RestTemplate.
-
-	HttpComponentsClientHttpRequestFactory
-
-
---------------------------------------------------------------------------------
-RestTemplateConfig.class
---------------------------
-
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.scheduling.TaskScheduler;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.web.client.RestTemplate;
-
-public class RestTemplateConfig {
-
-	@Autowired
-	CloseableHttpClient httpClient;
-
-	@Bean
-	public RestTemplate restTemplate() {
-		RestTemplate restTemplate = new RestTemplate(clientHttpRequestFactory());
-		return restTemplate;
-	}
-
-	@Bean
-	public HttpComponentsClientHttpRequestFactory clientHttpRequestFactory() {
-		HttpComponentsClientHttpRequestFactory clientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory();
-		clientHttpRequestFactory.setHttpClient(httpClient);
-		return clientHttpRequestFactory;
-	}
-
-	// should be able to use @EnableScheduling instead...
-
-	@Bean
-	public TaskScheduler taskScheduler() {
-		ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-		scheduler.setThreadNamePrefix("poolScheduler");
-		scheduler.setPoolSize(50);
-		return scheduler;
-	}
-}
-
-
---------------------------------------------------------------------------------
 HttpClientConfig.class
 ----------------------
 
@@ -419,66 +266,6 @@ pom.xml
 
 ================================================================================
 
-	Connection Pooling
-	******************
-
-By default RestTemplate creates new Httpconnection every time and closes the connection once done.
-
-If you need to have a connection pooling under rest template then you may use different implementation of the ClientHttpRequestFactory that pools the connections.
-
-
-	HttpComponentsClientHttpRequestFactory
-	**************************************
-https://docs.spring.io/spring/docs/current/javadoc-api/org/springframework/http/client/HttpComponentsClientHttpRequestFactory.html
-
-
-- ClientHttpRequestFactory implementation that uses Apache HttpComponents HttpClient to create requests.
-
-- Allows to use a pre-configured HttpClient instance - potentially with authentication, HTTP connection pooling, etc.
-
-
-
---------------------------------------------------------------------------------
-
-https://stackoverflow.com/questions/40161117/spring-resttemplate-need-to-release-connection
-
-
-	@Bean
-	public ClientHttpRequestFactory createRequestFactory(
-			@Value("${connection.timeout}") String maxConn
-	) {
-	
-	    PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
-	    connectionManager.setMaxTotal(maxTotalConn);
-	    connectionManager.setDefaultMaxPerRoute(maxPerChannel);
-
-	    RequestConfig config = RequestConfig.custom()
-	    		.setConnectTimeout(100000)
-	    		.build();
-	    CloseableHttpClient httpClient = HttpClientBuilder.create().setConnectionManager(connectionManager)
-	            .setDefaultRequestConfig(config).build();
-	    return new HttpComponentsClientHttpRequestFactory(httpClient);
-	}
-
-
-Then you can use this bean to create your RestTemplate:
-
-
-	@Bean
-	@Qualifier("myRestService")
-	public RestTemplate createRestTemplate(ClientHttpRequestFactory factory) {
-	    RestTemplate restTemplate = new RestTemplate(factory);
-
-	    restTemplate.setErrorHandler(new RestResponseErrorHandler());
-	    restTemplate.setMessageConverters(createMessageConverters());
-
-	    return restTemplate;
-	}	
-
-
-
-================================================================================
-
 	Sample Configuration for HttpClient
 	***********************************
 
@@ -548,9 +335,6 @@ To support different values per environment you can use Spring profiles. Using t
 application-prod.yml
 
 poolMaxTotal: 20
-
-
-================================================================================
 
 
 
@@ -689,55 +473,7 @@ Connection eviction is used to detect idle and expired connections and close the
 	    }
 	}		
 
-================================================================================
 
-	Closing connection
-	******************
-https://stackoverflow.com/questions/40161117/spring-resttemplate-need-to-release-connection
-
-No, you do not need to close the connection on the response, if you use 
-RestTemplate - it does so automatically:
-
-https://github.com/spring-projects/spring-framework/blob/master/spring-web/src/main/java/org/springframework/web/client/RestTemplate.java
-
-
-	@Nullable
-	protected <T> T doExecute(URI url, @Nullable HttpMethod method, @Nullable RequestCallback requestCallback,
-			@Nullable ResponseExtractor<T> responseExtractor) throws RestClientException {
-
-		ClientHttpResponse response = null;
-		try {
-			ClientHttpRequest request = createRequest(url, method);
-			if (requestCallback != null) {
-				requestCallback.doWithRequest(request);
-			}
-			response = request.execute();
-			handleResponse(url, method, response);
-			return (responseExtractor != null ? responseExtractor.extractData(response) : null);
-		}
-		catch (IOException ex) {
-			...
-		}
-		finally {
-			if (response != null) {
-				response.close();
-			}
-		}
-	}
-
-When using the Apache HttpClient alone, you need to consume complete response 
-and close it.
-
-	CloseableHttpClient client = HttpClients.custom()
-	  .setConnectionManager(connManager)
-	  .build();
-	HttpGet get = new HttpGet("http://google.com");
-	CloseableHttpResponse response = client.execute(get);
-	 
-	EntityUtils.consume(response.getEntity());
-	response.close();
-	client.close();
-	connManager.close();
 
 
 ================================================================================
@@ -847,6 +583,600 @@ private RestTemplate getRestTemplate() {
   }
 }
 
---------------------------------------------------------------------------------
+================================================================================
+
+
+    Concrete HttpClientConfiguration example
+    ****************************************
+
+used in a SB service
+
+
+
+package com.company.service.configuration;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.PostConstruct;
+import javax.net.ssl.SSLContext;
+import org.apache.http.HeaderElement;
+import org.apache.http.HeaderElementIterator;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.ConnectionKeepAliveStrategy;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.message.BasicHeaderElementIterator;
+import org.apache.http.protocol.HTTP;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.ssl.SSLContexts;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+
+/**
+ * Provides configuration for Apache HTTP client. HTTP client provides connection support for all
+ * REST service client in this application including - TLS support - connection pooling - connection
+ * keep-alive strategy - idle connection monitoring
+ */
+@Configuration
+@EnableScheduling
+public class HttpClientConfiguration {
+
+  private static final Logger logger = LoggerFactory.getLogger(HttpClientConfiguration.class);
+
+  /**
+   * Connection request timeout (ms). The amount of time to wait for a connection from a connection
+   * manager/pool.
+   */
+  @Value("${app.http-client.connection-request-timeout:30000}")
+  private int connectionRequestTimeout;
+
+  /**
+   * Connection timeout (ms). The time to establish the connection with the remote host.
+   */
+  @Value("${app.http-client.connection-timeout:30000}")
+  private int connectionTimeout;
+
+  /**
+   * Connection socket timeout (ms). The time waiting for data – after the connection was
+   * established. The maximum time of inactivity between two data packets.
+   */
+  @Value("${app.http-client.connection-socket-timeout:30000}")
+  private int connectionSocketTimeout;
+
+  /**
+   * Max number of connection in the connection pool for all routes.
+   */
+  @Value("${app.http-client.connection-pool-max-total:20}")
+  private int connectionPoolMaxTotal;
+
+  /**
+   * Max number of connections per route (for a specific server).
+   */
+  @Value("${app.http-client.connection-pool-max-max-per-route:2}")
+  private int connectionPoolMaxPerRoute;
+
+  /**
+   * Wait time (seconds) before closing idle connections.
+   */
+  @Value("${app.http-client.close-idle-connections-wait:30}")
+  private int closeIdleConnectionsWait;
+
+  /**
+   * Default keep-alive time (ms) if Keep-Alive header is not present in the response.
+   */
+  @Value("${app.http-client.connection-keep-alive-default:50000}")
+  private int connectionKeepAliveDefault;
+
+  /**
+   * TLS configuration.
+   */
+  @Value("${app.http-client.tls.supported-protocols}")
+  private String[] supportedProtocols;
+  @Value("${app.http-client.tls.key-store}")
+  private String keyStorePath;
+  @Value("${app.http-client.tls.key-store-password}")
+  private String keyStorePassword;
+  @Value("${app.http-client.tls.key-store-type:JKS}")
+  private String keyStoreType;
+  @Value("${app.http-client.tls.trust-store}")
+  private String trustStorePath;
+  @Value("${app.http-client.tls.trust-store-password}")
+  private String trustStorePassword;
+  @Value("${app.http-client.tls.trust-store-type:JKS}")
+  private String trustStoreType;
+
+
+  /**
+   * Post construct logger.
+   */
+  @PostConstruct
+  public void configurationProperties() {
+    logger.warn("HTTP Client configuration settings:");
+    logger.warn("connectionRequestTimeout = {}ms", connectionRequestTimeout);
+    logger.warn("connectionTimeout = {}ms", connectionTimeout);
+    logger.warn("connectionSocketTimeout = {}ms", connectionSocketTimeout);
+    logger.warn("connectionPoolMaxTotal = {}", connectionPoolMaxTotal);
+    logger.warn("connectionPoolMaxPerRoute = {}", connectionPoolMaxPerRoute);
+    logger.warn("closeIdleConnectionsWait = {}sec", closeIdleConnectionsWait);
+    logger.warn("connectionKeepAliveDefault = {}ms", connectionKeepAliveDefault);
+    // tls
+    logger.warn("supportedProtocols = {}", Arrays.toString(supportedProtocols));
+    logger.warn("keyStorePath = {}", keyStorePath);
+    logger.warn("keyStoreType = {}", keyStoreType);
+    logger.warn("trustStorePath = {}", trustStorePath);
+    logger.warn("trustStoreType = {}", trustStoreType);
+  }
+
+
+  /**
+   * Keep-alive strategy bean.
+   *
+   * @return ConnectionKeepAliveStrategy
+   */
+  @Bean
+  public ConnectionKeepAliveStrategy connectionKeepAliveStrategy() {
+    return new ConnectionKeepAliveStrategy() {
+
+      /**
+       * Returns the duration of time which this connection can be safely kept
+       * idle. If the connection is left idle for longer than this period of time,
+       * it MUST not reused. A value of 0 or less may be returned to indicate that
+       * there is no suitable suggestion.
+       *
+       * <p>When coupled with a {@link org.apache.http.ConnectionReuseStrategy}, if
+       * {@link org.apache.http.ConnectionReuseStrategy#keepAlive(
+       *HttpResponse, HttpContext)} returns true, this allows you to control
+       * how long the reuse will last. If keepAlive returns false, this should
+       * have no meaningful impact.
+       *
+       * @param response
+       *            The last response received over the connection.
+       * @param context
+       *            the context in which the connection is being used.
+       *
+       * @return the duration in ms for which it is safe to keep the connection
+       *         idle, or &lt;=0 if no suggested duration.
+       */
+      @Override
+      public long getKeepAliveDuration(HttpResponse response, HttpContext context) {
+        HeaderElementIterator it
+            = new BasicHeaderElementIterator(response.headerIterator(HTTP.CONN_KEEP_ALIVE));
+        while (it.hasNext()) {
+          HeaderElement he = it.nextElement();
+          String param = he.getName();
+          String value = he.getValue();
+
+          if (value != null && param.equalsIgnoreCase("timeout")) {
+            return Long.parseLong(value) * 1000;
+          }
+        }
+        return connectionKeepAliveDefault;
+      }
+    };
+  }
+
+  /**
+   * Idle connection monitor.
+   *
+   * @param connectionManager PoolingHttpClientConnectionManager
+   * @return Runnable
+   */
+  @Bean
+  public Runnable idleConnectionMonitor(
+      final PoolingHttpClientConnectionManager connectionManager) {
+    return new Runnable() {
+      @Override
+      @Scheduled(fixedDelay = 10000)
+      public void run() {
+        try {
+          if (connectionManager != null) {
+            logger.trace("run IdleConnectionMonitor - Closing expired and idle connections...");
+            connectionManager.closeExpiredConnections();
+            connectionManager.closeIdleConnections(closeIdleConnectionsWait, TimeUnit.SECONDS);
+          } else {
+            logger.trace(
+                "run IdleConnectionMonitor - Http Client Connection manager is not initialised");
+          }
+        } catch (Exception e) {
+          logger
+              .error("run IdleConnectionMonitor - Exception occurred. msg={}, e={}", e.getMessage(),
+                  e);
+        }
+      }
+    };
+  }
+
+
+  /**
+   * ClientConnectionPoolManager maintains a pool of HttpClientConnections and is able to service
+   * connection requests from multiple execution threads.
+   *
+   * @return PoolingHttpClientConnectionManager
+   */
+  @Bean
+  public PoolingHttpClientConnectionManager poolingConnectionManager() {
+
+    SSLConnectionSocketFactory sslSocketFactory = null;
+
+    try {
+      sslSocketFactory = new SSLConnectionSocketFactory(
+          customSslContext(),
+          supportedProtocols,
+          null,
+          SSLConnectionSocketFactory.getDefaultHostnameVerifier()
+      );
+    } catch (IOException
+        | KeyStoreException
+        | CertificateException
+        | NoSuchAlgorithmException
+        | UnrecoverableKeyException
+        | KeyManagementException exception) {
+      throw new IllegalStateException("Error loading key or trust store.", exception);
+    }
+
+    Registry<ConnectionSocketFactory> socketFactoryRegistry
+        = RegistryBuilder.<ConnectionSocketFactory>create()
+        .register("http", PlainConnectionSocketFactory.getSocketFactory())
+        .register("https", sslSocketFactory)
+        .build();
+
+    PoolingHttpClientConnectionManager poolingConnectionManager
+        = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+    poolingConnectionManager.setMaxTotal(connectionPoolMaxTotal);
+    return poolingConnectionManager;
+  }
+
+
+  /**
+   * Apache HTTP Client implementation.
+   *
+   * @return CloseableHttpClient
+   */
+  @Bean
+  public CloseableHttpClient httpClient() {
+    RequestConfig requestConfig = RequestConfig.custom()
+        .setConnectionRequestTimeout(connectionRequestTimeout)
+        .setConnectTimeout(connectionTimeout)
+        .setSocketTimeout(connectionSocketTimeout).build();
+
+    return HttpClients.custom()
+        .setDefaultRequestConfig(requestConfig)
+        .setConnectionManager(poolingConnectionManager())
+        .setKeepAliveStrategy(connectionKeepAliveStrategy())
+        .build();
+  }
+
+
+
+  /**
+   * Custom SSL Context using provided keystore and truststore.
+   *
+   * @return SSLContext
+   * @throws IOException IOException
+   * @throws KeyStoreException KeyStoreException
+   * @throws CertificateException CertificateException
+   * @throws NoSuchAlgorithmException NoSuchAlgorithmException
+   * @throws UnrecoverableKeyException UnrecoverableKeyException
+   * @throws KeyManagementException KeyManagementException
+   */
+  @Bean
+  public SSLContext customSslContext()
+      throws IOException, KeyStoreException, CertificateException, NoSuchAlgorithmException,
+      UnrecoverableKeyException, KeyManagementException {
+
+    final KeyStore keyStore;
+    final KeyStore trustStore;
+
+    try (
+        FileInputStream keyStoreInputStream = new FileInputStream(new File(keyStorePath));
+        FileInputStream trustStoreInputStream = new FileInputStream(new File(trustStorePath))) {
+      keyStore = KeyStore.getInstance(keyStoreType);
+      keyStore.load(keyStoreInputStream, keyStorePassword.toCharArray());
+      trustStore = KeyStore.getInstance(trustStoreType);
+      trustStore.load(trustStoreInputStream, trustStorePassword.toCharArray());
+    }
+
+    return SSLContexts.custom()
+        .loadKeyMaterial(keyStore, keyStorePassword.toCharArray(), (aliases, socket) -> "keyStore")
+        .loadTrustMaterial(trustStore, (x509Certificates, s) -> false)
+        .build();
+  }
+
+}
+
+
+consume the above HttpClientConfiguration in a specific HTTP service client
+----------------------------------------------------------------------------
+
+SomeApiClient.java
+-------------------
+
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.acme.service.shared.exceptions.DownstreamServiceException;
+import com.standard.sfg.audit.ExecutionContextHolder;
+import com.standard.sfg.audit.springboot.SfgAuditableFactory.SfgAuditor;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.http.HttpHeaders;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StopWatch;
+
+
+/**
+ * Some API client.
+ */
+@Component
+public class SomeApiClient {
+
+
+  private CloseableHttpClient httpClient;
+  private SomeApiConfiguration someApiConfig;
+  private SfgAuditor sfgAuditor;
+  private ObjectMapper objectMapper;
+
+
+  /**
+   * Constructor.
+   */
+  @Autowired
+  public SomeApiClient(
+      final CloseableHttpClient httpClient,
+      final SomeApiConfiguration someApiConfiguration,
+      final Auditor myAuditor
+  ) {
+    this.httpClient = httpClient;
+    this.someApiConfig = someApiConfiguration;
+    this.myAuditor = myAuditor;
+
+    objectMapper = new ObjectMapper()
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    objectMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+  }
+
+
+
+  /*
+   * -------------------------------------------------------------------------
+   *  Public interface.
+   * -------------------------------------------------------------------------
+   */
+
+
+  public void callSomeSomething(final String uuid, final String blah) {
+    final StopWatch sw = new StopWatch();
+
+    try {
+      sw.start();
+      final URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+          .setScheme(someApiConfig.getScheme())
+          .setHost(someApiConfig.getHost())
+          .setPort(someApiConfig.getPort())
+          .setPath(String.format(TEMPLATE, uuid));
+
+      String requestBody = objectMapper.writeValueAsString(new Blah(blah));
+
+      // headers
+      Map<String, String> headers = getHeaders(
+          "POST",
+          uriBuilder.toString(),
+          requestBody
+      );
+
+      HttpPost request = setupHttpPostRequest(
+          uriBuilder,
+          Optional.empty(),
+          Optional.of(headers));
+      request.setEntity(new StringEntity(requestBody));
+      final HttpClientContext context = HttpClientContext.create();
+
+      if (logger.isInfoEnabled()) {
+        logger.info(
+            "{}, method=doSomething, uuid={}, update request={}",
+            auditor.auditableLogMessage(ExecutionContextHolder.get()),
+            uuid,
+            requestBody);
+      }
+
+      // call
+      try (CloseableHttpResponse httpResponse = this.httpClient.execute(request, context)) {
+
+        int httpStatusCode = httpResponse.getStatusLine().getStatusCode();
+        if (httpStatusCode == 201) {  // 201 Created
+          if (logger.isInfoEnabled()) {
+            logger.info("{}, doSomething: success",
+                myAuditor.auditableLogMessage(ExecutionContextHolder.get()));
+          }
+        } else {
+          Map<String, Object> errorResponse = objectMapper.readValue(
+              httpResponse.getEntity().getContent(),
+              new TypeReference<Map<String, Object>>() {
+              });
+          String message = "Error response from  API server."
+              + " HTTP status code=" + httpStatusCode
+              + " error response=" + errorResponse;
+          logger.error(message);
+          throw new DownstreamServiceException(message);
+        }
+      }
+
+    } catch (URISyntaxException exception) {
+      String message
+          = "method=doSomething, original exception=" + exception;
+      logger.error(
+          "{}, {}",
+          auditor.auditableLogMessage(ExecutionContextHolder.get()),
+          message);
+      throw new IllegalStateException(message);
+    } catch (IOException exception) {
+      throw new DownstreamServiceException(message);
+    } finally {
+      sw.stop();
+      if (logger.isInfoEnabled()) {
+        logger.info(
+            "{}, method=doSomething completed in {}ms",
+            auditor.auditableLogMessage(ExecutionContextHolder.get()),
+            sw.getTotalTimeMillis());
+      }
+    }
+  }
+
+
+    /**
+   * Configures a GET request to  API server. Sets path, optional query parameters and
+   * optional headers.
+   *
+   * @param builder URIBuilder builder with pre-built URI to which we can add query params if any.
+   * @param queryParams optional query params
+   * @param headers optional header values
+   * @return HttpGet
+   * @throws URISyntaxException exception
+   */
+  private HttpGet setupHttpGetRequest(
+      final URIBuilder builder,
+      final Optional<Map<String, String>> queryParams,
+      final Optional<Map<String, String>> headers) throws URISyntaxException {
+
+    queryParams.ifPresent(queryParamMap -> queryParamMap.forEach(builder::addParameter));
+    URI uri = builder.build();
+    HttpGet request = new HttpGet(uri);
+
+    // set headers
+    headers.ifPresent(headerMap -> headerMap.forEach(request::addHeader));
+
+    return request;
+  }
+
+  /**
+   * Configures a PUT request to  API server. Sets path, optional query parameters and
+   * optional headers.
+   *
+   * @param builder URIBuilder builder with pre-built URI to which we can add query params if any.
+   * @param queryParams optional query params
+   * @param headers optional header values
+   * @return HttpPut
+   * @throws URISyntaxException exception
+   */
+  private HttpPut setupHttpPutRequest(
+      final URIBuilder builder,
+      final Optional<Map<String, String>> queryParams,
+      final Optional<Map<String, String>> headers) throws URISyntaxException {
+
+    queryParams.ifPresent(queryParamMap -> queryParamMap.forEach(builder::addParameter));
+    URI uri = builder.build();
+    HttpPut request = new HttpPut(uri);
+
+    // set headers
+    headers.ifPresent(headerMap -> headerMap.forEach(request::addHeader));
+
+    return request;
+  }
+
+  /**
+   * Configures a POST request to  API server. Sets path, optional query parameters and
+   * optional headers.
+   *
+   * @param builder URIBuilder builder with pre-built URI to which we can add query params if any.
+   * @param queryParams optional query params
+   * @param headers optional header values
+   * @return HttpPut
+   * @throws URISyntaxException exception
+   */
+  private HttpPost setupHttpPostRequest(
+      final URIBuilder builder,
+      final Optional<Map<String, String>> queryParams,
+      final Optional<Map<String, String>> headers) throws URISyntaxException {
+
+    queryParams.ifPresent(queryParamMap -> queryParamMap.forEach(builder::addParameter));
+    URI uri = builder.build();
+    HttpPost request = new HttpPost(uri);
+
+    // set headers
+    headers.ifPresent(headerMap -> headerMap.forEach(request::addHeader));
+
+    return request;
+  }
+
+  /**
+   * Configures a DELETE request to  API server. Sets path, optional query parameters and
+   * optional headers.
+   *
+   * @param builder URIBuilder builder with pre-built URI to which we can add query params if any.
+   * @param queryParams optional query params
+   * @param headers optional header values
+   * @return HttpPut
+   * @throws URISyntaxException exception
+   */
+  private HttpDelete setupHttpDeleteRequest(
+      final URIBuilder builder,
+      final Optional<Map<String, String>> queryParams,
+      final Optional<Map<String, String>> headers) throws URISyntaxException {
+
+    queryParams.ifPresent(queryParamMap -> queryParamMap.forEach(builder::addParameter));
+    URI uri = builder.build();
+    HttpDelete request = new HttpDelete(uri);
+
+    // set headers
+    headers.ifPresent(headerMap -> headerMap.forEach(request::addHeader));
+
+    return request;
+  }
+
+
+
+
+}
+
+
 
 ================================================================================
+

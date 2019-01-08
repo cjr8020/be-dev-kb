@@ -1,0 +1,305 @@
+
+	********************
+
+		RestTemplate
+
+	********************
+
+    RestTemplate vs straight Apache HttpClient
+    ******************************************
+
+RestTemplate is very simple to use, but for most production cases, other than the
+most basic ones, you will most likely to use Apache HttpClient.
+
+RestTemplate creats a new HttpConnection every time, so if you need any kind of 
+connection pool management, you will need Apache HttpClient.
+
+HttpClient exposes a very flexibile API for configuring connection pooling, etc.
+
+You can use HttpClient for handling client connections to different APIs.
+These APIs require different Basic Auth credentials or different AuthN schemes.
+
+If you want to use RestTemplate:
+
+1. you can use RestTemplate and handle the authentication manually by adding 
+Headers, or
+
+2. you will need to have a different instance of RestTemplate bean for different
+APIs.
+
+RestTemplateBuilder, RestTemplateCustomizer
+
+You can tecnically customize RestTemplate to varying degrees with RestTemplateBuilder or
+RestTemplateCustomizer
+https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-resttemplate.html
+
+
+However, when all things considered it sounds like it would be just easier to 
+use HttpClient by itself in each particular ServiceXClient class.
+
+
+
+================================================================================
+
+    RestTemplate
+    ************
+
+https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-resttemplate.html
+
+If you need to call remote REST services from your application, you can use the Spring Framework’s RestTemplate class. 
+
+Since RestTemplate instances often need to be customized before being used, Spring Boot does not provide any single auto-configured RestTemplate bean. It does, however, auto-configure a RestTemplateBuilder, which can be used to create RestTemplate instances when needed. 
+
+    NEW HttpConnection EVERY TIME
+
+    By default RestTemplate creates new Httpconnection every time and closes the connection once done.
+
+
+================================================================================
+
+    RestTemplate SimpleClientHttpRequestFactory
+    *******************************************
+
+   @Bean
+    public RestTemplate restTemplate() {
+        RestTemplate restTemplate = new RestTemplate();
+        ((SimpleClientHttpRequestFactory) restTemplate.getRequestFactory()).setConnectTimeout(15000);
+        ((SimpleClientHttpRequestFactory) restTemplate.getRequestFactory()).setReadTimeout(15000);
+
+        return restTemplate;
+    }  
+
+================================================================================
+
+	Closing connection
+	******************
+https://stackoverflow.com/questions/40161117/spring-resttemplate-need-to-release-connection
+
+No, you do not need to close the connection on the response, if you use 
+RestTemplate - it does so automatically:
+
+https://github.com/spring-projects/spring-framework/blob/master/spring-web/src/main/java/org/springframework/web/client/RestTemplate.java
+
+
+	@Nullable
+	protected <T> T doExecute(URI url, @Nullable HttpMethod method, @Nullable RequestCallback requestCallback,
+			@Nullable ResponseExtractor<T> responseExtractor) throws RestClientException {
+
+		ClientHttpResponse response = null;
+		try {
+			ClientHttpRequest request = createRequest(url, method);
+			if (requestCallback != null) {
+				requestCallback.doWithRequest(request);
+			}
+			response = request.execute();
+			handleResponse(url, method, response);
+			return (responseExtractor != null ? responseExtractor.extractData(response) : null);
+		}
+		catch (IOException ex) {
+			...
+		}
+		finally {
+			if (response != null) {
+				response.close();
+			}
+		}
+	}
+
+When using the Apache HttpClient alone, you need to consume complete response 
+and close it.
+
+	CloseableHttpClient client = HttpClients.custom()
+	  .setConnectionManager(connManager)
+	  .build();
+	HttpGet get = new HttpGet("http://google.com");
+	CloseableHttpResponse response = client.execute(get);
+	 
+	EntityUtils.consume(response.getEntity());
+	response.close();
+	client.close();
+	connManager.close();
+
+
+================================================================================
+
+
+	Connection Pooling
+	******************
+
+By default RestTemplate creates new Httpconnection every time and closes the connection once done.
+
+If you need to have a connection pooling under rest template then you may use different implementation of the ClientHttpRequestFactory that pools the connections.
+
+
+	HttpComponentsClientHttpRequestFactory
+	**************************************
+https://docs.spring.io/spring/docs/current/javadoc-api/org/springframework/http/client/HttpComponentsClientHttpRequestFactory.html
+
+
+- ClientHttpRequestFactory implementation that uses Apache HttpComponents HttpClient to create requests.
+
+- Allows to use a pre-configured HttpClient instance - potentially with authentication, HTTP connection pooling, etc.
+
+
+
+--------------------------------------------------------------------------------
+
+https://stackoverflow.com/questions/40161117/spring-resttemplate-need-to-release-connection
+
+
+	@Bean
+	public ClientHttpRequestFactory createRequestFactory(
+			@Value("${connection.timeout}") String maxConn
+	) {
+	
+	    PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+	    connectionManager.setMaxTotal(maxTotalConn);
+	    connectionManager.setDefaultMaxPerRoute(maxPerChannel);
+
+	    RequestConfig config = RequestConfig.custom()
+	    		.setConnectTimeout(100000)
+	    		.build();
+	    CloseableHttpClient httpClient = HttpClientBuilder.create().setConnectionManager(connectionManager)
+	            .setDefaultRequestConfig(config).build();
+	    return new HttpComponentsClientHttpRequestFactory(httpClient);
+	}
+
+
+Then you can use this bean to create your RestTemplate:
+
+
+	@Bean
+	@Qualifier("myRestService")
+	public RestTemplate createRestTemplate(ClientHttpRequestFactory factory) {
+	    RestTemplate restTemplate = new RestTemplate(factory);
+
+	    restTemplate.setErrorHandler(new RestResponseErrorHandler());
+	    restTemplate.setMessageConverters(createMessageConverters());
+
+	    return restTemplate;
+	}	
+
+================================================================================
+
+
+
+	Configure RestTemplate with HttpClient
+	**************************************
+
+	using Apache HttpClient 4
+
+https://howtodoinjava.com/spring-restful/resttemplate-httpclient-java-config/
+
+HttpClient Configuration
+----------------------------
+
+/**
+ * - Supports both HTTP and HTTPS
+ * - Uses a connection pool to re-use connections and save overhead of creating connections.
+ * - Has a custom connection keep-alive strategy 
+ *   to apply a default keep-alive if one isn't specified via header
+ * - Starts an idle connection monitor to continuously clean up stale connections.
+ */
+@Configuration
+@EnabledScheduling
+
+	// Determines the timeout in milliseconds until a connection is established.
+    private static final int CONNECT_TIMEOUT = 30000; // 30 sec
+
+    // The timeout when requesting a connection from the connection manager.
+    private static final int REQUEST_TIMEOUT = 30000; // 30 sec
+
+    // The timeout for waiting for data
+    private static final int SOCKET_TIMEOUT = 60000; // 60 sec
+
+    private static final int MAX_TOTAL_CONNECTIONS = 50;
+
+    // default keep-alive - 20 sec
+    private static final int DEFAULT_KEEP_ALIVE_TIME_MILLIS = 20 * 1000;
+
+    // close idle connections after 30 sec
+    private static final int CLOSE_IDLE_CONNECTION_WAIT_TIME_SECS = 30;
+
+
+    @Bean
+    public PoolingHttpClientConnectionManager poolingConnectionManager() 
+
+		it's a connection pool manager
+		https://hc.apache.org/httpcomponents-client-ga/tutorial/html/connmgmt.html
+
+
+	@Bean
+    public ConnectionKeepAliveStrategy connectionKeepAliveStrategy()
+
+    	sets time to decide how long a connection can remain idle before 
+    	being reused
+
+    @Bean
+    public CloseableHttpClient httpClient()
+
+    @Bean
+    public Runnable idleConnectionMonitor(final PoolingHttpClientConnectionManager connectionManager)    
+
+    	idleConnectionMonitor thread to periodically check all connections
+    	and free up which have not been used and idle time has elapsed.
+
+    	this monitor relies on @Scheduled annotation.
+
+    	This example uses a taskScheduler bean, but you should be able to 
+    	just @EnableScheduling in your spring-boot application.
+
+
+RestTemplateConfiguration
+-------------------------
+
+Here, we are configuring RestTemplate bean to be used when invoking REST APIs.
+It uses CloseableHttpClient bean instance to build ClientHttpRequestFactory
+which is used to create RestTemplate.
+
+	HttpComponentsClientHttpRequestFactory
+
+
+--------------------------------------------------------------------------------
+RestTemplateConfig.class
+--------------------------
+
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.web.client.RestTemplate;
+
+public class RestTemplateConfig {
+
+	@Autowired
+	CloseableHttpClient httpClient;
+
+	@Bean
+	public RestTemplate restTemplate() {
+		RestTemplate restTemplate = new RestTemplate(clientHttpRequestFactory());
+		return restTemplate;
+	}
+
+	@Bean
+	public HttpComponentsClientHttpRequestFactory clientHttpRequestFactory() {
+		HttpComponentsClientHttpRequestFactory clientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory();
+		clientHttpRequestFactory.setHttpClient(httpClient);
+		return clientHttpRequestFactory;
+	}
+
+	// should be able to use @EnableScheduling instead...
+
+	@Bean
+	public TaskScheduler taskScheduler() {
+		ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+		scheduler.setThreadNamePrefix("poolScheduler");
+		scheduler.setPoolSize(50);
+		return scheduler;
+	}
+}
+
+
+================================================================================
+

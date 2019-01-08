@@ -89,6 +89,47 @@ WantedBy=multi-user.target
 		Consul
 	*************
 
+Consul Architecture
+--------------------------------------------------------------------------------
+
+Consul server agents 
+	responsible for maintaining the cluster state
+	respond to RPC queries (read ops)
+	process all write ops
+
+Consul cluster 
+	typically 3-5 servers plus client agents
+	may be deployed in a single physical datacenter or span multiple DCs
+
+	Single datacenter
+		recommended for apps deployed in the same datacenter
+
+Consule agent
+	core process of Consul
+		- maintains membership info
+		- registers services
+		- runs checks
+		- responds to queries 
+	agent must run on every node that is part of Consul cluster
+	agent may run in one of two modes:
+		1. client, or
+		2. server
+
+
+Consul server agents
+	require a superset of config required by client agents
+	server agent takes on the additional responsibility of being part of the consensus quorum.
+
+
+Consul client agents
+	client nodes make up the majority of the cluster, are very lightweight
+	interface with server nodes for most operations, maintain little state of their own
+	require a subset of config required by Consul server agents.
+	all Consul clients can use the `consul.hcl` confi file created when
+	configuring Consul servers.
+
+
+
 Installing
 --------------------------------------------------------------------------------
 https://www.consul.io/docs/guides/deployment-guide.html
