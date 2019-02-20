@@ -6,6 +6,29 @@
 
 ================================================================================
 
+	Vault Secrets
+	*************
+
+There are two types of secrets in Vault - static and dynamic.
+
+Static
+======
+
+Static secrets (think encrypted Redis or Memcached) have refresh intervals but they do not expire unless explicitly revoked. They are defined ahead of time with the Key/Value backend (formerly the "generic" backend) and then shared.
+
+Vault can be managed through the CLI, HTTP API, or UI...
+
+Dynamic
+=======
+
+Dynamic secrets are generated on demand. They have enforced leases and generally expire after a short period of time. Since they do not exist until they are accessed, there's less exposure - so dynamic secrets are much more secure. Vault ships with a number of dynamic backends - i.e., AWS, Databases, Google Cloud, Consul, and RabbitMQ.
+
+
+
+
+
+================================================================================
+
 	docker - vault - consul 
 	***********************
 
@@ -146,6 +169,203 @@ Within the shell, initialize Vault:
 
 		It is possible to generate new unseal keys, provided you have a quorum of
 		existing unseal keys shares. See "vault operator rekey" for more information.
+
+
+Now you can unseal Vault using three of the keys:
+-------------------------------------------------
+
+$ vault operator unseal
+Unseal Key (will be hidden):
+
+until:
+
+	Key             Value
+	---             -----
+	Seal Type       shamir
+	Sealed          false
+
+
+Now, authenticate using root token:
+------------------------------------
+
+bash-4.4# vault login
+Token (will be hidden):
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                  Value
+---                  -----
+token                295c879b-5d1e-1ffc-7e74-745b443970c8
+token_accessor       18372a9a-8ba7-006d-37d0-ab92365e7295
+token_duration       ∞
+token_renewable      false
+token_policies       ["root"]
+identity_policies    []
+policies             ["root"]
+
+
+Audit Device
+------------------------
+
+Enable audit device
+
+$ vault audit enable file file_path=/vault/logs/audit.log
+
+Success! Enabled the file audit device at: file/
+You should now be able to view the logs locally in "vault/logs". To test, run the following command to view all enabled Audit Devices:
+
+$ vault audit list
+
+Path     Type    Description
+----     ----    -----------
+file/    file    n/a
+
+
+
+Vault CLI
+==========
+
+
+Create a new secret with a key of "bar" and value of "precious" within the secret/foo path:
+
+$ vault kv put secret/foo bar=precious
+
+Success! Data written to: secret/foo
+Read:
+
+$ vault kv get secret/foo
+
+=== Data ===
+Key    Value
+---    -----
+bar    precious
+
+
+To work with different versions of a specific key, we'll need to upgrade to v2 of the Key/Value backend:
+-------------------------------------------------
+
+	$ vault kv enable-versioning secret/
+
+	Success! Tuned the secrets engine at: secret/
+
+Add version 2 by updating the value to copper:
+
+	$ vault kv put secret/foo bar=copper
+
+	Key              Value
+	---              -----
+	created_time     2018-07-24T19:21:05.3966846Z
+	deletion_time    n/a
+	destroyed        false
+	version          2
+
+
+Read version 1:
+
+	$ vault kv get -version=1 secret/foo
+
+	====== Metadata ======
+	Key              Value
+	---              -----
+	created_time     2018-07-24T19:17:17.5578234Z
+	deletion_time    n/a
+	destroyed        false
+	version          1
+
+	=== Data ===
+	Key    Value
+	---    -----
+	bar    precious
+
+
+Read version 2:
+
+	$ vault kv get -version=2 secret/foo
+
+	====== Metadata ======
+	Key              Value
+	---              -----
+	created_time     2018-07-26T21:56:39.7152485Z
+	deletion_time    n/a
+	destroyed        false
+	version          2
+
+	=== Data ===
+	Key    Value
+	---    -----
+	bar    copper
+
+
+Read via REST API
+
+
+	curl \
+	    -H "X-Vault-Token: $VAULT_TOKEN" \
+	    -X GET \
+	    http://127.0.0.1:8200/v1/secret/foo
+
+
+Delete the latest version (e.g., version 2):
+
+	$ vault kv delete secret/foo
+
+	Success! Data deleted (if it existed) at: secret/foo
+
+Delete version 1:
+
+	$ vault kv delete -versions=1 secret/foo
+
+	Success! Data deleted (if it existed) at: secret/foo
+
+You can undelete as well:
+
+	$ vault kv undelete -versions=1 secret/foo
+
+Success! Data written to: secret/undelete/foo
+
+
+Delete is akin to a soft delete. 
+If you want to remove the underlying metadata, you'll have to use the destroy command:
+
+	$ vault kv destroy -versions=1 secret/foo
+
+Success! Data written to: secret/destroy/foo
+
+
+
+HTTP API
+========
+
+
+You can also interact with Vault via the HTTP API. We'll making requests against v2 of the API. Open a new terminal tab, and then set the root token as an environment variable:
+
+	$ export VAULT_TOKEN=your_token_goes_here
+
+	$ curl \
+	    -H "X-Vault-Token: $VAULT_TOKEN" \
+	    -H "Content-Type: application/json" \
+	    -X POST \
+	    -d '{ "data": { "foo": "world" } }' \
+	    http://127.0.0.1:8200/v1/secret/data/hello
+
+read:
+
+	$ curl \
+	    -H "X-Vault-Token: $VAULT_TOKEN" \
+	    -X GET \
+	    http://127.0.0.1:8200/v1/secret/data/hello
+
+read via CLI:
+
+	bash-4.4# vault kv get secret/data/hello
+	==== Data ====
+	Key     Value
+	---     -----
+	data    map[foo:world]
+
+	
+
 
 ================================================================================
 
