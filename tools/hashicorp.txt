@@ -4,6 +4,150 @@
 		Vault
 	*************
 
+================================================================================
+
+	docker - vault - consul 
+	***********************
+
+	https://testdriven.io/blog/managing-secrets-with-vault-and-consul/
+
+$ mkdir vault-consul-docker && cd vault-consul-docker
+
+Then add the following folders:
+
+└── vault
+    ├── config
+    ├── data
+    ├── logs
+    └── policies
+
+vault/Dockerfile
+----------------------------------------------------------------
+
+
+# base image
+FROM alpine:3.7
+
+# set vault version
+ENV VAULT_VERSION 0.10.3
+
+# create a new directory
+RUN mkdir /vault
+
+# download dependencies
+RUN apk --no-cache add \
+      bash \
+      ca-certificates \
+      wget
+
+# download and set up vault
+RUN wget --quiet --output-document=/tmp/vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip && \
+    unzip /tmp/vault.zip -d /vault && \
+    rm -f /tmp/vault.zip && \
+    chmod +x /vault
+
+# update PATH
+ENV PATH="PATH=$PATH:$PWD/vault"
+
+# add the config file
+COPY ./config/vault-config.json /vault/config/vault-config.json
+
+# expose port 8200
+EXPOSE 8200
+
+# run vault
+ENTRYPOINT ["vault"]
+
+
+
+docker-compose.yml
+----------------------------------------------------------------
+
+version: '3.6'
+
+services:
+
+  vault:
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    ports:
+      - 8200:8200
+    volumes:
+      - ./vault/config:/vault/config
+      - ./vault/policies:/vault/policies
+      - ./vault/data:/vault/data
+      - ./vault/logs:/vault/logs
+    environment:
+      - VAULT_ADDR=http://127.0.0.1:8200
+    command: server -config=/vault/config/vault-config.json
+    cap_add:
+      - IPC_LOCK
+
+
+Here, we configured Vault to use the Filesystem backend, defined the listener for Vault, disabled TLS, and enabled the Vault UI. Review the docs for more info on configuring Vault.
+
+Now we can build the image and spin up the container:
+
+	$ docker-compose up -d --build
+
+Pull up the Docker logs to make sure there were no errors in the build:
+
+
+	$ docker-compose logs
+
+
+vault/config/vault-config.json
+-------------------------------
+
+{
+  "backend": {
+    "file": {
+      "path": "vault/data"
+    }
+  },
+  "listener": {
+    "tcp":{
+      "address": "0.0.0.0:8200",
+      "tls_disable": 1
+    }
+  },
+  "ui": true
+}
+
+
+Initialize and Unseal
+=====================
+
+Start a bash session within the running container:
+
+	$ docker-compose exec vault bash
+
+Within the shell, initialize Vault:
+
+	$ vault operator init
+
+
+	Unseal Key 1: kz0gLEahu4ZCBfI9aqRl3XPGSw0zFW9pDT09rmy+Ldbd
+	Unseal Key 2: VqfB5/5+TEHIjQflSPQWAXVJki+qmGGKFlnGlEzCWW3Z
+	Unseal Key 3: EGZxnViIvUdbyvGd34qVoJ2zBrdmNRbNbXI+ETP7GpRQ
+	Unseal Key 4: x7eggIrlG7F3Vw8uom7ZYevLxGP/P9g6Gl99vW0H67wI
+	Unseal Key 5: +9Smk7C6BgofOZawJSoZtFx98EeeR4FmVU9pKFYF/aMJ
+
+	Initial Root Token: 295c879b-5d1e-1ffc-7e74-745b443970c8
+
+		Vault initialized with 5 key shares and a key threshold of 3. Please securely
+		distribute the key shares printed above. When the Vault is re-sealed,
+		restarted, or stopped, you must supply at least 3 of these keys to unseal it
+		before it can start servicing requests.
+
+		Vault does not store the generated master key. Without at least 3 key to
+		reconstruct the master key, Vault will remain permanently sealed!
+
+		It is possible to generate new unseal keys, provided you have a quorum of
+		existing unseal keys shares. See "vault operator rekey" for more information.
+
+================================================================================
 
 Installing
 --------------------------------------------------------------------------------
@@ -83,6 +227,9 @@ StartLimitBurst=3
 WantedBy=multi-user.target
 
 
+================================================================================
+================================================================================
+================================================================================
 ================================================================================
 
 	*************
