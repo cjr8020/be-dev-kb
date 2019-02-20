@@ -4,6 +4,69 @@
 		Vault
 	*************
 
+
+	Commands
+	********
+
+
+list policies
+-------------
+
+	$ vault read sys/policy
+
+or via API
+
+	$ curl \
+	  --header "X-Vault-Token: ..." \
+	  https://vault.hashicorp.rocks/v1/sys/policy
+
+
+create policies
+----------------
+
+	$ vault policy write policy-name policy-file.hcl
+
+or 
+
+	$ curl \
+	  --request POST \
+	  --header "X-Vault-Token: ..." \
+	  --data '{"policy":"path \"...\" {...} "}' \
+	  https://vault.hashicorp.rocks/v1/sys/policy/policy-name
+
+update policies
+---------------
+
+	$ vault write sys/policy/my-existing-policy policy=@updated-policy.json
+
+or
+
+	$ curl \
+	  --request POST \
+	  --header "X-Vault-Token: ..." \
+	  --data '{"policy":"path \"...\" {...} "}' \
+	  https://vault.hashicorp.rocks/v1/sys/policy/my-existing-policy
+
+
+associate policy to a token
+---------------------------
+
+A Vault administrator or someone from the security team would create the user in Vault with a list of associated policies:
+
+	$ vault write auth/userpass/users/sethvargo \
+	    password="s3cr3t!" \
+	    policies="dev-readonly,logs"
+
+This creates an authentication mapping to the policy such that, when the user authenticates successfully to Vault, they will be given a token which has the list of policies attached.
+
+The user wishing to authenticate would run
+
+	$ vault login -method="userpass" username="sethvargo"
+	Password (will be hidden): ...
+
+If the provided information is correct, Vault will generate a token, assign the list of configured policies to the token, and return that token to the authenticated user.
+
+
 ================================================================================
 
 	Vault Secrets
@@ -22,6 +85,22 @@ Dynamic
 =======
 
 Dynamic secrets are generated on demand. They have enforced leases and generally expire after a short period of time. Since they do not exist until they are accessed, there's less exposure - so dynamic secrets are much more secure. Vault ships with a number of dynamic backends - i.e., AWS, Databases, Google Cloud, Consul, and RabbitMQ.
+
+
+
+	Vault Policies
+	**************
+
+
+root policy
+
+	The root policy is a builtin Vault policy that can not be modified or removed. Any user associated with this policy becomes a root user. A root user can do anything within Vault. As such, it is highly recommended that you revoke any root tokens before running Vault in production.
+
+	When a Vault server is first initialized, there always exists one root user. This user is used to do the initial configuration and setup of Vault. After configured, the initial root token should be revoked and more strictly controlled users and authentication should be used.
+
+To revoke a root token, run:
+
+	$ vault token revoke "<token>"
 
 
 
@@ -364,7 +443,33 @@ read via CLI:
 	---     -----
 	data    map[foo:world]
 
-	
+
+
+Policies 
+============
+
+create new policy in 
+
+vault/policies/app-policy.json
+------------------------------
+
+{
+  "path": {
+    "secret/data/app/*": {
+      "policy": "read"
+    }
+  }
+}
+
+Create a new policy back in the bash session:
+
+	$ vault policy write app /vault/policies/app-policy.json
+
+	Success! Uploaded policy: app
+
+
+
+
 
 
 ================================================================================
