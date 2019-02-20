@@ -122,6 +122,207 @@ and close it.
 
 ================================================================================
 
+	Basic Auth with the RestTemplate
+	********************************
+
+https://www.baeldung.com/how-to-use-resttemplate-with-basic-authentication-in-spring
+https://github.com/eugenp/tutorials/blob/master/spring-security-rest-basic-auth/src/main/java/org/baeldung/client/HttpComponentsClientHttpRequestFactoryBasicAuth.java
+
+
+Once Basic Authentication is set up for the template, each request will be sent preemptively containing the full credentials necessary to perform the authentication process.
+
+Once Basic Authentication is set up for the template, each request will be sent preemptively containing the full credentials necessary to perform the authentication process. The credentials will be encoded and will use the Authorization HTTP Header, in accordance with the specs of the Basic Authentication scheme. An example would look like this:
+	
+	Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
+
+
+Dependencies
+-----------------------
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    or
+
+    <dependency>
+	   	<groupId>org.springframework</groupId>
+	   	<artifactId>spring-webmvc</artifactId>
+	</dependency>
+
+<dependency>
+   <groupId>org.apache.httpcomponents</groupId>
+   <artifactId>httpclient</artifactId>
+   <version>4.5.3</version>
+</dependency>
+
+Optionally, if the HTTP Authorization header is constructed manually, then an additional library is required for the encoding support:
+
+
+	<dependency>
+	   <groupId>commons-codec</groupId>
+	   <artifactId>commons-codec</artifactId>
+	   <version>1.10</version>
+	</dependency>
+
+
+
+Set up the RestTemplate
+------------------------
+
+Bootstrapping the RestTemplate into the Spring context can be done by simply declaring a bean for it; however, setting up the RestTemplate with Basic Authentication will require manual intervention, so instead of declaring the bean directly, a Spring FactoryBean will be used for more flexibility.
+
+RestTemplateFactory.java
+-------------------------
+
+This factory will create and configure the template on initialization:
+
+@Component
+public class RestTemplateFactory
+  implements FactoryBean<RestTemplate>, InitializingBean {
+  
+    private RestTemplate restTemplate;
+ 
+    public RestTemplate getObject() {
+        return restTemplate;
+    }
+    public Class<RestTemplate> getObjectType() {
+        return RestTemplate.class;
+    }
+    public boolean isSingleton() {
+        return true;
+    }
+ 
+    public void afterPropertiesSet() {
+        HttpHost host = new HttpHost("localhost", 8082, "http");
+        restTemplate = new RestTemplate(
+          new HttpComponentsClientHttpRequestFactoryBasicAuth(host));
+    }
+}
+
+
+host and port should be dependent on the environment.
+
+Manual Management of the Authorization HTTP Header
+---------------------------------------------------
+
+The process of creating the Authorization header is relatively straightforward for Basic Authentication, so it can pretty much be done manually with a few lines of code:
+
+	HttpHeaders createHeaders(String username, String password){
+	   return new HttpHeaders() {{
+	         String auth = username + ":" + password;
+	         byte[] encodedAuth = Base64.encodeBase64( 
+	            auth.getBytes(Charset.forName("US-ASCII")) );
+	         String authHeader = "Basic " + new String( encodedAuth );
+	         set( "Authorization", authHeader );
+	      }};
+	}
+
+
+Then, sending a request becomes just as simple
+
+	restTemplate.exchange
+	 (uri, HttpMethod.POST, new HttpEntity<T>(createHeaders(username, password)), clazz);
+
+
+Automatic Management of the Authorization HTTP Header
+------------------------------------------------------
+
+Both Spring 3.0 and 3.1 and now 4.x have very good support for the Apache HTTP libraries.
+Let’s start setting things up with HttpClient 4 and Spring 4.
+
+The RestTemplate will require an HTTP request factory – a factory that supports Basic Authentication.
+So far, so good. 
+However, using the existing HttpComponentsClientHttpRequestFactory directly 
+will prove to be difficult, as the architecture of RestTemplate was designed 
+without good support for HttpContext – an instrumental piece of the puzzle.
+
+And so we’ll need to subclass HttpComponentsClientHttpRequestFactory 
+and override the createHttpContext method.
+
+
+It is here – in the creation of the HttpContext – that the basic authentication support is built in. 
+
+
+HttpComponentsClientHttpRequestFactoryBasicAuth.java
+------------------------------------------------------
+
+import java.net.URI;
+
+import org.apache.http.HttpHost;
+import org.apache.http.client.AuthCache;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.client.BasicAuthCache;
+import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+
+public class HttpComponentsClientHttpRequestFactoryBasicAuth extends HttpComponentsClientHttpRequestFactory {
+
+    HttpHost host;
+
+    public HttpComponentsClientHttpRequestFactoryBasicAuth(HttpHost host) {
+        super();
+        this.host = host;
+    }
+
+    protected HttpContext createHttpContext(HttpMethod httpMethod, URI uri) {
+        return createHttpContext();
+    }
+
+    private HttpContext createHttpContext() {
+
+        AuthCache authCache = new BasicAuthCache();
+
+        BasicScheme basicAuth = new BasicScheme();
+        authCache.put(host, basicAuth);
+
+        BasicHttpContext localcontext = new BasicHttpContext();
+        localcontext.setAttribute(HttpClientContext.AUTH_CACHE, authCache);
+        return localcontext;
+    }
+}
+
+
+doing preemptive Basic Authentication with HttpClient 4.x is a bit of a burden:
+
+the authentication info is cached and 
+the process of setting up this authentication cache is very manual and unintuitive.
+
+http://hc.apache.org/httpcomponents-client-ga/tutorial/html/authentication.html#d4e1023
+
+	4.6. Preemptive authentication
+
+HttpClient does not support preemptive authentication out of the box, because if misused or used incorrectly the preemptive authentication can lead to significant security issues, such as sending user credentials in clear text to an unauthorized third party.
+
+Please note that one must use the same execution context to execute logically related requests in order for cached authentication data to propagate from one request to another. Authentication data will be lost as soon as the execution context goes out of scope.
+
+	CredentialsProvider credsProvider = new BasicCredentialsProvider();
+	credsProvider.setCredentials(
+	        new AuthScope(targetHost.getHostName(), targetHost.getPort()),
+	        new UsernamePasswordCredentials("username", "password"));
+
+	// Create AuthCache instance
+	AuthCache authCache = new BasicAuthCache();
+	// Generate BASIC scheme object and add it to the local auth cache
+	BasicScheme basicAuth = new BasicScheme();
+	authCache.put(targetHost, basicAuth);
+
+	// Add AuthCache to the execution context
+	HttpClientContext context = HttpClientContext.create();
+	context.setCredentialsProvider(credsProvider);
+	context.setAuthCache(authCache);
+
+
+
+
+
+
+================================================================================
+
 
 	Connection Pooling
 	******************
