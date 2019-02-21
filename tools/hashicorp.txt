@@ -107,11 +107,14 @@ To revoke a root token, run:
 
 
 ================================================================================
+================================================================================
+================================================================================
 
 	docker - vault - consul 
 	***********************
 
 	https://testdriven.io/blog/managing-secrets-with-vault-and-consul/
+	https://github.com/testdrivenio/vault-consul-docker
 
 $ mkdir vault-consul-docker && cd vault-consul-docker
 
@@ -468,11 +471,219 @@ Create a new policy back in the bash session:
 	Success! Uploaded policy: app
 
 
+Then, create a new token:
+
+	$ vault token create -policy=app
+
+	ash-4.4# vault token create -policy=app
+
+Key                  Value
+---                  -----
+token                5e564bff-b3b2-5ba5-30d9-c40e0fa43d0b
+token_accessor       362ad2ad-511a-43c4-172b-ff3846c59f74
+token_duration       768h
+token_renewable      true
+token_policies       ["app" "default"]
+identity_policies    []
+policies             ["app" "default"]
+
+
+
+
+	Add Consul Backend
+	******************
+
+./consul
+
+	├── Dockerfile
+	├── config
+	│   └── consul-config.json
+	└── data
+
+
+
+update docker-compose.yml
+---------------------------
+
+updating the docker-compose.yml file:
+
+version: '3.6'
+
+services:
+
+  vault:
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    ports:
+      - 8200:8200
+    volumes:
+      - ./vault/config:/vault/config
+      - ./vault/policies:/vault/policies
+      - ./vault/data:/vault/data
+      - ./vault/logs:/vault/logs
+    environment:
+      - VAULT_ADDR=http://127.0.0.1:8200
+    command: server -config=/vault/config/vault-config.json
+    cap_add:
+      - IPC_LOCK
+    depends_on:
+      - consul
+
+  consul:
+    build:
+      context: ./consul
+      dockerfile: Dockerfile
+    ports:
+      - 8500:8500
+    command: agent -server -bind 0.0.0.0 -client 0.0.0.0 -bootstrap-expect 1 -config-file=/consul/config/config.json
+    volumes:
+      - ./consul/config/consul-config.json:/consul/config/config.json
+      - ./consul/data:/consul/data
+
+
+
+ ./consul/Dockerfile
+ -------------------------
+
+
+ # base image
+FROM alpine:3.7
+
+# set consul version
+ENV CONSUL_VERSION 1.2.1
+
+# create a new directory
+RUN mkdir /consul
+
+# download dependencies
+RUN apk --no-cache add \
+      bash \
+      ca-certificates \
+      wget
+
+# download and set up consul
+RUN wget --quiet --output-document=/tmp/consul.zip https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip && \
+    unzip /tmp/consul.zip -d /consul && \
+    rm -f /tmp/consul.zip && \
+    chmod +x /consul/consul
+
+# update PATH
+ENV PATH="PATH=$PATH:$PWD/consul"
+
+# add the config file
+COPY ./config/consul-config.json /consul/config/config.json
+
+# expose ports
+EXPOSE 8300 8400 8500 8600
+
+# run consul
+ENTRYPOINT ["consul"]
+
+
+
+
+
+./consul/config/consul-config.json
+----------------------------------
+
+
+{
+  "datacenter": "localhost",
+  "data_dir": "/consul/data",
+  "log_level": "DEBUG",
+  "server": true,
+  "ui": true,
+  "ports": {
+    "dns": 53
+  }
+}
+
+
+
+update vault config
+-------------------
+
+
+
+Exit out of the bash session. Bring the container down, and then update the Vault config file:
+
+{
+  "backend": {
+    "consul": {
+      "address": "consul:8500",
+      "path": "vault/"
+    }
+  },
+  "listener": {
+    "tcp":{
+      "address": "0.0.0.0:8200",
+      "tls_disable": 1
+    }
+  },
+  "ui": true
+}
+
+
+the name of the service - consul - as part of the address. The path key defines the path in Consul's key/value store where the Vault data will be stored.
+
+Clear out all files and folders within the "vault/data" directory to remove the Filesystem backend. Build the new images and spin up the containers:
+
+	$ docker-compose down
+	$ docker-compose up -d --build
+
+
+test out the new Consul backend
+--------------------------------
+
+CLI
+
+Create a new bash session in the Vault container
+
+	$ docker-compose exec vault bash
+
+Init
+
+	$ vault operator init
+
+
+Unseal Key 1: 1eOR4bYWtc+htN7KFwse+bhcAZtEE7ciPladCXmb2AKR
+Unseal Key 2: 4Ya4iFOV3sh0zkJzcqNegAbh4qz1coRGomHiIXA/vulj
+Unseal Key 3: 9/aqyB/nKkzADMp3kOoqgiYtzNo5mBImZleUQfCq0TJG
+Unseal Key 4: a18Z39rIBrscyevAhb7HXo5WYLfQ8YkF1aNEWKs6c9sY
+Unseal Key 5: Fql6W2mVtZRVgnAyEV4E9uoHSpC84eiKBpkeSPtZBj+a
+
+Initial Root Token: 9f96f399-4400-0930-3a83-917b8acbf618	
+
+Unseal 
+
+	$ vault operator unseal
+
+Authenticate 
+
+	$ vault login
+
+Add a new static secret
+
+	$ vault kv put secret/foo bar=precious
+
+Read it back 
+
+	$ vault kv get secret/foo
+
+
+
+Ensure all is well by navigating in your browser to 
+
+	http://localhost:8500/ui
 
 
 
 
 ================================================================================
+================================================================================
+================================================================================
+
 
 Installing
 --------------------------------------------------------------------------------
