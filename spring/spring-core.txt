@@ -864,3 +864,60 @@ Similar to ThreadLocal, an object will be created for each incoming request
 	
 
 ================================================================================
+
+	Spring Profiles
+	***************
+
+JVM System Parameter
+--------------------
+
+	-Dspring.profiles.active=dev
+
+Env variable
+------------
+
+	$ export spring_profiles_active=dev
+
+Maven profile
+-------------
+
+
+<profiles>
+    <profile>
+        <id>dev</id>
+        <activation>
+            <activeByDefault>true</activeByDefault>
+        </activation>
+        <properties>
+            <spring.profiles.active>dev</spring.profiles.active>
+        </properties>
+    </profile>
+    <profile>
+        <id>prod</id>
+        <properties>
+            <spring.profiles.active>prod</spring.profiles.active>
+        </properties>
+    </profile>
+</profiles>
+
+	$ mvn clean package -Pprod
+
+In application.properties or application.yml
+we will need a placeholder that will be replaced with the value of the property 
+set by the Maven build
+
+	spring.profiles.active=@spring.profiles.active@
+
+NOTE: you will need to enable resource filtering in your POM:
+
+	<build>
+	    <resources>
+	        <resource>
+	            <directory>src/main/resources</directory>
+	            <filtering>true</filtering>
+	        </resource>
+	    </resources>
+	    ...
+	</build>
+
+================================================================================
