@@ -106,7 +106,9 @@ Resources:
   https://dzone.com/articles/distributed-sagas-for-microservices
 
   https://tuhrig.de/saga-pattern-with-spring-boot-and-activemq/
-
+  https://howtodoinjava.com/design-patterns/behavioral/command-pattern/
+  https://www.concretepage.com/java/jdk-8/java-8-runnable-and-callable-lambda-example-with-argument
+   
 
 first mentioned in Princeton university research paper in 1987
 http://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf

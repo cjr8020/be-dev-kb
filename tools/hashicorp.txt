@@ -772,6 +772,47 @@ WantedBy=multi-user.target
 		Consul
 	*************
 
+
+Consul Commands
+--------------------------------------------------------------------------------
+
+Start consul agent:
+
+	$ consul agent -dev [-node <nodename>]
+	$ consul agent -server -bind 0.0.0.0 -client 0.0.0.0 -bootstrap-expect 1 -config-file=/consul/config/config.json
+
+Show members
+
+	$ consul members
+
+using HTTP API
+
+	$ curl localhost:8500/v1/catalog/nodes
+
+	[
+	    {
+	        "Address": "172.21.0.2",
+	        "CreateIndex": 472,
+	        "Datacenter": "localhost",
+	        "ID": "6dd406bf-03d3-d12e-c14b-eedd01ac88b6",
+	        "Meta": {
+	            "consul-network-segment": ""
+	        },
+	        "ModifyIndex": 472,
+	        "Node": "b6f742be6509",
+	        "TaggedAddresses": {
+	            "lan": "172.21.0.2",
+	            "wan": "172.21.0.2"
+	        }
+	    }
+	]
+
+using DNS interface querying the Consul agent's DNS server on port 8600 (default).
+
+	$ dig @127.0.0.1 -p 8600 machine.node.consul
+
+
+
 Consul Architecture
 --------------------------------------------------------------------------------
 

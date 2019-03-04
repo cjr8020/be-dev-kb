@@ -55,6 +55,74 @@ Features:
 - Distributed Configuration: using the Consul Key/Value store
 - Control Bus: Distributed control events using Consul Events
 
+Consul provides components for resolving some of the most common challenges in 
+a microservice architecture:
+
+- Service discovery - automatically register/unregister the network locations
+  of service instances
+
+- Health checking - detect when a service instance is up and running
+
+- Distributed configuration - ensure all service instances use the same 
+  configuration.
+
+
+Note for OS X:
+--------------
+
+	Consul uses your hostname as the default node name.
+	If your hostname contains periods, DNS queries to that node will not work with Consul.
+	To avoid this, explicitly set the name of your node with the -node flag:
+
+		$ consul agent -dev -node machine
 
 
 ================================================================================
+================================================================================
+================================================================================
+
+
+	Spring Cloud Demo
+	*****************
+
+Using Vault and Consul instances created with `docker-compose` as described here:
+
+	https://testdriven.io/blog/managing-secrets-with-vault-and-consul/
+	https://github.com/testdrivenio/vault-consul-docker
+
+To start the demo:
+------------------
+
+	$ docker-compose up -d --build
+
+
+To shutdown and cleanup:
+-------------------------
+
+	$ docker-compose down -v --rmi all --remove-orphans
+	$ docker system prune
+	$ docker ps -a
+
+
+Run the demo once started
+--------------------------
+
+
+start bash shell into consul
+
+	$ docker-compose exec consul bash
+
+list consul members
+
+	$ consul members [-detailed]
+	Node          Address          Status  Type    Build  Protocol  DC         Segment
+	b6f742be6509  172.21.0.2:8301  alive   server  1.2.1  2         localhost  <all>
+
+
+
+
+================================================================================
+================================================================================
+================================================================================
+
+
