@@ -2017,3 +2017,14 @@ public class SimpleToStringStrategy extends DefaultToStringStrategy {
 }
 
 ===================================================================================
+
+    mask | obfuscate fields in toString
+    ***********************************
+
+overriding DefaultToStringStrategy .. 
+
+running 0.9.5
+https://github.com/highsource/jaxb2-basics/blob/0.9.5/runtime/src/main/java/org/jvnet/jaxb2_commons/lang/DefaultToStringStrategy.java
+
+
+===================================================================================
