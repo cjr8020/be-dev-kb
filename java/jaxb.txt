@@ -1952,3 +1952,68 @@ If you can align their versions - great - if not, you may have to split the
 use of these models into different microservices.
 
 ===================================================================================
+
+    generate Readable toString from JAXB
+    ************************************
+
+https://medium.com/@jama707/generate-readable-tostring-from-jaxb-4e81871a6c86
+
+The default xcj plugin doesn’t create toString methods, but it’d be easier to see the log if generated classes have toString. So I used jaxb-basics extension with maven-jaxb2-plugin. This jaxb2-basics extension adds some missing features like equals()/hashcode()/toString(). But its toString method has object reference and full package name. Which was not desirable for me. Below is how I created easy to read toString configuration:
+
+
+<dependencies>
+    <dependency>
+        <groupId>org.jvnet.jaxb2_commons</groupId>
+        <artifactId>jaxb2-basics</artifactId>
+        <version>0.6.3</version>
+    </dependency>
+</dependencies>
+
+Add JAXB2 Plugin:
+----------------
+
+<plugin>
+    <groupId>org.jvnet.jaxb2.maven2</groupId>
+    <artifactId>maven-jaxb2-plugin</artifactId>
+    <version>0.13.0</version>
+    <configuration>
+        <generatePackage>com.mycompainy.model</generatePackage>
+        <generateDirectory>src/main/java</generateDirectory>
+        <schemaDirectory>src/main/resources/xsd</schemaDirectory>
+        <extension>true</extension>
+        <args>
+            <arg>-XtoString</arg>
+            <arg>-XtoString-toStringStrategyClass=com.mycompany.jaxb.SimpleToStringStrategy</arg>
+            <arg>-Xequals</arg>
+            <arg>-XhashCode</arg>
+        </args>
+        <plugins>
+            <plugin>
+                <groupId>org.jvnet.jaxb2_commons</groupId>
+                <artifactId>jaxb2-basics</artifactId>
+                <version>0.9.5</version>
+            </plugin>
+        </plugins>
+     </configuration>
+</plugin>
+
+
+Then Java class which overrides the default toString code generation strategy:
+------------------------------------------------------------------------------
+
+public class SimpleToStringStrategy extends DefaultToStringStrategy {
+
+  @Override
+  public boolean isUseIdentityHashCode() {
+    return false;
+  }
+
+  @Override
+  protected void appendClassName(StringBuilder buffer, Object object) {
+    if (object != null) {
+        buffer.append(getShortClassName(object.getClass()));
+    }
+ }
+}
+
+===================================================================================
