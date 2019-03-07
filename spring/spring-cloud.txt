@@ -5,6 +5,47 @@
 
 	*********************
 
+
+
+Release train Spring Boot compatibility
+Release Train					 Boot Version
+-------------------------------------------------
+Greenwich 						2.1.x
+Finchley 							2.0.x
+Edgware 							1.5.x
+Dalston 							1.5.x
+
+
+Greenwich.RELEASE
+-----------------
+https://spring.io/blog/2019/01/23/spring-cloud-greenwich-release-is-now-available
+
+Spring Cloud Sleuth				2.1.0.RELEASE	(issues)
+Spring Cloud Gcp					1.1.0.RELEASE	(issues)
+Spring Cloud Build				2.1.2.RELEASE	 
+Spring Cloud Netflix			2.1.0.RELEASE	(issues)
+Spring Cloud Consul				2.1.0.RELEASE	 
+Spring Cloud Gateway			2.1.0.RELEASE	(issues)
+Spring Cloud							Greenwich.RELEASE	 
+Spring Cloud Function			2.0.0.RELEASE	(issues)
+Spring Cloud Stream				Fishtown.RELEASE	 
+Spring Cloud Zookeeper		2.1.0.RELEASE	 
+Spring Cloud Cloudfoundry	2.1.0.RELEASE	 
+Spring Cloud Aws					2.1.0.RELEASE	 
+Spring Cloud Task					2.1.0.RELEASE	 
+Spring Cloud Kubernetes		1.0.0.RELEASE	(issues)
+Spring Cloud Contract			2.1.0.RELEASE	(issues)
+Spring Cloud Release			Greenwich.RELEASE	 
+Spring Cloud Security			2.1.0.RELEASE	 
+Spring Cloud Starter			Greenwich.RELEASE	 
+Spring Cloud Bus					2.1.0.RELEASE	(issues)
+Spring Cloud Config				2.1.0.RELEASE	(issues)
+Spring Cloud Vault				2.1.0.RELEASE	(issues)
+Spring Cloud Openfeign		2.1.0.RELEASE	(issues)
+Spring Cloud Commons			2.1.0.RELEASE	 
+Spring Cloud Dependencies	2.1.2.RELEASE
+
+
 https://spring.io/projects/spring-cloud
 
 Features:
@@ -76,7 +117,7 @@ You can disable the bootstrap process completely by setting
  bootstrap-local.yml
  -------------------
 
-spring.application.name: ess-springboot-hello-world
+spring.application.name: blah-springboot-hello-world
 spring.cloud.bootstrap.enabled: false
 spring.cloud.consul.enabled: false
 spring.cloud.vault.enabled: false
@@ -166,6 +207,9 @@ To shutdown and cleanup:
 
 Run the demo once started
 --------------------------
+
+
+https://www.baeldung.com/spring-cloud-consul
 
 
 start bash shell into consul

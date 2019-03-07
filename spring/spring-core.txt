@@ -873,6 +873,18 @@ JVM System Parameter
 
 	-Dspring.profiles.active=dev
 
+
+or via application.[yml|properties]
+
+	spring.profiles.active=dev,hsqldb
+
+	spring:
+	  application:
+	    name: some-app-name
+	  profiles:
+	    active: dev,hsqldb
+	    
+
 Env variable
 ------------
 
