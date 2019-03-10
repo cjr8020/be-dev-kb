@@ -178,6 +178,100 @@ Note for OS X:
 		$ consul agent -dev -node machine
 
 
+
+================================================================================
+=========================== spring-cloud-vault =================================
+================================================================================
+
+provides client-side support for externalized configuration
+
+vault can 
+ - manage static and dynamic secrets (like username/password) for remote 
+   applications and resources
+ - provide credentials for external services like databases, Consul, AWS, etc.
+
+Spring Cloud Vault accesses different resources.
+By default, the `secret` backend is enabled which accesses secret configs via
+endpoints in the form:
+
+/secret/{application}/{profile}
+/secret/{application}
+/secret/{defaultContext}/{profile}
+/secret/{defaultContext}
+
+where 
+  `application` is injected from `spring.application.name`
+
+	spring.application.name: some-app
+
+  `profile` is an active profile (or comma-separated list of properties)
+
+	spring.profiles.active: foo,dev
+
+
+Discovery
+=========
+
+you can use a `DiscoveryClient` (like Spring Cloud Consul) to locate a Vault
+server by setting
+
+	spring.cloud.vault.discovery.enabled=true # default is false
+
+so all you'd need is a `bootstrap.yml` with the appropriate discovery configuration.
+default `serviceId` is "vault", but you can change that on the client with
+
+	spring.cloud.vault.discovery.serviceId=
+
+spring.cloud.vault:
+  authentication: APPROLE
+  app-role:
+    role-id: some-id
+  scheme: https
+
+  discovery:
+    enabled: true
+    service-id: my-vault-service
+
+Authentication methods
+======================
+
+Spring Cloud Vault supports:
+
+	token
+	AppId (deprecated as of Vault 0.6.1 in favor of AppRole)
+	AppRole
+
+
+
+token authentication
+--------------------
+Default method.
+Token auth requires a static token to be provided using the Bootstrap Application Context.
+
+spring.cloud.vault:
+  authentication: TOKEN
+  token: 00000000-0000-0000-0000-000000000000
+
+AppRole authentication 
+-----------------------
+AppRole is intended for machine authentication.
+AppRole authentication consists of two hard to guess (secret) tokens: 
+ - RoleId and 
+ - SecretId
+
+spring.cloud.vault:
+  authentication: APPROLE
+  app-role:
+    role-id: bde2076b-cccb-3cf0-d57e-bca7b1e83a52
+
+
+generic.enabled: true|false
+---------------------------
+
+enables|disables non-versioned key-value backends.
+	$ vault secrets enable -version=1 kv
+
+
 ================================================================================
 ================================================================================
 ================================================================================
