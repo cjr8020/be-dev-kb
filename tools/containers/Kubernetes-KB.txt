@@ -1,0 +1,34 @@
+	*******************
+		Kubernetes 
+	*******************
+
+
+================================================================================
+
+	kubectl
+	*******
+https://kubernetes.io/docs/tasks/tools/install-kubectl/
+
+the Kubernetes command-line tool, kubectl, to deploy and manage applications on Kubernetes. Using kubectl, you can inspect cluster resources; create, delete, and update components; and look at your new cluster and bring up example apps.
+
+
+Shell autocompletion
+--------------------
+
+when using Oh-My-Zsh, edit the ~/.zshrc file and update the plugins= line to include the kubectl plugin.
+
+source <(kubectl completion zsh)
+
+================================================================================
+
+	Minikube
+	********
+
+https://github.com/kubernetes/minikube	
+
+makes it easy to run Kubernetes locally.
+runs a single-node Kubernetes cluster on your machine.
+
+
+
+================================================================================
