@@ -115,11 +115,16 @@ Dynamic
 
 Dynamic secrets are generated on demand. They have enforced leases and generally expire after a short period of time. Since they do not exist until they are accessed, there's less exposure - so dynamic secrets are much more secure. Vault ships with a number of dynamic backends - i.e., AWS, Databases, Google Cloud, Consul, and RabbitMQ.
 
-
+================================================================================
 
 	Vault Policies
 	**************
 
+built-in policies cannot be removed. 
+
+default policy
+
+	provides a common set of permissions and is included on all tokens by default
 
 root policy
 
@@ -131,6 +136,66 @@ To revoke a root token, run:
 
 	$ vault token revoke "<token>"
 
+
+Policies are authored in HCL but it is  JSON compatible.
+
+Write a policy
+---------------
+
+  $ vault policy write my-policy my-policy.hcl
+  Success!
+
+creating a policy from terminal
+
+	$ vault policy write my-policy -<<EOF
+	# Normal servers have version 1 of KV mounted by default, so will need these
+	# paths:
+	path "secret/*" {
+	  capabilities = ["create"]
+	}
+	path "secret/foo" {
+	  capabilities = ["read"]
+	}
+
+	# Dev servers have version 2 of KV mounted by default, so will need these
+	# paths:
+	path "secret/data/*" {
+	  capabilities = ["create"]
+	}
+	path "secret/data/foo" {
+	  capabilities = ["read"]
+	}
+	EOF
+
+List policies
+-------------
+
+	$ vault policy list
+
+View contents of a policy
+-------------------------
+
+	$ vault policy read my-policy
+
+Test a policy
+--------------
+
+To use a policy, create a token and assign it to that policy:
+
+	$ vault  token create -policy=my-policy
+	token      <some-token-value>
+	$ vault login <some-token-value>
+
+Verify that can you write to `secret/`
+
+	$ vault kv put secret/bar robot=beepboop
+
+Verify that you cannot write (only read) from `secret/foo`
+
+	$ vault kv put seret/foo robot=beepboop
+	* 403
+
+	
 
 
 
