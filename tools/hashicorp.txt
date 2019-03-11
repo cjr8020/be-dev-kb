@@ -4,10 +4,25 @@
 		Vault
 	*************
 
+	References
+	**********
+https://github.com/jandd/spring-boot-vault-demo
+
 
 	Commands
 	********
 
+
+initialize vault
+----------------
+
+	$ vault operator init
+	$ vault operator init -key-shares=1 -key-threshold=1 
+
+unseal vault
+-------------
+
+	$ vault operator unseal <unseal-key>
 
 list policies
 -------------
@@ -69,6 +84,20 @@ If the provided information is correct, Vault will generate a token, assign the 
 
 ================================================================================
 
+	Vault Initialization
+	********************
+
+After you start vault (or vault container) you need to initialize it
+
+	$ vault operator init
+
+by default, vault will be initialized with 5 keyshares and a key threshold of 3.
+this is configurable for dev purposes:
+
+	$ vault operator init -key-shares=1 -key-threshold=1 
+
+================================================================================
+
 	Vault Secrets
 	*************
 
@@ -126,8 +155,40 @@ launch  Vault Browser CLI:
 
 
 ================================================================================
+===================== DOCKER VAULT CONSUL DEMO =================================
 ================================================================================
-================================================================================
+
+Start container
+----------------
+
+	$ docker-compose up -d --build [<service-name>]
+
+Initialize vault
+-----------------
+
+	$ docker-compose --no-ansi exec -e VAULT_CLI_NO_COLOR=1 \
+		-e VAULT_CACERT=/vault/config/ssl/vault.crt.pem \
+		vault \
+		vault operator init -key-shares=1 -key-threshold=1 > vault_data.txt
+
+Unseal Vault
+-------------
+
+	$ docker-compose exec \
+		-e VAULT_CACERT=/vault/config/ssl/vault.crt.pem \
+		vault \
+		vault operator unseal <unseal-key>
+
+Check the root token to see Vault is working
+---------------------
+
+	$ docker-compose exec \
+		-e VAULT_CACERT=/vault/config/ssl/vault.crt.pem \
+		-e VAULT_TOKEN=<root token>
+		vault \
+		vault token lookup
+
+
 
 	docker - vault - consul 
 	***********************
