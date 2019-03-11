@@ -12,12 +12,17 @@ https://github.com/jandd/spring-boot-vault-demo
 	Commands
 	********
 
+Vault Browser CLI
+-----------------	
+
+read -field=id auth/token/lookup-self	
+
 
 initialize vault
 ----------------
 
 	$ vault operator init
-	$ vault operator init -key-shares=1 -key-threshold=1 
+	$ vault operator init -key-shares=1 -key-threshold=1
 
 unseal vault
 -------------
