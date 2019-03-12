@@ -272,6 +272,41 @@ enables|disables non-versioned key-value backends.
 	$ vault secrets enable -version=1 kv
 
 
+Config Backends
+***********************************************
+
+Consul
+======
+
+Spring Cloud Vault can obtain credentials for Consul.
+The Consul integration requires 
+
+	spring-cloud-vault-config-consul
+
+The integration can be enabled by setting
+
+	spring.cloud.vault.consul.enabled=true  # default is "false"
+	spring.cloud.vault.consul.role=<role-id>
+
+spring.cloud.vault:
+  authentication: APPROLE
+  app-role.role-id: ${role-id}
+  generic.enabled: false
+  kv:
+    enabled: true
+  scheme: https
+  consul:
+    enabled: true
+    role: ${spring.cloud.vault.application-name:${spring.application.name}}
+
+enabled
+	`true` enables the Consul backend config usage
+role
+	sets the role name of the Consul role definition
+backend
+	sets the path of the Consul mount to use
+token-property
+	sets the property name in which the Consul ACL token is stored
 
 
 ================================================================================
