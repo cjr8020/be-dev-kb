@@ -1,13 +1,31 @@
 ================================================================================
+=====================          Vault           =================================
+================================================================================
 
-	*************
-		Vault
-	*************
+	References
+	**********
+https://github.com/jandd/spring-boot-vault-demo
 
 
 	Commands
 	********
 
+Vault Browser CLI
+-----------------	
+
+read -field=id auth/token/lookup-self	
+
+
+initialize vault
+----------------
+
+	$ vault operator init
+	$ vault operator init -key-shares=1 -key-threshold=1
+
+unseal vault
+-------------
+
+	$ vault operator unseal <unseal-key>
 
 list policies
 -------------
@@ -69,6 +87,20 @@ If the provided information is correct, Vault will generate a token, assign the 
 
 ================================================================================
 
+	Vault Initialization
+	********************
+
+After you start vault (or vault container) you need to initialize it
+
+	$ vault operator init
+
+by default, vault will be initialized with 5 keyshares and a key threshold of 3.
+this is configurable for dev purposes:
+
+	$ vault operator init -key-shares=1 -key-threshold=1 
+
+================================================================================
+
 	Vault Secrets
 	*************
 
@@ -86,11 +118,16 @@ Dynamic
 
 Dynamic secrets are generated on demand. They have enforced leases and generally expire after a short period of time. Since they do not exist until they are accessed, there's less exposure - so dynamic secrets are much more secure. Vault ships with a number of dynamic backends - i.e., AWS, Databases, Google Cloud, Consul, and RabbitMQ.
 
-
+================================================================================
 
 	Vault Policies
 	**************
 
+built-in policies cannot be removed. 
+
+default policy
+
+	provides a common set of permissions and is included on all tokens by default
 
 root policy
 
@@ -103,10 +140,66 @@ To revoke a root token, run:
 	$ vault token revoke "<token>"
 
 
+Policies are authored in HCL but it is  JSON compatible.
 
+Write a policy
+---------------
 
+  $ vault policy write my-policy my-policy.hcl
+  Success!
 
-================================================================================
+creating a policy from terminal
+
+	$ vault policy write my-policy -<<EOF
+	# Normal servers have version 1 of KV mounted by default, so will need these
+	# paths:
+	path "secret/*" {
+	  capabilities = ["create"]
+	}
+	path "secret/foo" {
+	  capabilities = ["read"]
+	}
+
+	# Dev servers have version 2 of KV mounted by default, so will need these
+	# paths:
+	path "secret/data/*" {
+	  capabilities = ["create"]
+	}
+	path "secret/data/foo" {
+	  capabilities = ["read"]
+	}
+	EOF
+
+List policies
+-------------
+
+	$ vault policy list
+
+View contents of a policy
+-------------------------
+
+	$ vault policy read my-policy
+
+Test a policy
+--------------
+
+To use a policy, create a token and assign it to that policy:
+
+	$ vault  token create -policy=my-policy
+	token      <some-token-value>
+	$ vault login <some-token-value>
+
+Verify that can you write to `secret/`
+
+	$ vault kv put secret/bar robot=beepboop
+
+Verify that you cannot write (only read) from `secret/foo`
+
+	$ vault kv put seret/foo robot=beepboop
+	* 403
+
+	
+--------------------------------------------------------------------------------
 
 	Vault Browser UI
 	****************
@@ -129,8 +222,349 @@ token db09550a-419b-ad7b-3f20-6b1eb1c4e5e0
 
 
 ================================================================================
+=====================          Consul          =================================
 ================================================================================
+
+
+Consul Commands
+--------------------------------------------------------------------------------
+
+Start consul agent:
+
+	$ consul agent -dev [-node <nodename>]
+	$ consul agent -server -bind 0.0.0.0 -client 0.0.0.0 -bootstrap-expect 1 -config-file=/consul/config/config.json
+
+Show members
+
+	$ consul members
+
+using HTTP API
+
+	$ curl localhost:8500/v1/catalog/nodes
+
+	[
+	    {
+	        "Address": "172.21.0.2",
+	        "CreateIndex": 472,
+	        "Datacenter": "localhost",
+	        "ID": "6dd406bf-03d3-d12e-c14b-eedd01ac88b6",
+	        "Meta": {
+	            "consul-network-segment": ""
+	        },
+	        "ModifyIndex": 472,
+	        "Node": "b6f742be6509",
+	        "TaggedAddresses": {
+	            "lan": "172.21.0.2",
+	            "wan": "172.21.0.2"
+	        }
+	    }
+	]
+
+using DNS interface querying the Consul agent's DNS server on port 8600 (default).
+
+	$ dig @127.0.0.1 -p 8600 machine.node.consul
+
+
+
+Consul Architecture
+--------------------------------------------------------------------------------
+
+Consul server agents 
+	responsible for maintaining the cluster state
+	respond to RPC queries (read ops)
+	process all write ops
+
+Consul cluster 
+	typically 3-5 servers plus client agents
+	may be deployed in a single physical datacenter or span multiple DCs
+
+	Single datacenter
+		recommended for apps deployed in the same datacenter
+
+Consule agent
+	core process of Consul
+		- maintains membership info
+		- registers services
+		- runs checks
+		- responds to queries 
+	agent must run on every node that is part of Consul cluster
+	agent may run in one of two modes:
+		1. client, or
+		2. server
+
+
+Consul server agents
+	require a superset of config required by client agents
+	server agent takes on the additional responsibility of being part of the consensus quorum.
+
+
+Consul client agents
+	client nodes make up the majority of the cluster, are very lightweight
+	interface with server nodes for most operations, maintain little state of their own
+	require a subset of config required by Consul server agents.
+	all Consul clients can use the `consul.hcl` confi file created when
+	configuring Consul servers.
+
+
+
+
+Consul ACLs
+--------------------------------------------------------------------------------
+
+Consul uses Access Control Lists (ACLs) to secure the UI, API, CLI, service 
+communications, and agent communications.
+
+When securing your cluster, you should configure the ACLs first.
+
+At the core, ACLs operate by grouping rules into policies, then associating
+one or more policies with a token.
+
+ACL System
+==========
+has two major components:
+
+ACL Policies
+	allow for grouping of a set of rules into a logical unit that can be reused and
+	linked with many tokens
+
+ACL Tokens
+	requests to Consule are authorized by using bearer token.
+	each ACL token has 
+	- public Accessor ID which is used to name a token, and 
+	- Secret ID which is used as the bearer token used to make requests to Consul
+
+ACL Policies
+------------
+
+	ACL Policy is a named set of rules composed of the following elements:
+	 - ID: auto-generated public identifier
+	 - Name: unique meaningful name for the policy
+	 - Rules: set of rules granting or denying permissions
+	 - Datacenters: a list of datacenters the policy is valid within.
+
+ACL Tokens
+----------
+
+	Accessor ID
+	Secret ID
+	Description
+	Policy Set
+	Locality
+	
+
+
+Installing
+--------------------------------------------------------------------------------
+https://www.consul.io/docs/guides/deployment-guide.html
+
+Precompiled Consul binaries are available for download at https://releases.hashicorp.com/consul/ and Consul Enterprise binaries are available for download by following the instructions made available to HashiCorp Consul customers.
+
+
+CONSUL_VERSION="1.2.0"
+curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip
+curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS
+curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS.sig
+
+
+Unzip the downloaded package and move the consul binary to /usr/local/bin/. Check consul is available on the system path.
+
+	unzip consul_${CONSUL_VERSION}_linux_amd64.zip
+	sudo chown root:root consul
+	sudo mv consul /usr/local/bin/
+	consul --version
+
+The consul command features opt-in autocompletion for flags, subcommands, and arguments (where supported). Enable autocompletion.
+
+	consul -autocomplete-install
+	complete -C /usr/local/bin/consul consul
+
+Create a unique, non-privileged system user to run Consul and create its data directory.
+
+	sudo useradd --system --home /etc/consul.d --shell /bin/false consul
+	sudo mkdir --parents /opt/consul
+	sudo chown --recursive consul:consul /opt/consul
+
+Configure systemd
+--------------------------------------------------------------------------------A
+Systemd uses documented sane defaults so only non-default values must be set in the configuration file.
+
+Create a Consul service file at /etc/systemd/system/consul.service.
+
+	sudo touch /etc/systemd/system/consul.service
+
+Add this configuration to the Consul service file:
+
+[Unit]
+Description="HashiCorp Consul - A service mesh solution"
+Documentation=https://www.consul.io/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/consul.d/consul.hcl
+
+[Service]
+User=consul
+Group=consul
+ExecStart=/usr/local/bin/consul agent -config-dir=/etc/consul.d/
+ExecReload=/usr/local/bin/consul reload
+KillMode=process
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
+
+Configure consul (server)
+--------------------------------------------------------------------------------
+
+Consul uses documented sane defaults so only non-default values must be set in the configuration file. 
+https://www.consul.io/docs/agent/options.html
+
+Configuration can be read from multiple files and is loaded in lexical order. See the full description for more information about configuration loading and merge semantics.
+
+Consul server agents typically require a superset of configuration required by Consul client agents. 
+We will specify common configuration used by all Consul agents in consul.hcl and server specific configuration in server.hcl.
+
+
+/etc/consul.d/consul.hcl
+------------------------
+common configuration used by all Consul agents
+
+	sudo mkdir --parents /etc/consul.d
+	sudo touch /etc/consul.d/consul.hcl
+	sudo chown --recursive consul:consul /etc/consul.d
+	sudo chmod 640 /etc/consul.d/consul.hcl
+
+add as content to `consul.hcl`:
+
+datacenter = "dc1"
+data_dir = "/opt/consul"
+encrypt = "Luj2FZWwlt8475wD1WtwUQ=="
+
+
+**  Replace the encrypt parameter value with the output from running consul keygen on any host with the consul binary installed.
+
+	$ consul keygen
+
+
+
+Cluster auto-join
+------------------
+
+	retry_join - Address of another agent to join upon starting up.
+
+The retry_join parameter allows you to configure all Consul agents to automatically form a cluster using a common Consul server accessed via DNS address, IP address or using Cloud Auto-join. This removes the need to manually join the Consul cluster nodes together.
+
+Add the retry_join parameter to the consul.hcl configuration file:
+
+retry_join = ["172.16.0.11"]
+
+
+/etc/consul.d/server.hcl
+---------------------------
+
+	$ sudo mkdir --parents /etc/consul.d
+	$ sudo touch /etc/consul.d/server.hcl
+	$ sudo chown --recursive consul:consul /etc/consul.d
+	$ sudo chmod 640 /etc/consul.d/server.hcl
+
+Add this configuration to the server.hcl configuration file:
+** Replace the bootstrap_expect value with the number of Consul servers you will use; 
+three or five is recommended.
+
+server = true
+bootstrap_expect = 3
+
+	server 
+		- This flag is used to control if an agent is in server or client mode
+	
+	bootstrap-expect 
+		- This flag provides the number of expected servers in the datacenter. 
+		Either this value should not be provided or the value must agree with 
+		other servers in the cluster.
+
+Consul UI
+-----------
+** You should consider running the Consul UI on select Consul hosts rather than all hosts.
+Optionally, add the UI configuration to the server.hcl configuration file to enable the Consul UI:
+
+ui = true
+
+
+Configure consul (client)
+--------------------------------------------------------------------------------
+
+
+
+
+Start Consul
+--------------------------------------------------------------------------------
+
+sudo systemctl enable consul
+sudo systemctl start consul
+sudo systemctl status consul
+
+
 ================================================================================
+
+	Consul test environment
+	***********************
+
+# cat /etc/consul.d/consul.hcl 
+datacenter = "dc1"
+data_dir = "/opt/consul"
+encrypt = "bta/qY9al8VtUnwkXt41tQ=="
+
+
+# cat /etc/consul.d/server.hcl
+server = true
+bootstrap_expect = 1
+ui = true
+
+
+================================================================================
+
+
+
+
+
+
+
+================================================================================
+===================== DOCKER VAULT CONSUL DEMO =================================
+================================================================================
+
+Start container
+----------------
+
+	$ docker-compose up -d --build [<service-name>]
+
+Initialize vault
+-----------------
+
+	$ docker-compose --no-ansi exec -e VAULT_CLI_NO_COLOR=1 \
+		-e VAULT_CACERT=/vault/config/ssl/vault.crt.pem \
+		vault \
+		vault operator init -key-shares=1 -key-threshold=1 > vault_data.txt
+
+Unseal Vault
+-------------
+
+	$ docker-compose exec \
+		-e VAULT_CACERT=/vault/config/ssl/vault.crt.pem \
+		vault \
+		vault operator unseal <unseal-key>
+
+Check the root token to see Vault is working
+---------------------
+
+	$ docker-compose exec \
+		-e VAULT_CACERT=/vault/config/ssl/vault.crt.pem \
+		-e VAULT_TOKEN=<root token>
+		vault \
+		vault token lookup
+
+
 
 	docker - vault - consul 
 	***********************
@@ -785,265 +1219,5 @@ StartLimitBurst=3
 WantedBy=multi-user.target
 
 
-================================================================================
-================================================================================
-================================================================================
-================================================================================
 
-	*************
-		Consul
-	*************
-
-
-Consul Commands
---------------------------------------------------------------------------------
-
-Start consul agent:
-
-	$ consul agent -dev [-node <nodename>]
-	$ consul agent -server -bind 0.0.0.0 -client 0.0.0.0 -bootstrap-expect 1 -config-file=/consul/config/config.json
-
-Show members
-
-	$ consul members
-
-using HTTP API
-
-	$ curl localhost:8500/v1/catalog/nodes
-
-	[
-	    {
-	        "Address": "172.21.0.2",
-	        "CreateIndex": 472,
-	        "Datacenter": "localhost",
-	        "ID": "6dd406bf-03d3-d12e-c14b-eedd01ac88b6",
-	        "Meta": {
-	            "consul-network-segment": ""
-	        },
-	        "ModifyIndex": 472,
-	        "Node": "b6f742be6509",
-	        "TaggedAddresses": {
-	            "lan": "172.21.0.2",
-	            "wan": "172.21.0.2"
-	        }
-	    }
-	]
-
-using DNS interface querying the Consul agent's DNS server on port 8600 (default).
-
-	$ dig @127.0.0.1 -p 8600 machine.node.consul
-
-
-
-Consul Architecture
---------------------------------------------------------------------------------
-
-Consul server agents 
-	responsible for maintaining the cluster state
-	respond to RPC queries (read ops)
-	process all write ops
-
-Consul cluster 
-	typically 3-5 servers plus client agents
-	may be deployed in a single physical datacenter or span multiple DCs
-
-	Single datacenter
-		recommended for apps deployed in the same datacenter
-
-Consule agent
-	core process of Consul
-		- maintains membership info
-		- registers services
-		- runs checks
-		- responds to queries 
-	agent must run on every node that is part of Consul cluster
-	agent may run in one of two modes:
-		1. client, or
-		2. server
-
-
-Consul server agents
-	require a superset of config required by client agents
-	server agent takes on the additional responsibility of being part of the consensus quorum.
-
-
-Consul client agents
-	client nodes make up the majority of the cluster, are very lightweight
-	interface with server nodes for most operations, maintain little state of their own
-	require a subset of config required by Consul server agents.
-	all Consul clients can use the `consul.hcl` confi file created when
-	configuring Consul servers.
-
-
-
-Installing
---------------------------------------------------------------------------------
-https://www.consul.io/docs/guides/deployment-guide.html
-
-Precompiled Consul binaries are available for download at https://releases.hashicorp.com/consul/ and Consul Enterprise binaries are available for download by following the instructions made available to HashiCorp Consul customers.
-
-
-CONSUL_VERSION="1.2.0"
-curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip
-curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS
-curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS.sig
-
-
-Unzip the downloaded package and move the consul binary to /usr/local/bin/. Check consul is available on the system path.
-
-	unzip consul_${CONSUL_VERSION}_linux_amd64.zip
-	sudo chown root:root consul
-	sudo mv consul /usr/local/bin/
-	consul --version
-
-The consul command features opt-in autocompletion for flags, subcommands, and arguments (where supported). Enable autocompletion.
-
-	consul -autocomplete-install
-	complete -C /usr/local/bin/consul consul
-
-Create a unique, non-privileged system user to run Consul and create its data directory.
-
-	sudo useradd --system --home /etc/consul.d --shell /bin/false consul
-	sudo mkdir --parents /opt/consul
-	sudo chown --recursive consul:consul /opt/consul
-
-Configure systemd
---------------------------------------------------------------------------------A
-Systemd uses documented sane defaults so only non-default values must be set in the configuration file.
-
-Create a Consul service file at /etc/systemd/system/consul.service.
-
-	sudo touch /etc/systemd/system/consul.service
-
-Add this configuration to the Consul service file:
-
-[Unit]
-Description="HashiCorp Consul - A service mesh solution"
-Documentation=https://www.consul.io/
-Requires=network-online.target
-After=network-online.target
-ConditionFileNotEmpty=/etc/consul.d/consul.hcl
-
-[Service]
-User=consul
-Group=consul
-ExecStart=/usr/local/bin/consul agent -config-dir=/etc/consul.d/
-ExecReload=/usr/local/bin/consul reload
-KillMode=process
-Restart=on-failure
-LimitNOFILE=65536
-
-[Install]
-WantedBy=multi-user.target
-
-
-Configure consul (server)
---------------------------------------------------------------------------------
-
-Consul uses documented sane defaults so only non-default values must be set in the configuration file. 
-https://www.consul.io/docs/agent/options.html
-
-Configuration can be read from multiple files and is loaded in lexical order. See the full description for more information about configuration loading and merge semantics.
-
-Consul server agents typically require a superset of configuration required by Consul client agents. 
-We will specify common configuration used by all Consul agents in consul.hcl and server specific configuration in server.hcl.
-
-
-/etc/consul.d/consul.hcl
-------------------------
-common configuration used by all Consul agents
-
-	sudo mkdir --parents /etc/consul.d
-	sudo touch /etc/consul.d/consul.hcl
-	sudo chown --recursive consul:consul /etc/consul.d
-	sudo chmod 640 /etc/consul.d/consul.hcl
-
-add as content to `consul.hcl`:
-
-datacenter = "dc1"
-data_dir = "/opt/consul"
-encrypt = "Luj2FZWwlt8475wD1WtwUQ=="
-
-
-**  Replace the encrypt parameter value with the output from running consul keygen on any host with the consul binary installed.
-
-	$ consul keygen
-
-
-
-Cluster auto-join
-------------------
-
-	retry_join - Address of another agent to join upon starting up.
-
-The retry_join parameter allows you to configure all Consul agents to automatically form a cluster using a common Consul server accessed via DNS address, IP address or using Cloud Auto-join. This removes the need to manually join the Consul cluster nodes together.
-
-Add the retry_join parameter to the consul.hcl configuration file:
-
-retry_join = ["172.16.0.11"]
-
-
-/etc/consul.d/server.hcl
----------------------------
-
-	$ sudo mkdir --parents /etc/consul.d
-	$ sudo touch /etc/consul.d/server.hcl
-	$ sudo chown --recursive consul:consul /etc/consul.d
-	$ sudo chmod 640 /etc/consul.d/server.hcl
-
-Add this configuration to the server.hcl configuration file:
-** Replace the bootstrap_expect value with the number of Consul servers you will use; 
-three or five is recommended.
-
-server = true
-bootstrap_expect = 3
-
-	server 
-		- This flag is used to control if an agent is in server or client mode
-	
-	bootstrap-expect 
-		- This flag provides the number of expected servers in the datacenter. 
-		Either this value should not be provided or the value must agree with 
-		other servers in the cluster.
-
-Consul UI
------------
-** You should consider running the Consul UI on select Consul hosts rather than all hosts.
-Optionally, add the UI configuration to the server.hcl configuration file to enable the Consul UI:
-
-ui = true
-
-
-Configure consul (client)
---------------------------------------------------------------------------------
-
-
-
-
-Start Consul
---------------------------------------------------------------------------------
-
-sudo systemctl enable consul
-sudo systemctl start consul
-sudo systemctl status consul
-
-
-================================================================================
-
-	Consul test environment
-	***********************
-
-# cat /etc/consul.d/consul.hcl 
-datacenter = "dc1"
-data_dir = "/opt/consul"
-encrypt = "bta/qY9al8VtUnwkXt41tQ=="
-
-
-# cat /etc/consul.d/server.hcl
-server = true
-bootstrap_expect = 1
-ui = true
-
-
-================================================================================
 

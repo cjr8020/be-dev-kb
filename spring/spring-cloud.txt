@@ -178,6 +178,324 @@ Note for OS X:
 		$ consul agent -dev -node machine
 
 
+
+================================================================================
+=========================== spring-cloud-vault =================================
+================================================================================
+
+provides client-side support for externalized configuration
+
+vault can 
+ - manage static and dynamic secrets (like username/password) for remote 
+   applications and resources
+ - provide credentials for external services like databases, Consul, AWS, etc.
+
+Spring Cloud Vault accesses different resources.
+By default, the `secret` backend is enabled which accesses secret configs via
+endpoints in the form:
+
+/secret/{application}/{profile}
+/secret/{application}
+/secret/{defaultContext}/{profile}
+/secret/{defaultContext}
+
+where 
+  `application` is injected from `spring.application.name`
+
+	spring.application.name: some-app
+
+  `profile` is an active profile (or comma-separated list of properties)
+
+	spring.profiles.active: foo,dev
+
+
+Discovery
+=========
+
+you can use a `DiscoveryClient` (like Spring Cloud Consul) to locate a Vault
+server by setting
+
+	spring.cloud.vault.discovery.enabled=true # default is false
+
+so all you'd need is a `bootstrap.yml` with the appropriate discovery configuration.
+default `serviceId` is "vault", but you can change that on the client with
+
+	spring.cloud.vault.discovery.serviceId=
+
+spring.cloud.vault:
+  authentication: APPROLE
+  app-role:
+    role-id: some-id
+  scheme: https
+
+  discovery:
+    enabled: true
+    service-id: my-vault-service
+
+Authentication methods
+======================
+
+Spring Cloud Vault supports:
+
+	token
+	AppId (deprecated as of Vault 0.6.1 in favor of AppRole)
+	AppRole
+
+
+
+token authentication
+--------------------
+Default method.
+Token auth requires a static token to be provided using the Bootstrap Application Context.
+
+spring.cloud.vault:
+  authentication: TOKEN
+  token: 00000000-0000-0000-0000-000000000000
+
+AppRole authentication 
+-----------------------
+AppRole is intended for machine authentication.
+AppRole authentication consists of two hard to guess (secret) tokens: 
+ - RoleId and 
+ - SecretId
+
+spring.cloud.vault:
+  authentication: APPROLE
+  app-role:
+    role-id: bde2076b-cccb-3cf0-d57e-bca7b1e83a52
+
+
+generic.enabled: true|false
+---------------------------
+
+enables|disables non-versioned key-value backends.
+	$ vault secrets enable -version=1 kv
+
+
+Config Backends
+***********************************************
+
+Consul
+======
+
+Spring Cloud Vault can obtain credentials for Consul.
+The Consul integration requires 
+
+	spring-cloud-vault-config-consul
+
+The integration can be enabled by setting
+
+	spring.cloud.vault.consul.enabled=true  # default is "false"
+	spring.cloud.vault.consul.role=<role-id>
+
+spring.cloud.vault:
+  authentication: APPROLE
+  app-role.role-id: ${role-id}
+  generic.enabled: false
+  kv:
+    enabled: true
+  scheme: https
+  consul:
+    enabled: true
+    role: ${spring.cloud.vault.application-name:${spring.application.name}}
+
+enabled
+	`true` enables the Consul backend config usage
+role
+	sets the role name of the Consul role definition
+backend
+	sets the path of the Consul mount to use
+token-property
+	sets the property name in which the Consul ACL token is stored
+
+
+================================================================================
+========================== spring-cloud-consul =================================
+================================================================================
+
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.1.3.RELEASE</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+
+	<properties>
+		<java.version>1.8</java.version>
+		<spring-cloud.version>Greenwich.SR1</spring-cloud.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-consul-config</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-consul-discovery</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+
+bootstrap.yml
+--------------
+
+spring:
+  application:
+    name: my-app
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        enabled: true
+        instance-id: ${spring.application.name}:${random.value}	
+
+
+application.yml
+---------------
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+
+DiscoveryClientAPI
+------------------
+
+enabled with @EnableDiscoveryClient:
+
+@SpringBootApplication
+@EnableDiscoveryClient
+public class DiscoveryClientApplication {
+    // ...
+}
+
+
+Distributed Configuration with Consul
+*************************************
+
+Consul provides a key/value store for storing configuration and other metadata.
+Configuration is loaded into the Spring Environment during the special bootstrap
+phase.   Configuration is stored in the `/config` folder (on Consul) by default.
+E.g., an application with name "my-app" and with the "dev" profile will have 
+the following property sources:
+
+	config/my-app,dev/
+	config/my-app/
+	config/application,dev/
+	config/application/
+
+The most specific property source is at the top.
+Properties in the `config/application` folder are applicable to all applications
+using consul for configuration.
+Properties in the `config/my-app` are only available to the instances of the 
+service named "my-app".
+
+To activate
+
+	spring-cloud-starter-consul-config
+
+spring.cloud.consul.config.enabled: true  # <- default
+spring.cloud.consul.config.enabled: false # disables Consul Config
+
+
+demo:
+-----
+
+bootstrap.yml
+-------------
+
+spring:
+  profiles:
+    active: prod
+  application:
+    name: <your-app>
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        enabled: true  
+        instance-id: ${spring.application.name}:${random.value}
+      config:
+        enabled: true <-- seems to be the default
+
+/**
+ * assumes you have the following KVs defined in Consul
+ * config/<your-app>,dev/my/prop=Hello DEV
+ * config/<your-app>,prod/my/prop=Hello PROD
+ */
+@RestController
+public class DistributedPropertiesController {
+
+  @Value("${my.prop}")
+  String value;
+
+  @Autowired
+  private MyProperties properties;
+
+  @GetMapping("/getConfigFromValue")
+  public String getConfigFromValue() {
+    return value;
+  }
+
+  @GetMapping("/getConfigFromProperty")
+  public String getConfigFromProperty() {
+    return properties.getProp();
+  }
+
+}
+
+properties class
+-----------------
+
+@RefreshScope
+@Configuration
+@ConfigurationProperties("my")
+public class MyProperties {
+
+  private String prop;
+
+  public String getProp() {
+    return prop;
+  }
+
+  public void setProp(String prop) {
+    this.prop = prop;
+  }
+
+}
+
+
 ================================================================================
 ================================================================================
 ================================================================================

@@ -1,0 +1,528 @@
+
+	@@@@@@@@@@
+
+		Docker
+
+	@@@@@@@@@@
+
+
+================================================================================
+
+	CLI cheetsheets
+
+https://devhints.io/docker
+https://github.com/wsargent/docker-cheat-sheet
+
+
+================================================================================
+
+	Commands
+	********
+
+general syntax
+---------------
+
+	docker command
+	docker command arg
+	docker [options] command arg
+	docker help | more
+
+
+get system-wide info
+--------------------
+
+	$ docker info
+
+search for docker images
+------------------------
+
+	$ docker search nginx
+
+
+get size of docker images
+--------------------------
+
+	$ docker images [repository[:tag]] # will display size
+
+e.g.
+
+	$ docker images java:8
+
+
+================================================================================
+
+		cleanup
+		*******
+
+clean up the data of a particular docker-compose stack, run
+This will take care of taking down the volumes, images and dangling stuff.
+
+	$ docker-compose down -v --rmi all --remove-orphans
+
+
+	$ docker rm -v $(docker ps -aq -f 'status=exited')
+	$ docker rmi $(docker images -aq -f 'dangling=true')
+
+	# ATTENTION: this will also remove volumes of docker-compose if the containers are barely stopped
+	$ docker volume rm $(docker volume ls -q -f 'dangling=true')
+
+
+$ docker system prune
+
+	This will remove all unused containers, volumes, networks and images (both dangling and unreferenced).
+
+	you can limit the pruning down to a single part, like the images, by issuing something like:
+
+$ docker image prune
+$ docker container prune
+$ docker network prune
+$ docker volume prune
+
+
+list containers
+---------------
+
+-a, --all 
+-q, --quiet
+
+	$ docker ps -a
+	$ docker container ls -a  [-a includes non-running containers]
+
+	$ docker ps [-a] [-q] 
+	$ docker images [-a] [-q]
+
+list all with "exited" status:
+
+	$ docker ps -a -q -f status=exited
+
+remove container
+----------------
+
+	$ docker rm [ container_id | container_name | first_three_of_id ]
+
+	remove all exited:
+
+	$ docker rm $(docker ps -a -q -f status=exited)
+
+remove image
+-------------
+
+	$ docker rmi <image-name>
+e.g.
+	$ docker rmi hello-world
+
+
+Inspecting images without pulling them
+------------------
+
+	https://ops.tips/blog/inspecting-docker-image-without-pull/
+
+
+install docker nginx image
+--------------------------
+
+	$ docker pull nginx
+
+
+run docker image
+----------------
+
+	$ docker run [--name my-name] <image-name> # run "image-name" and give it a name
+
+	$ docker run --name my-nginx-c1 --detach nginx
+
+remove when stopped
+--------------------
+
+	$ docker run -rm <image-name>  # removes container when stopped
+
+
+publishing ports
+----------------
+
+	--publish <here>:<there>
+	--publish <host-port>:<container-port>
+
+	--publish 80:8080
+
+
+
+list running docker containers
+------------------------------
+
+	$ docker ps
+	$ docker ps -a    # includes exited
+
+
+run a command in a running container
+------------------------------------
+
+  e.g. run `ls -l /etc/nginx` for `my-nginx-c1`	container:
+
+  	$ docker exec <container-id>  ls -l /etc/nginx
+  or
+  	$ docker exec <container-name> ls -l /etc/nginx
+
+
+ get bash shell for a running container and make changes to the iimage?
+ ----------------------------------------------------------------------
+
+ 	$ docker exec -i -t <container-id> bash
+or
+	$ docker exec -i -t <container-name> bash
+
+	-i 		interactive
+	-t 		terminal
+
+
+stop running container
+----------------------
+
+	$ docker stop <container-name>
+or
+	$ docker stop <container-id>
+
+================================================================================
+
+		docker-compose
+		**************
+
+
+docker-compose up
+	
+	Builds, (re)creates, starts, and attaches to containers for a service.
+
+	    -d, --detach               Detached mode: Run containers in the background,
+                               print new container names. 
+
+			--build                    Build images before starting containers
+
+
+	$ docker-compose up -d --build
+
+
+
+stop multi-container application
+---------------------------------
+
+docker-compose down
+
+	Stop and remove containers, networks, images, and volumes
+
+
+cleanup multi-container app
+---------------------------
+
+$ docker-compose down -v --rmi all --remove-orphans
+
+
+docker vs docker-compose
+-------------------------
+
+docker CLI
+	manages individual containers on a docker engine
+
+docker-compose CLI
+	manages a multi-container application 
+
+Usage of docker-compose requires 3 steps:
+
+	1. Define the app environment with a Dockerfile
+	2. Define the app services in docker-compose.yml
+	3. Run docker-compose up to start and run app
+
+
+
+
+down vs stop
+----------------------
+
+docker-compose stop
+
+	will stop your container, but will not remove it
+
+docker-compose down 
+
+	stops containers, removes them, as well as any networks created
+
+	-v will also remove volumes
+
+
+create new image from a container
+---------------------------------
+
+	$ docker commit <container> <image>
+
+	https://stackoverflow.com/questions/44027873/how-to-create-a-new-docker-image-from-a-running-container-on-amazon
+
+	https://blog.codeship.com/using-docker-commit-to-create-and-change-an-image/
+
+================================================================================
+
+	Docker concepts
+	***************
+
+client-server architecture
+
+docker client talks to docker daemon who does the heavy lifting of building,
+running and distributing your Docker containers.
+
+docker client and daemon can run on the same machine, or
+you can connect a docker client to a remote docker daemon.
+docker client and daemon communicate using a REST API, over UNIX sockets, or
+a network interface.
+
+dockerd - Docker daemon
+	listens for Docker API requests
+	manages Docker objects (images, containers, networks, volumes)
+	communicates with other daemons to manage Docker services
+
+docker - Docker client
+	primary way users interact with Docker
+	can communicate with different daemons
+
+docker registries
+	store docker images
+	Docker Hub is a registry that anyone can use
+	Docker is configured to look for images on Docker Hub by default
+	you can run your provite registry - Docker Trusted Registry (DTR) which
+	is included with Docker Datacenter (DDC)
+
+
+
+
+================================================================================
+
+	Docker Hub
+	**********
+
+Docker Hub is a service provided by Docker for finding and sharing container images with your team. It provides the following major features:
+
+Repositories: Push and pull container images.
+Teams & Organizations: Manage access to private repositories of container images.
+Official Images: Pull and use high-quality container images provided by Docker.
+Publisher Images: Pull and use high-quality container images provided by external vendors. Certified images also include support and guarantee compatibility with Docker Enterprise.
+Builds: Automatically build container images from GitHub and Bitbucket and push them to Docker Hub
+Webhooks: Trigger actions after a successful push to a repository to integrate Docker Hub with other services.
+
+Quick Start
+
+	https://docs.docker.com/docker-hub/
+
+================================================================================
+
+	Docker Registry
+	***************
+
+The Registry is a stateless, highly scalable server side application that stores and lets you distribute Docker images. The Registry is open-source, under the permissive Apache license.
+
+The Registry is compatible with Docker engine version 1.6.0 or higher.
+
+Installation
+------------
+
+https://docs.docker.com/registry/deploying/
+
+
+
+Commands
+---------
+
+Start your registry
+
+	$ docker run -d -p 5000:5000 --name registry registry:2
+
+Pull (or build) some image from the hub
+
+	$ docker pull ubuntu
+
+Tag the image so that it points to your registry
+
+	$ docker image tag ubuntu localhost:5000/myfirstimage
+
+Push it
+
+	$ docker push localhost:5000/myfirstimage
+
+Pull it back
+
+	$ docker pull localhost:5000/myfirstimage
+
+Now stop your registry and remove all data
+
+	$ docker container stop registry && docker container rm -v registry
+
+
+================================================================================
+
+	Docker Trusted Registry
+	***********************
+
+Docker Trusted Registry (DTR) is the enterprise-grade image storage solution from Docker. You install it behind your firewall so that you can securely store and manage the Docker images you use in your applications.
+
+DTR is offered as an add-on to Docker Enterprise subscriptions of Standard or higher.
+
+================================================================================
+
+	Docker Installation/Setup Topics
+	********************************
+
+
+	Manage Docker as a non-root user
+	********************************
+
+The Docker daemon binds to a Unix socket instead of a TCP port. By default that Unix socket is owned by the user root and other users can only access it using sudo. The Docker daemon always runs as the root user.
+
+If you don’t want to preface the docker command with sudo, create a Unix group called docker and add users to it. When the Docker daemon starts, it creates a Unix socket accessible by members of the docker group.
+
+1. Craete the `docker` group if one doesn't already exist
+
+	$ sudo groupadd docker
+
+2. add your user to `docker` group
+
+	$ sudo usermod -aG docker $USER
+
+3. log out and log back in to have your groups  re-eval'ed
+4. verify 
+
+	$ docker info
+	$ docker run hello-world
+
+If you initially ran Docker CLI commands using sudo before adding your user to the docker group, you may see the following error, which indicates that your ~/.docker/ directory was created with incorrect permissions due to the sudo commands.
+
+WARNING: Error loading config file: /home/user/.docker/config.json -
+stat /home/user/.docker/config.json: permission denied
+To fix this problem, either remove the ~/.docker/ directory (it is recreated automatically, but any custom settings are lost), or change its ownership and permissions using the following commands:
+
+$ sudo chown "$USER":"$USER" /home/"$USER"/.docker -R
+$ sudo chmod g+rwx "$HOME/.docker" -R
+
+
+================================================================================
+
+	Install Docker CE on Mac
+	************************
+
+https://docs.docker.com/docker-for-mac/install/
+download Docker.dmg from 
+https://download.docker.com/mac/stable/Docker.dmg
+
+install (drag to applications)
+run (asks for priveledged acces)
+verify:
+
+	$ docker --version
+	$ docker run hello-world
+
+
+
+
+
+================================================================================
+
+
+	Installing Docker CE on RHEL 7/CentOS 7
+	***************************************
+
+Type the following command to install the latest version of Docker CE (community edition):
+
+you may want to check first if you have anything installed:
+
+	$ sudo yum list installed docker-ce
+	or
+	$ sudo yum list installed | grep -i docker
+
+if you have old docker instaled, you may want to remove first
+
+	$ sudo yum remove docker docker-common docker-selinux docker-engine
+
+add docker-ce repo
+
+	$ sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+docker-ce on RHEL 7 will need 
+
+	Requires: container-selinux >= 2.9
+
+install container-selenix first:
+
+	1. Go to http://mirror.centos.org/centos/7/extras/x86_64/Packages/ 
+	2. Find the latest version for container-selinux i.e. container-selinux-2.21-1.el7.noarch.rpm 
+	3. Run the following command on your terminal: 
+
+		$ sudo yum install -y http://mirror.centos.org/centos/7/extras/x86_64/Packages/**Add_current_container-selinux_package_here** 
+
+	4. The command should looks like the following 
+
+		$ sudo yum install -y http://mirror.centos.org/centos/7/extras/x86_64/Packages/container-selinux-2.21-1.el7.noarch.rpm 
+
+	if your machine doesn't have internet access, download the rpm by other means 
+	and upload to the box then
+
+		$ sudo yum install -y /home/user/container-selinux-2.74-1.el7.noarch.rpm
+
+finally:
+
+	$ sudo yum install docker-ce
+
+confirm:
+
+	$ sudo yum list installed | grep docker
+	containerd.io.x86_64                 1.2.2-3.3.el7           @docker-ce-stable  
+	docker-ce.x86_64                     3:18.09.2-3.el7         @docker-ce-stable  
+	docker-ce-cli.x86_64                 1:18.09.2-3.el7         @docker-ce-stable
+
+
+
+enable docker service
+
+	$ sudo systemctl enable docker.service
+	
+	Created symlink from /etc/systemd/system/multi-user.target.wants/docker.service to /usr/lib/systemd/system/docker.service.
+
+
+How to start/stop/restart docker service on CentOS7/RHEL7
+*********************************************************
+
+$ sudo systemctl start docker.service ## <-- Start docker ##
+$ sudo systemctl stop docker.service ## <-- Stop docker ##
+$ sudo systemctl restart docker.service ## <-- Restart docker ##
+$ sudo systemctl status docker.service ## <-- Get status of docker ##	
+
+================================================================================
+
+	run docker nginx image
+	**********************
+
+Say, you wanted to host a simple static file hosted in `/home/user/html` using
+nginx container
+
+	$ docker run \
+		--name my-nginx-c2 \
+		-p 80:80 \
+		-v /home/user/html/:/usr/share/nginx/html:ro \
+		--detach \
+		nginx  
+
+
+	--name my-nginx-c1 : Assign a name to the container
+	--detach (-d) : Run container in background and print container ID
+
+	if you wanted to bind mount a volume
+
+	-v /home/vivek/html/:/usr/share/nginx/html:ro : Bind mount a volume
+
+	-p 80:80  : publish container's port(s) to the host - i.e. redirect traffic
+	   coming to port: 80 to container traffic
+
+Create a file `index.html` in `/home/user/html/`
+
+	$ echo 'Welcome. I am Nginx server locked inside Docker' > /home/user/html/index.html
+
+Test it:
+
+	$ curl http://your-host-ip-addr
+
+
+================================================================================
