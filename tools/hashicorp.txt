@@ -120,9 +120,12 @@ or
 
 launch  Vault Browser CLI:
 
-> read -field=id auth/token/lookup-self
+> vault read -field=id auth/token/lookup-self
+5UHsdE0VwGmdelEDWyfMNyq0
 
-
+> vault read -token=5UHsdE0VwGmdelEDWyfMNyq0 consul/creds/my-group
+Key   Value                               
+token db09550a-419b-ad7b-3f20-6b1eb1c4e5e0
 
 
 ================================================================================
