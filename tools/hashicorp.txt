@@ -198,6 +198,119 @@ Verify that you cannot write (only read) from `secret/foo`
 	$ vault kv put seret/foo robot=beepboop
 	* 403
 
+================================================================================
+
+	Auth Methods
+	************
+
+AppRole
+=======
+
+	the `approle` auth method allows machines or apps to auth with Vault-defined roles.
+
+	the open design of `approle` enables a varied set of workflows and configurations
+	to handle large numbers of apps.  this method is oriented to automated 
+	workflows (machines and services).
+
+	An "AppRole" represents a set of Vault policies and login constraints that must 
+	be met to receive a token with those policies.
+
+	The scope can be as narrow or as broad as desired.
+
+	An AppRole can be created for a particular machine, or even a particular user
+	on that machine, or a service spread across machines.
+
+	The credentials required for successful login depend upon the constraints set on
+	the AppRole associated with the credentials.
+
+
+	Default path:
+
+		/approle
+
+
+	To enable AppRole
+	------------------
+
+		$ vault auth enable approle
+
+	To configure AppRole
+	---------------------
+
+	Create a named role:
+
+		$ vault write auth/approle/role/my-role \
+			secret_id_ttol=10m \
+			token_num_uses=10 \
+			token_ttl=20m \
+			token_max_ttl=30m \
+			secret_id_num_uses=40
+
+	Fetch the RoleID of the AppRole
+
+		$ vault read auth/approle/role/my-role/role-id
+		role_id		<role-id>
+
+	Create a SecredID issued against the AppRole
+
+		$ vault write -f auth/approle/role/my-role/secret-id
+		secret_id   					<secret-id>
+		secret_id_accessor   	<secret-id-accessor>
+
+
+Using AppRole
+
+
+
+	$ vault write auth/approle/login \
+		role_id=<role-id> \
+		secret_id=<secret-id>
+
+
+Example:
+----------------------------------
+
+	$ vault auth enable approle
+	Success! Enabled approle auth method at: approle/
+
+Now, you should see `approle/` under "Access" via Vault web UI.
+
+Next, create a role for application `sb-cloud-vault-demo`:
+
+	$ vault write auth/approle/role/sb-cloud-vault-demo policies=hello-application
+	Success! Data written to: auth/approle/role/sb-cloud-vault-demo
+
+Next, get the role-id from vault for the above application:
+
+	$ vault read -field=role_id auth/approle/role/sb-cloud-vault-demo/role-id
+	8b1f347b-f274-6f47-ef6a-16b249d38f50
+
+and add it to `bootstrap.yml`:
+
+  spring.cloud.vault.app-role.role-id: 8b1f347b-f274-6f47-ef6a-16b249d38f50
+
+Next, create a secret-id for this application:
+
+	$ vault write -f auth/approle/role/sb-cloud-vault-demo/secret-id
+	Key                   Value
+	---                   -----
+	secret_id             ef7b32d0-8be4-a2ee-df28-44e27360ee3d
+	secret_id_accessor    f3bbf57a-e6e4-4044-e6b4-87f3ea157548
+ 
+
+Typically, you would use an automated process that would obtain the secret-id
+and then configure it into the automation that actually starts the application.
+
+But for a demo, you can put into bootstrap.yml .. 
+
+  app-role:
+    role-id: 8b1f347b-f274-6f47-ef6a-16b249d38f50
+    secret-id: ef7b32d0-8be4-a2ee-df28-44e27360ee3d
+
+
+
+
+================================================================================
 	
 --------------------------------------------------------------------------------
 
