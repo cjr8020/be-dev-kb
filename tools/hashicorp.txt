@@ -270,6 +270,11 @@ Using AppRole
 Example:
 ----------------------------------
 
+based on 
+	https://www.youtube.com/watch?v=0cvnY7kM0Mk
+	https://github.com/jandd/spring-boot-vault-demo
+
+
 	$ vault auth enable approle
 	Success! Enabled approle auth method at: approle/
 
@@ -306,6 +311,14 @@ But for a demo, you can put into bootstrap.yml ..
   app-role:
     role-id: 8b1f347b-f274-6f47-ef6a-16b249d38f50
     secret-id: ef7b32d0-8be4-a2ee-df28-44e27360ee3d
+
+
+
+
+================================================================================
+
+	Vault Secrets Engines
+	*********************
 
 
 
