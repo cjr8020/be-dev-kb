@@ -320,6 +320,47 @@ But for a demo, you can put into bootstrap.yml ..
 	Vault Secrets Engines
 	*********************
 
+secrets engines are components which store, generate or encrypt data.
+they 
+ - are provided some set of data
+ - take some action on that data
+ - return a result
+
+some simply store and read data
+some connect to other services and generate dynamic creds on demand
+some provide encryption as a service, totp, and certs
+
+Secrets Engines Lifecycle
+
+	enable - enables a secrets engine at a given path (e.g. "aws/")
+	disable - engine disabled and all of its secrets revoked, data deleted
+	move - moves the path of an existing engine
+	tune - tunes global configuration for the engine (e.g. TTLs)
+
+
+Consul Secrtes Engine
+---------------------
+
+	generates Consul API tokens based on Consul ACL policies
+
+Setup
+
+	1. enable the Consul secrets engine
+
+		$ vault secrets enable consul
+
+	2. aquire management token 
+
+		consul v < 1.4
+
+		$ curl \
+			--header "X-Consul-Token: <my-management-token" \
+			--request PUT \
+			--data '{"Name": "sample", "Type": "management"}' \
+			https://consul.server/v1/acl/create
+
+
+
 
 
 
@@ -1347,3 +1388,99 @@ WantedBy=multi-user.target
 
 
 
+================================================================================
+========================= consul / vault DEV on RHEL7 ==========================
+================================================================================
+
+# cat /etc/systemd/system/consul.service 
+-----------------------------------------
+[Unit]
+Description="HashiCorp Consul - A service mesh solution"
+Documentation=https://www.consul.io/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/consul.d/consul.json
+
+[Service]
+User=consul
+Group=consul
+ExecStart=/usr/local/bin/consul agent -config-dir=/etc/consul.d/
+ExecReload=/usr/local/bin/consul reload
+KillMode=process
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
+cat /etc/consul.d/consul.json 
+-----------------------------
+{
+  "datacenter": "dc0",
+  "data_dir": "/opt/consul",
+  "server": true,
+  "log_level": "DEBUG",
+  "bootstrap_expect": 1,
+  "ui": true,
+  "bind_addr": "127.0.0.1",
+  "client_addr": "0.0.0.0"
+}
+
+
+
+# cat /etc/systemd/system/vault.service 
+---------------------------------------
+[Unit]
+Description="HashiCorp Vault - A tool for managing secrets"
+Documentation=https://www.vaultproject.io/docs/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/vault.d/vault.json
+
+[Service]
+User=vault
+Group=vault
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+SecureBits=keep-caps
+AmbientCapabilities=CAP_IPC_LOCK
+Capabilities=CAP_IPC_LOCK+ep
+CapabilityBoundingSet=CAP_SYSLOG CAP_IPC_LOCK
+NoNewPrivileges=yes
+ExecStart=/usr/local/bin/vault server -config=/etc/vault.d/vault.json
+ExecReload=/bin/kill --signal HUP $MAINPID
+KillMode=process
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target
+
+# cat /etc/vault.d/vault.json 
+-----------------------------
+{
+  "ui": true,
+  "max_lease_ttl": "2160h",
+  "default_lease_ttl": "2160h",
+  "backend": {
+     "consul": {
+        "address": "localhost:8500",
+        "path": "vault/"
+      }
+  },
+  "listener": {
+     "tcp": {
+       "address": "0.0.0.0:8200",
+       "tls_disable": 1
+      }
+  }
+}
+
+
+================================================================================
