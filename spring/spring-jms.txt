@@ -1,0 +1,218 @@
+	@@@@@@@@@@@@@@@@@@@
+	
+		Spring JMS
+
+	@@@@@@@@@@@@@@@@@@@
+
+
+================================================================================
+
+	IBM MQ JMS message types and conversion
+	***************************************
+
+https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_7.5.0/com.ibm.mq.dev.doc/q032110_.htm
+
+JMSObjectMessage
+JMSTextMessage
+JMSMapMessage and JMSStreamMessage
+JMSBytesMessage
+
+
+================================================================================
+
+
+	jmsTemlate with replyToQueue
+	****************************
+
+example here
+https://www.ibm.com/developerworks/community/forums/html/topic?id=a28af5d5-c3a5-4f94-b040-b54d11833422
+
+
+public JMSTextMessage sendAndRecieve(String request) {
+        MQQueue requestQueue = new MQQueue("APP_REQUEST"); 
+        MQQueue replyToQueue = new MQQueue("APP_REPLY");
+ 
+JmsTemplate jmsTemplate = new JmsTemplate(jmsConnectionFactory);
+        long recieveTimeout = 25000L
+
+        jmsTemplate.setReceiveTimeout(recieveTimeout );
+ 
+        String correlationId = getJmsCorrelationID();
+        
+        MessageCreator messageCreator = createMessageCreator(request,correlationId,replyToQueue);
+        jmsTemplate.send(requestQueue,messageCreator);
+ 
+        // use correlation id to ensure we get right msg
+         JMSTextMessage message = (JMSTextMessage)jmsTemplate.receiveSelected(replyToQueue,"jms_correlationId='"+correlationId+"'");
+ 
+
+        if (message == null) {
+            long receiveTimeoutInSecs = receiveTimeout / 1000L;
+            LOGGER.warn("Timeout of " + receiveTimeoutInSecs + " seconds exceeded while processing request.");
+            handleTimeout(receiveTimeoutInSecs);
+        } 
+ 
+return message;
+}
+
+
+    private MessageCreator createMessageCreator(String request, String correlationId, Destination replyToQueue) {
+        return new MessageCreator() {
+            @Override
+            public TextMessage createMessage(Session session) throws JMSException {                
+                TextMessage message = session.createTextMessage();
+                message.setStringProperty("JMS_IBM_Format", MQC.MQFMT_STRING);
+                message.setStringProperty(JmsHeaders.MESSAGE_ID, correlationId);
+                message.setStringProperty(JmsHeaders.CORRELATION_ID, correlationId);
+                message.setJMSReplyTo(replyToQueue);
+                message.setText(request);          
+                return message;
+            }
+        };
+    }
+
+
+
+================================================================================
+
+	mq-jms-spring-boot-starter
+	**************************
+
+Autoconfiguration:
+
+META-INF/spring.factories
+
+
+	org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.ibm.mq.spring.boot.MQAutoConfiguration
+
+
+Disabling autoconfiguration:
+https://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-auto-configuration.html
+
+	If you find that specific auto-configuration classes that you do not want are being applied, you can use the exclude attribute of @EnableAutoConfiguration to disable them, as shown in the following example:
+
+	import org.springframework.boot.autoconfigure.*;
+	import org.springframework.boot.autoconfigure.jdbc.*;
+	import org.springframework.context.annotation.*;
+
+	@Configuration
+	@EnableAutoConfiguration(exclude={DataSourceAutoConfiguration.class})
+	public class MyConfiguration {
+	
+	}
+
+
+================================================================================
+
+	MQ JMS 
+	******
+
+
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.1.3.RELEASE</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+
+	<properties>
+
+		<!-- build properties -->
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+		<java.version>1.8</java.version>
+		<maven.compiler.source>${java.version}</maven.compiler.source>
+		<maven.compiler.target>${java.version}</maven.compiler.target>
+
+		<jackson.version>2.9.8</jackson.version>
+		<mq-jms-spring-boot-starter.version>2.1.0</mq-jms-spring-boot-starter.version>
+
+	</properties>
+
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.ibm.mq</groupId>
+			<artifactId>mq-jms-spring-boot-starter</artifactId>
+			<version>${mq-jms-spring-boot-starter.version}</version>
+		</dependency>	
+
+
+@SpringBootApplication
+@RestController
+@EnableJms
+public class MqspringApplication {
+
+	@Autowired
+	private JmsTemplate jmsTemplate;
+
+	public static void main(String[] args) {
+		SpringApplication.run(MqspringApplication.class, args);
+	}
+
+	@GetMapping("send")
+	String send() {
+		try {
+			jmsTemplate.convertAndSend("DEV.QUEUE", "Hello World");
+			return "OK";
+		} catch (JmsException ex) {
+			ex.printStackTrace();
+			return "FAIL";
+		}
+	}
+
+	@GetMapping("recv")
+	String recv() {
+		try {
+			return jmsTemplate.receiveAndConvert("DEV.QUEUE").toString();
+		} catch (JmsException ex) {
+			ex.printStackTrace();
+			return "FAIL";
+		}
+	}
+}
+
+
+application.yml
+---------------
+
+spring.application.name: sb2-mq-jms
+
+ibm.mq:
+  queueManager: <queue-managger>
+  channel: SYSTEM.ADMIN.SVRCONN
+  connName: somehost(1414)
+  user: 
+  password: 
+
+
+Issues
+-------
+
+
+org.springframework.boot.autoconfigure.jms.JmsPoolConnectionFactoryProperties
+
+	Since 2.1.0
+
+
+Support for multiple queues and queue managers
+----------------------------------------------
+
+https://github.com/ibm-messaging/mq-jms-spring/issues/7
+
+
+
+
+================================================================================	
