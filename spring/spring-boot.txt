@@ -49,6 +49,74 @@ Default Configuration
 
 
 
+================================================================================
+
+  Execute some code before your SpringBootApplication starts
+  **********************************************************
+
+Spring Boot provides two interfaces
+
+they get called just before run()
+
+  CommandLineRunner
+
+    provides access to application arguments as string array.
+
+  ApplicationRunner
+
+    wraps the raw application arguments and exposes the ApplicationArguments interface.
+
+    example:  
+    https://stackoverflow.com/questions/53506177/how-to-use-jmstemplate-sendandreceive
+
+
+    @SpringBootApplication
+    public class So53506177Application {
+
+        public static void main(String[] args) {
+            SpringApplication.run(So53506177Application.class, args);
+        }
+
+        private final SimpleMessageConverter converter = new SimpleMessageConverter();
+
+        @Bean
+        public ApplicationRunner runner(JmsTemplate jmsTemplate) {
+            return args -> {
+                jmsTemplate.setReceiveTimeout(20000);
+                Message received = jmsTemplate.sendAndReceive("foo", new MessageCreator() {
+
+                    @Override
+                    public Message createMessage(Session session) throws JMSException {
+                        String msgId = "foo";
+                        TextMessage message = session.createTextMessage("foo");
+                        message.setJMSCorrelationID(msgId);
+                        return message;
+                    }
+                });
+                System.out.println("Reply: " + this.converter.fromMessage(received));
+            };
+        }
+
+        @Autowired
+        private JmsTemplate jmsTemplate;
+
+        @JmsListener(destination = "foo")
+        public void consume(final Message message) throws Exception {
+            System.out.println("Received: " + this.converter.fromMessage(message));
+            jmsTemplate.send(message.getJMSReplyTo(), new MessageCreator() {
+
+                @Override
+                public Message createMessage(Session session) throws JMSException {
+                    Message responseMsg = session.createTextMessage("bar");
+                    responseMsg.setJMSCorrelationID(message.getJMSCorrelationID());
+                    return responseMsg;
+                }
+            });
+        }
+
+    }    
+
+
 
 ================================================================================
 

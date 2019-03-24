@@ -7,8 +7,12 @@
 
 ================================================================================
 
-	IBM MQ JMS message types and conversion
-	***************************************
+	IBM MQ 
+	******
+
+
+IBM MQ JMS message types and conversion
+----------------------------------------
 
 https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_7.5.0/com.ibm.mq.dev.doc/q032110_.htm
 
@@ -16,6 +20,63 @@ JMSObjectMessage
 JMSTextMessage
 JMSMapMessage and JMSStreamMessage
 JMSBytesMessage
+
+MQ Java libraries
+-----------------
+Within an enterprise, the following files can be moved to systems that need to run IBM MQ classes for Java applications:
+
+	com.ibm.mq.allclient.jar
+	com.ibm.mq.traceControl.jar
+
+The file com.ibm.mq.allclient.jar contains the IBM MQ classes for JMS, the IBM MQ classes for Java, and the PCF and Headers Classes. If you move this file to a new location, make sure that you take steps to keep this new location maintained with new IBM MQ Fix Packs. Also, make sure that the use of this file is made known to IBM Support if you are getting an interim fix.
+
+MQQueueConnectionFactory
+-------------------------
+
+@Bean
+public ConnectionFactory ibmConnectionFactory() throws JMSException {
+    MQQueueConnectionFactory connectionFactory = new MQQueueConnectionFactory();
+    connectionFactory.setHostName("myhost.example.org");
+    connectionFactory.setPort(1414);
+    connectionFactory.setQueueManager("MQ_NAME");
+    connectionFactory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
+    connectionFactory.setChannel("SYSTEM.DEF.SVRCONN");
+    return connectionFactory;
+}
+
+================================================================================
+
+	JmsTemplate sendAndReceieve
+	****************************
+
+https://stackoverflow.com/questions/53506177/how-to-use-jmstemplate-sendandreceive
+
+@SpringBootApplication
+public class So53506177Application {
+
+    @Autowired
+    private JmsTemplate jmsTemplate;
+
+
+    @Bean
+    public ApplicationRunner runner(JmsTemplate jmsTemplate) {
+        return args -> {
+            jmsTemplate.setReceiveTimeout(20000);
+            Message received = jmsTemplate.sendAndReceive("foo", new MessageCreator() {
+
+                @Override
+                public Message createMessage(Session session) throws JMSException {
+                    String msgId = "foo";
+                    TextMessage message = session.createTextMessage("foo");
+                    message.setJMSCorrelationID(msgId);
+                    return message;
+                }
+            });
+            System.out.println("Reply: " + this.converter.fromMessage(received));
+        };
+    }
+
+}
 
 
 ================================================================================
@@ -98,7 +159,7 @@ https://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-auto-c
 	@Configuration
 	@EnableAutoConfiguration(exclude={DataSourceAutoConfiguration.class})
 	public class MyConfiguration {
-	
+
 	}
 
 
