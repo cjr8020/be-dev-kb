@@ -675,10 +675,37 @@ public class BaseEntity implements java.io.Serializable, Equals, HashCode, ToStr
 
 ================================================================================
 
-    javax.xml.bind.UnmarshalException: 
-    ***********************************
+    javax.xml.bind.UnmarshalException
+    javax.xml.bind.MarshalException
+    ****************************************
 
-    unexpected element (uri:"http://standard.com/rp", local:"DataType_RPData"). Expected elements are (none)
+unable to marshal type as an element because it is 
+missing an @XmlRootElement annotation for auto generated classes
+-----------------------------------------------------------------
+
+Use JaxbElement rather than the element directly with marshaller.
+Use ObjectFactory to get JaxbElement:
+
+  @Test
+  public void testMarshall() throws JAXBException {
+    SomeObject someObject = getSampleObject();
+
+    Marshaller marshaller = SomeObjectJaxbMarshallerHelper.getMarshaller();
+    marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+    JAXBElement<SomeObject> jaxbElement = new ObjectFactory().createSomeObject(someObject);
+
+    StringWriter stringWriter = new StringWriter();
+    marshaller.marshal(jaxbElement, stringWriter);
+    String marshalledSomeObjectXml = stringWriter.toString();
+    assertTrue(marshalledSomeObjectXml.contains( .. ));
+
+  }
+
+
+
+unexpected element (uri:"http://standard.com/rp", local:"DataType_RPData"). Expected elements are (none)
+--------------------------------------------------------------------------
+
 
 This is most likely b/c you don't have @XmlRootElement, and you're using
 JAXB like so
