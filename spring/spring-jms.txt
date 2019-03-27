@@ -44,6 +44,115 @@ public ConnectionFactory ibmConnectionFactory() throws JMSException {
     return connectionFactory;
 }
 
+--------------------------------------------------------------------------------
+
+@Configuration
+@ConfigurationProperties("some-mq-service")
+public class SomeMqServiceConfiguration extends AbstractMqServiceConfiguration {
+  private static final Logger logger
+      = LoggerFactory.getLogger(SomeMqServiceConfiguration.class);
+
+
+  /**
+   * Connection factory for SomeMqService.
+   * Note: conditional on property allows one to skip this bean creation for unit tests.
+   * @return CachingConnectionFactory
+   */
+  @Bean(name = "someMqServiceJmsConnectionFactory")
+  @ConditionalOnProperty(
+      prefix = "group-policy-service",
+      name = "enabled",
+      matchIfMissing = true)
+  CachingConnectionFactory SomeMqServiceJmsConnectionFactory() {
+    MQConnectionFactory wrappedConnectionFactory = createConnectionFactory();
+    CachingConnectionFactory connectionFactory
+        = new CachingConnectionFactory(wrappedConnectionFactory);
+    connectionFactory.setCacheConsumers(true);
+    connectionFactory.setSessionCacheSize(10);
+    return connectionFactory;
+  }
+
+
+  @Bean(name = "someMqServiceJmsTemplate")
+  @ConditionalOnBean(name = "someMqServiceJmsConnectionFactory")
+  public JmsTemplate someMqServiceJmsTemplate() {
+    JmsTemplate jmsTemplate = new JmsTemplate();
+
+    jmsTemplate.setConnectionFactory(SomeMqServiceJmsConnectionFactory());
+    jmsTemplate.setExplicitQosEnabled(true);
+    jmsTemplate.setDeliveryPersistent(false);
+
+    return jmsTemplate;
+  }
+
+
+
+
+  protected MQConnectionFactory createConnectionFactory() {
+    try {
+      MQConnectionFactory cf = new MQConnectionFactory();
+      cf.setStringProperty(WMQConstants.WMQ_QUEUE_MANAGER, getQueueManager());
+
+      cf.setStringProperty(WMQConstants.WMQ_CONNECTION_NAME_LIST, getConnName());
+      cf.setStringProperty(WMQConstants.WMQ_CHANNEL, getChannel());
+      cf.setIntProperty(WMQConstants.WMQ_CONNECTION_MODE, WMQConstants.WMQ_CM_CLIENT);
+
+      cf.setStringProperty(WMQConstants.USERID, getUser());
+      cf.setStringProperty(WMQConstants.PASSWORD, getPassword());
+      cf.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, false);
+
+      return cf;
+    } catch (JMSException j) {
+      throw JmsUtils.convertJmsAccessException(j);
+    }
+  }
+
+
+================================================================================
+
+
+example using MQ8
+-----------------
+https://stackoverflow.com/questions/42356712/java-spring-jms-jmstemplate-to-ibm-mq
+
+
+@Bean
+public ConnectionFactory connectionFactory() {
+            properties.getCipherSpec());
+    MQConnectionFactory factory = new MQConnectionFactory();
+    try {
+        factory.setHostName(properties.getHost());
+        factory.setPort(properties.getPort());
+        factory.setQueueManager(properties.getQueueManager());
+        factory.setChannel(properties.getChannel());
+        factory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
+        factory.setClientReconnectTimeout(CLIENT_RECONNECT_TIMEOUT);
+        factory.setClientReconnectOptions(WMQConstants.WMQ_CLIENT_RECONNECT);
+        if (properties.isEnableSsl()) {
+            factory.setSSLCipherSuite(properties.getCipherSpec());
+            factory.setSSLSocketFactory(socketFactory());
+        }   
+        factory.setUseConnectionPooling(true);  
+    } catch (Exception e) {
+        throw new RuntimeException(e);
+    }
+    return factory;
+}
+
+
+@Bean(name = "cachingConnectionFactory")
+public CachingConnectionFactory cachingConnectionFactory(){
+    CachingConnectionFactory factory = new CachingConnectionFactory();
+    factory.setSessionCacheSize(50);
+    factory.setTargetConnectionFactory(connectionFactory());
+    factory.setReconnectOnException(true);
+    factory.afterPropertiesSet();
+    return factory;
+}
+
+
+
+
 ================================================================================
 
 	JmsTemplate sendAndReceieve
@@ -77,6 +186,31 @@ public class So53506177Application {
     }
 
 }
+
+
+================================================================================
+
+	JmsTemplate
+	***********
+
+https://docs.spring.io/spring/docs/current/spring-framework-reference/integration.html#jms
+
+simplifies the use of JMS, since it handles the creation and release of resources when sending or synchronously receiving messages.	
+
+Code that uses the JmsTemplate needs only to implement callback interfaces that give them a clearly defined high-level contract. 
+
+MessageCreator
+--------------
+
+The MessageCreator callback interface creates a message when given a Session provided by the calling code in JmsTemplate. 
+
+The JMS API exposes two types of send methods:
+
+1.  one that takes delivery mode, priority, and time-to-live as Quality of Service (QOS) parameters and 
+
+2. one that takes no QOS parameters and uses default values. 
+
+Since JmsTemplate has many send methods, setting the QOS parameters have been exposed as bean properties to avoid duplication in the number of send methods. Similarly, the timeout value for synchronous receive calls is set by using the setReceiveTimeout property.
 
 
 ================================================================================
@@ -275,5 +409,65 @@ https://github.com/ibm-messaging/mq-jms-spring/issues/7
 
 
 
+
+================================================================================	
+
+	Performance Considerations
+	**************************
+
+http://bjansen.github.io/java/2018/03/04/high-performance-mq-jms.html
+
+Use non-persistent messages
+---------------------------
+
+Performance often comes at the cost of reliability. 
+Depending on the requirements your application has, it can be acceptable to lose 
+messages if the queue manager crashes.
+
+a common misconception: there is no such thing as a persistent queue. 
+Persistency is configured per message, and if a given message has no Persistence field set in its message descriptor (MQMD), then a queue can define a default persistence flag.
+
+To send non persistent messages, specify a DeliveryMode when using a producer:
+
+	// on the whole producer
+	producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+
+	// on a single message
+	producer.send(message, DeliveryMode.NON_PERSISTENT, 3, 10000);
+
+If you are using Spring JMS JmsTemplate, you need to enable explicit QOS and 
+then st a default delivery mode:
+https://stackoverflow.com/questions/36151558/activemq-with-spring-jms-how-to-sent-nonpersistent-message
+
+
+
+jmsTemplate.setExplicitQosEnabled(true);
+jmsTemplate.setDeliveryPersistent(false);
+
+
+@Bean
+public JmsTemplate jmsTemplate() throws NamingException {
+    JmsTemplate jmsTemplate = new JmsTemplate();
+
+    jmsTemplate.setConnectionFactory(queueConnectionFactory());
+    jmsTemplate.setExplicitQosEnabled(true);
+    jmsTemplate.setDeliveryPersistent(false);
+
+    return jmsTemplate;
+}
+
+
+
+CachingConnectionFactory
+-------------------------
+
+make sure that you are reusing JMS objects as much as possible. 
+
+Creating a connection or a session usually requires a network exchange, 
+which means it can introduce a significant overhead. 
+
+While the creation of producers and consumers has less overhead, it’s good to know that these objets were designed to be reused, so you might as well take advantage of this and cache/reuse instances as much as possible.
+
+If you are using Spring JMS, CachingConnectionFactory can wrap your connection factory to reuse a single connection, cache sessions and producers.
 
 ================================================================================	
