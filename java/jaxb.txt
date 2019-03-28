@@ -1775,6 +1775,18 @@ http://stackoverflow.com/questions/6031572/howto-generate-java-enum-from-xml-sch
 
 ===================================================================================        
 
+    customizing property of a Class
+    *******************************
+
+    <jxb:bindings node="//xsd:element[@name='list']">
+      <jxb:class name="ListOfMaps"/>
+      <jxb:property name="map" collectionType="java.util.ArrayList"/>
+    </jxb:bindings>
+
+
+
+===================================================================================        
+
   force schema-compiled classes to extend specific class outside the schema
   *************************************************************************
 
