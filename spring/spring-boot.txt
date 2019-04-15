@@ -1963,3 +1963,154 @@ spring-boot:
 
 
 ================================================================================
+
+  JavaMailSender
+  **************
+Spring Boot will automatically configure the ability to send mail when mail properties and the java mail library are detected on the classpath.
+
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-mail</artifactId>
+</dependency>
+
+To be able to send mail, you need to configure the appropriate spring.mail properties. At least the spring.mail.host property is needed; the other properties are optional.
+
+spring.mail.host              The SMTP server host
+spring.mail.port              The SMTP sever port (default 25)
+spring.mail.username  Username to use for connecting to the SMTP server
+spring.mail.password  Password to use for connecting to the SMTP server
+spring.mail.protocol  The protocol used by the SMTP server (default smtp)
+spring.mail.test-connection 
+  Test if the SMTP server is available at startup (default false)
+spring.mail.default-encoding
+  Encoding used for MIME messages (default UTF-8)
+spring.mail.properties.* 
+  Additional properties to be set on the JavaMail Session
+spring.mail.jndi-name 
+  JNDI name of the JavaMail Session, can be used when deploying to a JEE server with preconfigured JavaMail Sessions in JNDI.
+
+
+Sending a Plain Text E-mail
+-----------------------------
+With the added dependencies and spring.mail properties, Spring Boot will add a
+preconfigured JavaMailSenderImpl as a bean to the ApplicationContext. This bean
+can be autowired into components, by either using an @Autowired field or through
+constructors or, as shown here, as dependencies in @Bean annotated methods.
+
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import javax.mail.Message;
+
+@SpringBootApplication
+public class MailSenderApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(MailSenderApplication.class, args);
+  }
+
+  @Bean
+  public ApplicationRunner startupMailSender(JavaMailSender mailSender) {
+    return (args) -> {
+      mailSender.send((msg) -> {
+        var helper = new MimeMessageHelper(msg);
+        helper.setTo("recipient@some.where");
+        helper.setFrom("spring-boot-2-recipes@apress.com");
+        helper.setSubject("Status message");
+      helper.setText("All is well.");
+      });
+    };
+  }
+}
+
+The MailSenderApplication will send an e-mail when the application finished
+starting. The startupMailSender is an ApplicationRunner, which takes
+the preconfigured JavaMailSender to send a mail message.
+
+Using Thymeleaf for E-mail Templates
+------------------------------------
+
+Spring Boot has some nice support for using Thymeleaf as a templating solution;
+however, the default setup is mainly for using Thymeleaf for webpages. It is, however, very possible to use Thymeleaf for e-mail templates.
+
+First, add the spring-boot-starter-thymeleaf as a dependency. This will pull in
+all the needed Thymeleaf dependencies and will automatically configure the Thymeleaf
+TemplateEngine, which we need to generate the HTML content.
+
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-thymeleaf</artifactId>
+</dependency>
+
+By default, the Spring configured Thymeleaf TemplateEngine will resolve the HTML
+templates from the templates directory under src/main/resources. Add a file named
+`email.html` to this directory and make a nice looking e-mail message from it.
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<body>
+<p><strong th:text="${msg}">Some email content will be here.</strong></p>
+<p>
+Kind Regards,
+  Your Application
+</p>
+</body>
+</html>
+
+
+The th:text is a Thymeleaf tag and will replace the content with the value of that
+attribute. Of Course we would need to pass in a value for that attribute from our mail sending/generating code.
+
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.thymeleaf.context.Context;
+import org.thymeleaf.spring5.SpringTemplateEngine;
+import javax.mail.Message;
+import java.util.Collections;
+
+@SpringBootApplication
+public class MailSenderApplication {
+
+  public static void main(String[] args) {
+    SpringApplication.run(MailSenderApplication.class, args);
+  }
+
+  @Bean
+  public ApplicationRunner startupMailSender(
+  JavaMailSender mailSender,
+  SpringTemplateEngine templateEngine) {
+
+    return (args) -> {
+      mailSender.send((msg) -> {
+        var helper = new MimeMessageHelper(msg);
+        helper.setTo("recipient@some.where");
+        helper.setFrom("spring-boot-2-recipes@apress.com");
+        helper.setSubject("Status message");
+        var context = new Context(
+        LocaleContextHolder.getLocale(),
+        Collections.singletonMap("msg", "All is well!"));
+        var body = templateEngine.process("email.html", context);
+        helper.setText(body, true);
+      });
+    };
+  }
+}
+
+
+The code still is very similar to the code as it was, but with this difference now we
+also have a SpringTemplateEnginge at our disposable to generate the HTML content
+for our e-mail. We use the process method to select the template we want to render,
+email.html, and pass in a Context object. The Context object is used by Thymeleaf to
+resolve the attributes, in our case the msg one.
+
+================================================================================

@@ -1,0 +1,173 @@
+
+*****************************
+
+	concurrency in spring
+
+*****************************
+
+
+================================================================================
+
+	TaskExecutor
+	************
+
+org.springframework.core.task.TaskExecutor
+
+extends Java's 
+java.util.concurrent.Executor
+
+https://docs.spring.io/spring/docs/3.2.x/spring-framework-reference/html/scheduling.html
+
+There are a number of pre-built implementations of TaskExecutor included with the Spring distribution. In all likelihood, you shouldn't ever need to implement your own.
+
+================================================================================
+
+	Spring Async Processing
+	************************
+
+https://spring.io/guides/gs/async-method/	
+
+Spring has support to configure a TaskExecutor and the ability to async.ly 
+execute methods annotated with @Async.
+
+@SpringBootApplication
+@EnableAsync
+
+Spring Boot will by default create a TaskExecutor named `applicationTaskExecutor`.
+When enabling @EnableAsync, it will automatically detect this instance and use 
+it for async execution of methods, and will also enable the detection of 
+@Async annotated methods.
+
+
+Configuring the TaskExecutor
+-----------------------------
+
+Spring Boot will automatically configure a `ThreadPoolTaskExecutor`.
+This can be configured through the properties in `spring.task.execution` 
+namespace.
+
+spring.task.execution.pool.core-size=4
+spring.task.execution.pool.max-size=16
+spring.task.execution.pool.queue-capacity=125
+spring.task.execution.pool.thread-name-prefix=sbr-exec-
+
+
+Constructing TaskExecutor
+-------------------------
+
+If you need to construct a TaskExecutor, Spring Boot provides the 
+`TaskExecutorBuilder` - this builder class makes it easier to construct a
+`TreadPoolTaskExecutor`.
+
+@Bean 
+public TaskExecutor customTaskExecutor(TaskExecutorBuilder builder) {
+	return builder.corePoolSize(4)
+		.maxPoolSize(16)
+		.queueCapacity(125)
+		.threadNamePrefix("sbr-exec-").build();
+}
+
+If there are, for some reason, multiple taskExectuor instances in your application,
+you would need to either mark one of them as @Primary to be used as default
+TaskExecutor, or use the AsyncConfigurer interface and implement the taskExecutor
+method to return the default TaskExecutor to use.
+
+@SringBootApplication
+@EnableAsync
+public class AsyncApp implements AsyncConfigurer {
+	
+	@Bean
+	public ThreadPoolTaskExecutor taskExecutor() {...}
+
+	@Override
+	public Executor getAsyncExecutor() {
+		return taskExecutor();
+	}
+}
+
+
+Timeout
+--------
+
+Timeouts are not provided by the @Async annotation, since the timeout should be decided by the caller of the function, not the function itself.
+
+methods should return an instance of Future, and the get() method on Future is used to specify the timeout.
+
+
+	@Async
+	public Future<String> doSomething() {
+	   return new AsyncResult<String>("test");
+	}
+
+and then
+
+	// spring makes this an async call
+	Future<String> futureResult = obj.doSomething();  
+	String result = futureResult.get(1, TimeUnit.SECOND);	
+
+================================================================================
+
+	Future vs CompletableFuture
+	***************************
+
+https://www.callicoder.com/java-8-completablefuture-tutorial/	
+
+Java 8 CompletableFutures do not do timeouts.
+Java 9 CompletableFutures improve timeout handling:
+	orTimeout
+	completeOnTimeOut 
+
+
+CompletableFuture is an extension to Java's Future API introduced in Java 5.
+
+A `Future` is used as a reference to the result of an async computation.
+It provides an `isDone()` method to check whether the computation is done or not, 
+and a `get()` method to retrieve the result of the computation when it is done.
+
+`Future` API lacked important features:
+
+- cannot be manually completed
+- does not notify you of completion
+- provides a `get()` method which blocks until the result is available
+- multiple Futures cannot be chained together
+- cannot combine multiple Futures together (cannot run multiple in parallel)
+- no exception handling construct
+
+CompletableFuture implements Future, CompletionStage
+
+
+Combining CompletableFutures together
+-------------------------------------
+
+Let’s say that you want to fetch the details of a user from a remote API service and once the user’s detail is available, you want to fetch his Credit rating from another service.
+
+Consider the following implementations of getUserDetail() and getCreditRating() methods -
+
+CompletableFuture<User> getUsersDetail(String userId) {
+	return CompletableFuture.supplyAsync(() -> {
+		UserService.getUserDetails(userId);
+	});	
+}
+
+CompletableFuture<Double> getCreditRating(User user) {
+	return CompletableFuture.supplyAsync(() -> {
+		CreditRatingService.getCreditRating(user);
+	});
+}
+
+
+CompletableFuture.allOf()
+
+	CompletableFuture.allOf is used in scenarios when you have a List of independent futures that you want to run in parallel and do something after all of them are complete.
+
+
+
+CompletableFuture.anyOf()
+
+
+join()
+	join() - Returns the result value when complete, or throws an (unchecked) exception if completed exceptionally.
+	
+
+
+================================================================================
