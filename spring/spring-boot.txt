@@ -120,48 +120,41 @@ they get called just before run()
 
 ================================================================================
 
-	Structure Spring Boot application
-	*********************************
+	Auto-Configuration
+	******************
 
-Locate your main application class in root package above all other classes.
+https://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-using-springbootapplication-annotation.html  
 
-@EnableAutoConfiguration is often placed in your main class, and is implicitly
-defines a base "search package" for certain items.
-E.g. if you're wiring a JPA application, the package of the @EnableAutoConfiguration class will be used to search for @Entity items. 
+@SpringBootApplication annotation can be used to enable three features:
 
-Using root package allows the @ComponentScan annotation to be used without 
-needed to specify a "basePackage" attribute.
+  @EnableAutoConfiguration: 
+    enable Spring Boot’s auto-configuration mechanism
 
-Typical layout:
+  @ComponentScan: 
+    enable @Component scan on the package where the application is located (see the best practices)
 
-com
- +- example
-     +- myproject
-         +- Application.java //@SpringBootApplication
-         |
-         +- domain
-         |   +- Customer.java
-         |   +- CustomerRepository.java
-         |
-         +- service
-         |   +- CustomerService.java
-         |
-         +- web
-             +- CustomerController.java
+  @Configuration: 
+    allow to register extra beans in the context or import additional configuration classes
+
+@SpringBootApplication also provides aliases to customize the attributes of @EnableAutoConfiguration and @ComponentScan.
 
 
-package com.example.myproject;
+  Disabling Auto-Configuration
+  ----------------------------
 
-@Configuration
-@EnableAutoConfiguration
-@ComponentScan
-public class Application {
+Auto-configuration class can be excluded via 
 
-    public static void main(String[] args) {
-        SpringApplication.run(Application.class, args);
-    }
+  @SpringBootApplication(exclude = { SecurityAutoConfiguration.class })
+  public class SpringBootSecurityApplication {
+   
+      public static void main(String[] args) {
+          SpringApplication.run(SpringBootSecurityApplication.class, args);
+      }
+  }
 
-}
+or via application.properties file:
+
+spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.SecurityAutoConfiguration
 
 
 ================================================================================

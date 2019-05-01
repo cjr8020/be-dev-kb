@@ -74,7 +74,7 @@ public class SomeMqServiceConfiguration extends AbstractMqServiceConfiguration {
 
 
   @Bean(name = "someMqServiceJmsTemplate")
-  @ConditionalOnBean(name = "someMqServiceJmsConnectionFactory")
+  @DependsOn("someMqServiceJmsConnectionFactory")
   public JmsTemplate someMqServiceJmsTemplate() {
     JmsTemplate jmsTemplate = new JmsTemplate();
 
