@@ -508,3 +508,42 @@ finally trumps return.
 
 ================================================================================
 
+  null check object chain with Optional
+  *************************************
+
+negative test
+
+    OuterObject outerObject = null;
+
+    Optional<Pearl> optionalPearl = Optional.ofNullable(outerObject) 
+        .map(o -> o.getInnerObject())
+        .map(i -> i.getInnerMostObject())
+        .map(m -> m.getPearl());
+
+    assertFalse(optionalPearl.isPresent());
+  
+  positive test
+
+      // innermost with pearl
+    Pearl pearl = new Pearl();
+    InnerMostObject innerMostObject = new InnerMostObject();
+    innerMostObject.setPearl(pearl);
+
+    // inner
+    InnerObject innerObject = new InnerObject();
+    innerObject.setInnerMostObject(innerMostObject);
+
+    // outer
+    OuterObject outerObject = new OuterObject();
+    outerObject.setInnerObject(innerObject);
+
+    Optional<Pearl> optionalPearl = Optional.ofNullable(outerObject)
+        .map(o -> o.getInnerObject())
+        .map(i -> i.getInnerMostObject())
+        .map(m -> m.getPearl());
+
+    assertTrue(optionalPearl.isPresent());
+    assertThat(optionalPearl.get().toString(), equalTo("My precious"));
+
+================================================================================
+

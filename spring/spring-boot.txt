@@ -141,6 +141,7 @@ https://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-using-
 
   Disabling Auto-Configuration
   ----------------------------
+https://www.baeldung.com/spring-boot-security-autoconfiguration  
 
 Auto-configuration class can be excluded via 
 
