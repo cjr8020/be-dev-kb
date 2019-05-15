@@ -526,7 +526,7 @@ negative test
 
       // innermost with pearl
     Pearl pearl = new Pearl();
-    InnerMostObject innerMostObject = new InnerMostObject();
+    InnerMostObject innerMostObject = new InnerMostObject();    
     innerMostObject.setPearl(pearl);
 
     // inner

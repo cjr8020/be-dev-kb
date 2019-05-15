@@ -412,6 +412,17 @@ https://github.com/ibm-messaging/mq-jms-spring/issues/7
 
 ================================================================================	
 
+	spring boot configure multiple MQ conn factory instances
+	********************************************************
+
+https://stackoverflow.com/questions/43399072/spring-boot-configure-multiple-activemq-instances
+
+How do I create multiple connectionFactories? 
+How does JmsTemplate know which ActiveMQ instance to connect to?
+
+
+================================================================================	
+
 	Performance Considerations
 	**************************
 
