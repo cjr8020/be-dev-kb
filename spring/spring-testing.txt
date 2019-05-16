@@ -510,6 +510,44 @@ public class PropertiesLogger {
 	print managed beans
 	*******************
 
+
+
+Using Actuator
+---------------
+
+enable `beans` actuator endpoint
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info, beans
+
+
+
+Using applicationContext
+------------------------
+
+@SpringBootApplication
+public class Application {
+	private static ApplicationContext applicationContext;
+
+	public static void main(String[] args) {
+		applicationContext = SpringApplication.run(Application.class, args);
+		displayAllBeans();
+	}
+}
+
+	public static void displayAllBeans() {
+		String[] allBeanNames = applicationContext.getBeanDefinitionNames();
+		for (String beanName : allBeanNames) {
+			Sysstem.out.println(beanName);
+		}
+	}
+
+
+
   {
 
     log.info(" =============== PARENT CONTEXT ============");

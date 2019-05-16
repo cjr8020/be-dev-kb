@@ -1,0 +1,484 @@
+	@@@@@@@@@@@@@@@@@@@
+	
+		Spring JMS
+
+	@@@@@@@@@@@@@@@@@@@
+
+
+================================================================================
+
+	IBM MQ 
+	******
+
+
+IBM MQ JMS message types and conversion
+----------------------------------------
+
+https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_7.5.0/com.ibm.mq.dev.doc/q032110_.htm
+
+JMSObjectMessage
+JMSTextMessage
+JMSMapMessage and JMSStreamMessage
+JMSBytesMessage
+
+MQ Java libraries
+-----------------
+Within an enterprise, the following files can be moved to systems that need to run IBM MQ classes for Java applications:
+
+	com.ibm.mq.allclient.jar
+	com.ibm.mq.traceControl.jar
+
+The file com.ibm.mq.allclient.jar contains the IBM MQ classes for JMS, the IBM MQ classes for Java, and the PCF and Headers Classes. If you move this file to a new location, make sure that you take steps to keep this new location maintained with new IBM MQ Fix Packs. Also, make sure that the use of this file is made known to IBM Support if you are getting an interim fix.
+
+MQQueueConnectionFactory
+-------------------------
+
+@Bean
+public ConnectionFactory ibmConnectionFactory() throws JMSException {
+    MQQueueConnectionFactory connectionFactory = new MQQueueConnectionFactory();
+    connectionFactory.setHostName("myhost.example.org");
+    connectionFactory.setPort(1414);
+    connectionFactory.setQueueManager("MQ_NAME");
+    connectionFactory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
+    connectionFactory.setChannel("SYSTEM.DEF.SVRCONN");
+    return connectionFactory;
+}
+
+--------------------------------------------------------------------------------
+
+@Configuration
+@ConfigurationProperties("some-mq-service")
+public class SomeMqServiceConfiguration extends AbstractMqServiceConfiguration {
+  private static final Logger logger
+      = LoggerFactory.getLogger(SomeMqServiceConfiguration.class);
+
+
+  /**
+   * Connection factory for SomeMqService.
+   * Note: conditional on property allows one to skip this bean creation for unit tests.
+   * @return CachingConnectionFactory
+   */
+  @Bean(name = "someMqServiceJmsConnectionFactory")
+  @ConditionalOnProperty(
+      prefix = "group-policy-service",
+      name = "enabled",
+      matchIfMissing = true)
+  CachingConnectionFactory SomeMqServiceJmsConnectionFactory() {
+    MQConnectionFactory wrappedConnectionFactory = createConnectionFactory();
+    CachingConnectionFactory connectionFactory
+        = new CachingConnectionFactory(wrappedConnectionFactory);
+    connectionFactory.setCacheConsumers(true);
+    connectionFactory.setSessionCacheSize(10);
+    return connectionFactory;
+  }
+
+
+  @Bean(name = "someMqServiceJmsTemplate")
+  @DependsOn("someMqServiceJmsConnectionFactory")
+  public JmsTemplate someMqServiceJmsTemplate() {
+    JmsTemplate jmsTemplate = new JmsTemplate();
+
+    jmsTemplate.setConnectionFactory(SomeMqServiceJmsConnectionFactory());
+    jmsTemplate.setExplicitQosEnabled(true);
+    jmsTemplate.setDeliveryPersistent(false);
+
+    return jmsTemplate;
+  }
+
+
+
+
+  protected MQConnectionFactory createConnectionFactory() {
+    try {
+      MQConnectionFactory cf = new MQConnectionFactory();
+      cf.setStringProperty(WMQConstants.WMQ_QUEUE_MANAGER, getQueueManager());
+
+      cf.setStringProperty(WMQConstants.WMQ_CONNECTION_NAME_LIST, getConnName());
+      cf.setStringProperty(WMQConstants.WMQ_CHANNEL, getChannel());
+      cf.setIntProperty(WMQConstants.WMQ_CONNECTION_MODE, WMQConstants.WMQ_CM_CLIENT);
+
+      cf.setStringProperty(WMQConstants.USERID, getUser());
+      cf.setStringProperty(WMQConstants.PASSWORD, getPassword());
+      cf.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, false);
+
+      return cf;
+    } catch (JMSException j) {
+      throw JmsUtils.convertJmsAccessException(j);
+    }
+  }
+
+
+================================================================================
+
+
+example using MQ8
+-----------------
+https://stackoverflow.com/questions/42356712/java-spring-jms-jmstemplate-to-ibm-mq
+
+
+@Bean
+public ConnectionFactory connectionFactory() {
+            properties.getCipherSpec());
+    MQConnectionFactory factory = new MQConnectionFactory();
+    try {
+        factory.setHostName(properties.getHost());
+        factory.setPort(properties.getPort());
+        factory.setQueueManager(properties.getQueueManager());
+        factory.setChannel(properties.getChannel());
+        factory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
+        factory.setClientReconnectTimeout(CLIENT_RECONNECT_TIMEOUT);
+        factory.setClientReconnectOptions(WMQConstants.WMQ_CLIENT_RECONNECT);
+        if (properties.isEnableSsl()) {
+            factory.setSSLCipherSuite(properties.getCipherSpec());
+            factory.setSSLSocketFactory(socketFactory());
+        }   
+        factory.setUseConnectionPooling(true);  
+    } catch (Exception e) {
+        throw new RuntimeException(e);
+    }
+    return factory;
+}
+
+
+@Bean(name = "cachingConnectionFactory")
+public CachingConnectionFactory cachingConnectionFactory(){
+    CachingConnectionFactory factory = new CachingConnectionFactory();
+    factory.setSessionCacheSize(50);
+    factory.setTargetConnectionFactory(connectionFactory());
+    factory.setReconnectOnException(true);
+    factory.afterPropertiesSet();
+    return factory;
+}
+
+
+
+
+================================================================================
+
+	JmsTemplate sendAndReceieve
+	****************************
+
+https://stackoverflow.com/questions/53506177/how-to-use-jmstemplate-sendandreceive
+
+@SpringBootApplication
+public class So53506177Application {
+
+    @Autowired
+    private JmsTemplate jmsTemplate;
+
+
+    @Bean
+    public ApplicationRunner runner(JmsTemplate jmsTemplate) {
+        return args -> {
+            jmsTemplate.setReceiveTimeout(20000);
+            Message received = jmsTemplate.sendAndReceive("foo", new MessageCreator() {
+
+                @Override
+                public Message createMessage(Session session) throws JMSException {
+                    String msgId = "foo";
+                    TextMessage message = session.createTextMessage("foo");
+                    message.setJMSCorrelationID(msgId);
+                    return message;
+                }
+            });
+            System.out.println("Reply: " + this.converter.fromMessage(received));
+        };
+    }
+
+}
+
+
+================================================================================
+
+	JmsTemplate
+	***********
+
+https://docs.spring.io/spring/docs/current/spring-framework-reference/integration.html#jms
+
+simplifies the use of JMS, since it handles the creation and release of resources when sending or synchronously receiving messages.	
+
+Code that uses the JmsTemplate needs only to implement callback interfaces that give them a clearly defined high-level contract. 
+
+MessageCreator
+--------------
+
+The MessageCreator callback interface creates a message when given a Session provided by the calling code in JmsTemplate. 
+
+The JMS API exposes two types of send methods:
+
+1.  one that takes delivery mode, priority, and time-to-live as Quality of Service (QOS) parameters and 
+
+2. one that takes no QOS parameters and uses default values. 
+
+Since JmsTemplate has many send methods, setting the QOS parameters have been exposed as bean properties to avoid duplication in the number of send methods. Similarly, the timeout value for synchronous receive calls is set by using the setReceiveTimeout property.
+
+
+================================================================================
+
+
+	jmsTemlate with replyToQueue
+	****************************
+
+example here
+https://www.ibm.com/developerworks/community/forums/html/topic?id=a28af5d5-c3a5-4f94-b040-b54d11833422
+
+
+public JMSTextMessage sendAndRecieve(String request) {
+        MQQueue requestQueue = new MQQueue("APP_REQUEST"); 
+        MQQueue replyToQueue = new MQQueue("APP_REPLY");
+ 
+JmsTemplate jmsTemplate = new JmsTemplate(jmsConnectionFactory);
+        long recieveTimeout = 25000L
+
+        jmsTemplate.setReceiveTimeout(recieveTimeout );
+ 
+        String correlationId = getJmsCorrelationID();
+        
+        MessageCreator messageCreator = createMessageCreator(request,correlationId,replyToQueue);
+        jmsTemplate.send(requestQueue,messageCreator);
+ 
+        // use correlation id to ensure we get right msg
+         JMSTextMessage message = (JMSTextMessage)jmsTemplate.receiveSelected(replyToQueue,"jms_correlationId='"+correlationId+"'");
+ 
+
+        if (message == null) {
+            long receiveTimeoutInSecs = receiveTimeout / 1000L;
+            LOGGER.warn("Timeout of " + receiveTimeoutInSecs + " seconds exceeded while processing request.");
+            handleTimeout(receiveTimeoutInSecs);
+        } 
+ 
+return message;
+}
+
+
+    private MessageCreator createMessageCreator(String request, String correlationId, Destination replyToQueue) {
+        return new MessageCreator() {
+            @Override
+            public TextMessage createMessage(Session session) throws JMSException {                
+                TextMessage message = session.createTextMessage();
+                message.setStringProperty("JMS_IBM_Format", MQC.MQFMT_STRING);
+                message.setStringProperty(JmsHeaders.MESSAGE_ID, correlationId);
+                message.setStringProperty(JmsHeaders.CORRELATION_ID, correlationId);
+                message.setJMSReplyTo(replyToQueue);
+                message.setText(request);          
+                return message;
+            }
+        };
+    }
+
+
+
+================================================================================
+
+	mq-jms-spring-boot-starter
+	**************************
+
+Autoconfiguration:
+
+META-INF/spring.factories
+
+
+	org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.ibm.mq.spring.boot.MQAutoConfiguration
+
+
+Disabling autoconfiguration:
+https://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-auto-configuration.html
+
+	If you find that specific auto-configuration classes that you do not want are being applied, you can use the exclude attribute of @EnableAutoConfiguration to disable them, as shown in the following example:
+
+	import org.springframework.boot.autoconfigure.*;
+	import org.springframework.boot.autoconfigure.jdbc.*;
+	import org.springframework.context.annotation.*;
+
+	@Configuration
+	@EnableAutoConfiguration(exclude={DataSourceAutoConfiguration.class})
+	public class MyConfiguration {
+
+	}
+
+
+================================================================================
+
+	MQ JMS 
+	******
+
+
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.1.3.RELEASE</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+
+	<properties>
+
+		<!-- build properties -->
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+		<java.version>1.8</java.version>
+		<maven.compiler.source>${java.version}</maven.compiler.source>
+		<maven.compiler.target>${java.version}</maven.compiler.target>
+
+		<jackson.version>2.9.8</jackson.version>
+		<mq-jms-spring-boot-starter.version>2.1.0</mq-jms-spring-boot-starter.version>
+
+	</properties>
+
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.ibm.mq</groupId>
+			<artifactId>mq-jms-spring-boot-starter</artifactId>
+			<version>${mq-jms-spring-boot-starter.version}</version>
+		</dependency>	
+
+
+@SpringBootApplication
+@RestController
+@EnableJms
+public class MqspringApplication {
+
+	@Autowired
+	private JmsTemplate jmsTemplate;
+
+	public static void main(String[] args) {
+		SpringApplication.run(MqspringApplication.class, args);
+	}
+
+	@GetMapping("send")
+	String send() {
+		try {
+			jmsTemplate.convertAndSend("DEV.QUEUE", "Hello World");
+			return "OK";
+		} catch (JmsException ex) {
+			ex.printStackTrace();
+			return "FAIL";
+		}
+	}
+
+	@GetMapping("recv")
+	String recv() {
+		try {
+			return jmsTemplate.receiveAndConvert("DEV.QUEUE").toString();
+		} catch (JmsException ex) {
+			ex.printStackTrace();
+			return "FAIL";
+		}
+	}
+}
+
+
+application.yml
+---------------
+
+spring.application.name: sb2-mq-jms
+
+ibm.mq:
+  queueManager: <queue-managger>
+  channel: SYSTEM.ADMIN.SVRCONN
+  connName: somehost(1414)
+  user: 
+  password: 
+
+
+Issues
+-------
+
+
+org.springframework.boot.autoconfigure.jms.JmsPoolConnectionFactoryProperties
+
+	Since 2.1.0
+
+
+Support for multiple queues and queue managers
+----------------------------------------------
+
+https://github.com/ibm-messaging/mq-jms-spring/issues/7
+
+
+
+
+================================================================================	
+
+	spring boot configure multiple MQ conn factory instances
+	********************************************************
+
+https://stackoverflow.com/questions/43399072/spring-boot-configure-multiple-activemq-instances
+
+How do I create multiple connectionFactories? 
+How does JmsTemplate know which ActiveMQ instance to connect to?
+
+
+================================================================================	
+
+	Performance Considerations
+	**************************
+
+http://bjansen.github.io/java/2018/03/04/high-performance-mq-jms.html
+
+Use non-persistent messages
+---------------------------
+
+Performance often comes at the cost of reliability. 
+Depending on the requirements your application has, it can be acceptable to lose 
+messages if the queue manager crashes.
+
+a common misconception: there is no such thing as a persistent queue. 
+Persistency is configured per message, and if a given message has no Persistence field set in its message descriptor (MQMD), then a queue can define a default persistence flag.
+
+To send non persistent messages, specify a DeliveryMode when using a producer:
+
+	// on the whole producer
+	producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+
+	// on a single message
+	producer.send(message, DeliveryMode.NON_PERSISTENT, 3, 10000);
+
+If you are using Spring JMS JmsTemplate, you need to enable explicit QOS and 
+then st a default delivery mode:
+https://stackoverflow.com/questions/36151558/activemq-with-spring-jms-how-to-sent-nonpersistent-message
+
+
+
+jmsTemplate.setExplicitQosEnabled(true);
+jmsTemplate.setDeliveryPersistent(false);
+
+
+@Bean
+public JmsTemplate jmsTemplate() throws NamingException {
+    JmsTemplate jmsTemplate = new JmsTemplate();
+
+    jmsTemplate.setConnectionFactory(queueConnectionFactory());
+    jmsTemplate.setExplicitQosEnabled(true);
+    jmsTemplate.setDeliveryPersistent(false);
+
+    return jmsTemplate;
+}
+
+
+
+CachingConnectionFactory
+-------------------------
+
+make sure that you are reusing JMS objects as much as possible. 
+
+Creating a connection or a session usually requires a network exchange, 
+which means it can introduce a significant overhead. 
+
+While the creation of producers and consumers has less overhead, it’s good to know that these objets were designed to be reused, so you might as well take advantage of this and cache/reuse instances as much as possible.
+
+If you are using Spring JMS, CachingConnectionFactory can wrap your connection factory to reuse a single connection, cache sessions and producers.
+
+================================================================================	
