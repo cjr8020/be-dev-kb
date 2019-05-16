@@ -526,3 +526,54 @@ Test it:
 
 
 ================================================================================
+
+	unable to remove network "has active endpoints"
+	***********************************************
+
+
+running 
+
+	$ docker-compose -f microperimeter.yaml -p microperimeter down
+
+results in 
+ERROR: network <id> has active endpoints
+
+
+Docker allows us to create user-defined networks for isolating application
+from outside networks.   After creating network in docker, you can see your
+network name:
+
+	$ docker network create -d bridge
+	$ docker network ls
+
+You can't remove network that is connected with a running container.
+If you want to delete or shutdown that network, you need to first disconnect
+that container from network.
+
+You can show network details with
+
+	$ docker network inspect <network-id>
+
+Once you know which container(s) the network is connected to, you can disconnect
+
+	$ docker network disconnect -f <network-id>  <container-id>
+
+
+Example script that would first disconnect network from containers, and then
+do "down"
+
+
+#!/bin/bash
+# shellcheck disable=SC2002
+set -e
+
+docker network disconnect -f microperimeter_system financial-service.fp-default
+docker network disconnect -f microperimeter_system financial-frontend.fp-default
+docker network disconnect -f microperimeter_system card-service.fp-default
+
+docker-compose -f microperimeter.yaml -p microperimeter down
+docker-compose -f financial-portal.yaml -p fp down
+
+
+
+================================================================================
