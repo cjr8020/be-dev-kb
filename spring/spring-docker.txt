@@ -1,0 +1,182 @@
+
+	******************
+
+		Spring Docker
+
+	******************
+
+
+================================================================================
+
+	spring-boot with Docker with Maven
+	**********************************
+
+https://spring.io/guides/gs/spring-boot-docker/
+
+
+Create a Dockerfile for your SpringBoot app:
+-------------------
+
+FROM openjdk:8-jdk-alpine
+VOLUME ./docker/spring-boot/data
+ARG JAR_FILE
+COPY ${JAR_FILE} app.jar
+ENTRYPOINT ["java","-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+
+
+VOLUME can be `/tmp` or it could be a directory relative to your maven project.
+The `fat` jar is added to the container as "app.jar" and then executed in the 
+ENTRYPOINT.
+
+Separate dependencies and application sources
+---------------------------------------------
+
+Dockerfile contains a list of operations that are used to assemble a Docker image.
+These operations describe the necessary commands to be able to run your application
+from scratch.
+Each of these operations results in a separate "layer" to your Docker image.
+
+The advantage of the layered system is taht Docker only processes layers that
+are changed when try to update an image, or pull an image for usage.
+This is much faster than having to build everything over and over.
+
+Using `docker history` command, you can list the layers a Docker image contains.
+
+We can then separate the JAR into mulitple layers, one for your own classes, and
+another one for your dependecies.
+classes: 11.2 kb
+deps:    38.6 mb
+This means that rebuilding Docker image when code changes will be much faster.
+
+Dockerfile with "layers" now looks like this:
+--------------------------
+
+FROM openjdk:8-jdk-alpine
+VOLUME ./docker/spring-boot/data
+ARG DEPENDENCY=target/dependency
+COPY ${DEPENDENCY}/BOOT-INF/lib /app/lib
+COPY ${DEPENDENCY}/META-INF /app/META-INF
+COPY ${DEPENDENCY}/BOOT-INF/classes /app
+ENTRYPOINT ["java", "-cp", "app:app/lib/*", "hello.Application"]
+
+
+maven-dependency-plugin
+------------------------
+
+To be able to write a Dockerfile that utilizes these separate layers, we have
+to first unpack the "fat" JAR:
+
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>unpack</id>
+            <phase>package</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>${project.version}</version>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+
+
+Build your Docker image
+-----------------------
+
+dockerfile-maven-plugin  allows us to add building a Docker image to the Maven build.
+
+it can build Docker images
+it can push to a Docker registry to others can use it.
+
+
+      <plugin>
+        <groupId>com.spotify</groupId>
+        <artifactId>dockerfile-maven-plugin</artifactId>
+        <version>1.4.10</version>
+        <configuration>
+          <repository>${docker.image.prefix}/${project.artifactId}</repository>
+         	<tag>${project.version}</tag>
+        </configuration>
+      </plugin>
+
+
+		$ mvn clean package dockerfile:build
+
+
+run the image
+-------------
+
+After you build the image
+
+	$ docker run -p 8080:8080 -t springio/gs-spring-boot-docker
+
+and
+
+	$ curl -v http://localhost:8080
+
+
+
+using Spring profiles
+---------------------
+
+you can run your image in a Spring profile by passing a variable:
+
+
+$ docker run -e "SPRING_PROFILES_ACTIVE=prod" -p 8080:8080 -t springio/gs-spring-boot-docker
+$ docker run -e "SPRING_PROFILES_ACTIVE=dev" -p 8080:8080 -t springio/gs-spring-boot-docker
+
+
+Debugging an application within a Docker container
+------------------------
+
+To debug the application JPDA Transport can be used. So we’ll treat the container like a remote server. To enable this feature pass a java agent settings in JAVA_OPTS variable and map agent’s port to localhost during a container run. With the Docker for Mac there is limitation due to that we can’t access container by IP without black magic usage.
+
+$ docker run -e "JAVA_OPTS=-agentlib:jdwp=transport=dt_socket,address=5005,server=y,suspend=n" -p 8080:8080 -p 5005:5005 -t springio/gs-spring-boot-docker
+
+
+
+================================================================================
+
+  Dockerfile Maven
+  dockerfile-maven-plugin
+
+*****************************
+
+
+Make a Docker build process integrate with the Maven build process.
+If you bind the default phases, when you type `mvn package`, you get a Docker image.
+When you type `mvn deploy`, you image gets published.
+
+Make the goals remember what you are doing.
+You can type
+
+  $ mvn dockerfile:build
+  $ mvn dockerfile:tag
+  $ mvn dockerfile:push
+
+Eliminates the need for something like
+  $ mvn dockerfile:build -DalsoPush
+
+Instead you can just
+
+  $ mvn dockerfile:build dockerfile:push
+
+Integrates with Maven build reactor - you can depend on the Docker image
+of one project in another project, and Maven will build projects in the correct
+order.
+This is useful if you want to run integration tests involving multiple services.
+
+
+================================================================================

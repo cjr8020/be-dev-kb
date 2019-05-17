@@ -6279,4 +6279,88 @@ A:
   - include new top-level dependency for the version you want
 
 
-===================================================================================
+================================================================================
+
+  Dockerfile Maven
+  dockerfile-maven-plugin
+
+*****************************
+
+
+Make a Docker build process integrate with the Maven build process.
+If you bind the default phases, when you type `mvn package`, you get a Docker image.
+When you type `mvn deploy`, you image gets published.
+
+Make the goals remember what you are doing.
+You can type
+
+  $ mvn dockerfile:build
+  $ mvn dockerfile:tag
+  $ mvn dockerfile:push
+
+Eliminates the need for something like
+  $ mvn dockerfile:build -DalsoPush
+
+Instead you can just
+
+  $ mvn dockerfile:build dockerfile:push
+
+Integrates with Maven build reactor - you can depend on the Docker image
+of one project in another project, and Maven will build projects in the correct
+order.
+This is useful if you want to run integration tests involving multiple services.
+
+
+
+plugin declaration
+------------------
+
+With this, you can run
+
+  $ mvn package
+  or
+  $ mvn dockerfile:build
+
+and if you want to push it 
+
+  $ mvn deploy
+  or
+  $ mvn dockerfile:push
+
+  <plugin>
+    <groupId>com.spotify</groupId>
+    <artifactId>dockerfile-maven-plugin</artifactId>
+    <version>${dockerfile-maven-version}</version>
+    <executions>
+      <execution>
+        <id>default</id>
+        <goals>
+          <goal>build</goal>
+          <goal>push</goal>
+        </goals>
+      </execution>
+    </executions>
+    <configuration>
+      <repository>spotify/foobar</repository>
+      <tag>${project.version}</tag>
+      <buildArgs>
+        <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
+      </buildArgs>
+    </configuration>
+  </plugin>
+
+Note the use of <buildArgs> and ${JAR_FILE}
+
+with that Dockerfile could look like:
+
+  # Add Maven dependencies (not shaded into the artifact; Docker-cached)
+  ADD target/lib           /usr/share/myservice/lib
+  # Add the service itself
+  ARG JAR_FILE
+  ADD target/${JAR_FILE} /usr/share/myservice/myservice.jar
+
+
+
+
+
+================================================================================
