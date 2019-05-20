@@ -1,0 +1,86 @@
+
+
+	Flyway Migrations
+	*****************
+
+
+================================================================================
+
+
+public class AbstractPersistenceTest extends BaseTest {
+  private static Logger logger = LoggerFactory.getLogger(AbstractPersistenceTest.class);
+
+  @ClassRule
+  public static OracleContainer oracleContainer;
+
+  private Flyway flyway;
+
+  @BeforeClass
+  public static void beforeClass() {
+
+    logger.info("Starting Oracle Container ... {}", LocalDateTime.now());
+    oracleContainer = new OracleContainer();
+    oracleContainer.start();
+    logger.info("Oracle Container started. {}", LocalDateTime.now());
+  }
+
+  @Before
+  public void before() throws SQLException {
+    // execute test DB migration
+    migrateDatabase();
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    logger.info("Stopping Oracle Container ... {}", LocalDateTime.now());
+    oracleContainer.stop();
+    logger.info("Oracle Container stopped. {}", LocalDateTime.now());
+  }
+
+  /**
+   * NOTE: all properties are prefixed with "jdbc".  This prefix identifies
+   * DataSource properties for DB connections to the SIC schema.
+   *
+   * @return DataSourceFactory
+   */
+  private DataSource getTestDataSource() throws SQLException {
+
+    OracleDataSource oracleDataSource = new OracleDataSource();
+    oracleDataSource.setURL(oracleContainer.getJdbcUrl());
+    oracleDataSource.setUser(oracleContainer.getUsername());
+    oracleDataSource.setPassword(oracleContainer.getPassword());
+
+    return oracleDataSource;
+  }
+
+
+  /**
+   * NOTE: all properties are prefixed with "jdbc".  This prefix identifies
+   * DataSource properties for DB connections to the SIC schema.
+   */
+  private void migrateDatabase() throws SQLException {
+
+    flyway = new Flyway();
+    flyway.setDataSource(getTestDataSource());
+    flyway.setSchemas("TEST");
+    flyway.migrate();
+  }
+
+}
+
+
+================================================================================
+
+	Flyway support for Oracle
+	*************************
+
+https://github.com/flyway/flyway/issues/2034
+	
+
+Flyway Enterprise or Oracle upgrade required.
+
+
+org.flywaydb.core.internal.exception.FlywayEnterpriseUpgradeRequiredException: 
+Flyway Enterprise or Oracle upgrade required: Oracle 11 is past regular support by Oracle and no longer supported by Flyway Open Source or Pro, but still supported by Flyway Enterprise.
+
+================================================================================
