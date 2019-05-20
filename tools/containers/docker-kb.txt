@@ -54,7 +54,17 @@ e.g.
 		cleanup
 		*******
 
-clean up the data of a particular docker-compose stack, run
+
+disk usage
+----------
+
+	$ docker system df 
+
+
+
+clean up the data of a particular docker-compose stack
+-------------------------------------------------------
+
 This will take care of taking down the volumes, images and dangling stuff.
 
 	$ docker-compose down -v --rmi all --remove-orphans
@@ -67,7 +77,11 @@ This will take care of taking down the volumes, images and dangling stuff.
 	$ docker volume rm $(docker volume ls -q -f 'dangling=true')
 
 
-$ docker system prune
+
+Purge unused, dangling images, containers, volumes, networks
+-------------------------------------------------------------
+
+$ docker system prune [-a]
 
 	This will remove all unused containers, volumes, networks and images (both dangling and unreferenced).
 
@@ -181,6 +195,19 @@ stop running container
 	$ docker stop <container-name>
 or
 	$ docker stop <container-id>
+
+
+find IP address of running container
+-------------------------------------
+
+for modern containers:
+
+$ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' container_name_or_id
+
+
+$ docker inspect <containerNameOrId>
+$ docker inspect <containerNameOrId> | grep '"IPAddress"' | head -n 1
+$ docker inspect -f "{{ .NetworkSettings.IPAddress }}" <containerNameOrId>
 
 ================================================================================
 
