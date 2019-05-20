@@ -16,6 +16,47 @@ https://github.com/wsargent/docker-cheat-sheet
 
 ================================================================================
 
+		info
+		****
+
+disk usage
+----------
+
+	$ docker system df 
+	$ docker system info
+
+	$ docker container ls [-a]		
+
+================================================================================
+
+		cleanup
+		*******
+
+Purge unused, dangling images, containers, volumes, networks
+-------------------------------------------------------------
+
+	$ docker system prune [-a]
+	WARNING! This will remove:
+	        - all stopped containers
+	        - all networks not used by at least one container
+	        - all dangling images
+	        - all build cache
+	Are you sure you want to continue? [y/N]
+
+
+you can limit the pruning down to a single part, like the images, by issuing something like:
+
+	$ docker system prune -a --volumes
+
+	$ docker image prune
+	$ docker container prune
+	$ docker network prune
+	$ docker volume prune
+
+
+
+================================================================================
+
 	Commands
 	********
 
@@ -32,6 +73,7 @@ get system-wide info
 --------------------
 
 	$ docker info
+
 
 search for docker images
 ------------------------
@@ -51,16 +93,6 @@ e.g.
 
 ================================================================================
 
-		cleanup
-		*******
-
-
-disk usage
-----------
-
-	$ docker system df 
-
-
 
 clean up the data of a particular docker-compose stack
 -------------------------------------------------------
@@ -76,21 +108,6 @@ This will take care of taking down the volumes, images and dangling stuff.
 	# ATTENTION: this will also remove volumes of docker-compose if the containers are barely stopped
 	$ docker volume rm $(docker volume ls -q -f 'dangling=true')
 
-
-
-Purge unused, dangling images, containers, volumes, networks
--------------------------------------------------------------
-
-$ docker system prune [-a]
-
-	This will remove all unused containers, volumes, networks and images (both dangling and unreferenced).
-
-	you can limit the pruning down to a single part, like the images, by issuing something like:
-
-$ docker image prune
-$ docker container prune
-$ docker network prune
-$ docker volume prune
 
 
 list containers

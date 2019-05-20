@@ -1,0 +1,316 @@
+
+	**************
+
+		Liquibase
+
+	**************
+
+
+================================================================================	
+
+	Running
+	*******
+
+Liquibase liquibase = new Liquibase(...);
+liquibase.update("test");
+
+liquibase.dropAll();
+
+
+
+================================================================================	
+
+	dropAll()
+	*********
+
+Drops all database objects owned by user
+
+
+================================================================================	
+
+	Using Oracle
+	************
+
+http://www.liquibase.org/tutorial-using-oracle	
+
+================================================================================	
+
+	Liquibase Best Practices
+	************************
+
+https://www.liquibase.org/bestpractices.html
+
+The most common way to organize your changelogs is by major release. 
+Choose a package in your classpath to store the changelogs, 
+preferably near your database access classes. 
+
+In this example, we will use com/example/db/changelog
+
+com
+  example
+    db
+      changelog
+        db.changelog-master.xml
+        db.changelog-1.0.xml
+        db.changelog-1.1.xml
+        db.changelog-2.0.xml
+      DatabasePool.java
+      AbstractDAO.java
+
+db.changelog-master.xml
+-----------------------
+
+<?xml version="1.0" encoding="UTF-8"?> 
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+
+  <include file="com/example/db/changelog/db.changelog-1.0.xml"/> 
+  <include file="com/example/db/changelog/db.changelog-1.1.xml"/> 
+  <include file="com/example/db/changelog/db.changelog-2.0.xml"/> 
+</databaseChangeLog> 
+
+
+Each of the included XML files needs to be in the same format as a standard XML database change log, 
+something like this:
+
+<?xml version="1.0" encoding="UTF-8"?> 
+<databaseChangeLog 
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog/1.9" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog/1.9
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-1.9.xsd"> 
+  <changeSet author="authorName" id="changelog-1.0">
+    <createTable tableName="TablesAndTables">
+      <column name="COLUMN1" type="TEXT">
+        <constraints nullable="true" primaryKey="false" unique="false"/>
+      </column>
+    </createTable>
+  </changeSet>
+</databaseChangeLog> 
+
+
+NOTE:   The db.changelog-master.xml is the changelog you pass to all Liquibase calls.
+
+
+
+================================================================================	
+
+	Changelog SQL Format
+	********************
+
+As of Liquibase 2.0, Liquibase includes support for “plain SQL” changelog files. These changelogs may be included from XML changelogs and may contain arbitrary SQL statements. The statements are converted to custom_sql refactorings.
+
+Formatted SQL files use comments to provide Liquibase with metadata. 
+
+
+	You can also use a master file like this
+
+		<changeSet id="test_data_inserts" author="me" context="test">
+		    <sqlFile path="test_data.sql" relativeToChangelogFile="true" />
+		</changeSet>
+
+		application.properties
+		liquibase.contexts=test
+
+
+Each SQL file must begin with the following comment:
+
+
+--liquibase formatted sql
+
+Changesets
+----------
+
+
+Each changeset in a formatted SQL file begins with a comment of the form
+
+--changeset author:id attribute1:value1 attribute2:value2 [...]
+
+The changeset comment is followed by one or more SQL statements, separated by semicolons (or the value of the <endDelimiter> attribute).
+
+Preconditions
+=============
+
+Preconditions can be specified for each changeset. 
+Currently, only the SQL Check precondition is supported.
+
+--preconditions onFail:HALT onError:HALT
+--precondition-sql-check expectedResult:0 SELECT COUNT(*) FROM my_table
+
+
+	Sample SQL changelog
+	====================
+
+--liquibase formatted sql
+
+--changeset nvoxland:1
+create table test1 (
+    id int primary key,
+    name varchar(255)
+);
+--rollback drop table test1;
+
+--changeset nvoxland:2
+insert into test1 (id, name) values (1, ‘name 1′);
+insert into test1 (id, name) values (2, ‘name 2′);
+
+--changeset nvoxland:3 dbms:oracle
+create sequence seq_test;
+
+
+More examples
+-------------
+https://github.com/liquibase/liquibase/blob/master/liquibase-integration-tests/src/test/resources/changelogs/common/sqlstyle/formatted.changelog.sql
+
+
+	Reference SQL changelog
+	***********************
+
+
+
+Example:
+
+public abstract class AbstractIntegrationTest {
+
+
+	void migrateDatabase() {
+
+    Liquibase liquibase = createLiquibase("changelogs/common/sqlstyle/formatted.changelog.sql");
+    liquibase.update("hyphen-context-using-sql,camelCaseContextUsingSql");
+
+	}
+
+}
+
+formatted.changelog.sql
+-----------------------
+
+--liquibase formatted sql
+
+--changeset nvoxland:1
+create table test1 (
+  id int not null primary key,
+  name varchar(255)
+);
+
+--rollback
+delete from test1;
+
+--changeset nvoxland:2
+insert into test1 (id, name) values (1, 'name 1');
+insert into test1 (id, name) values (2, 'name 2');
+
+--changeset ryan:1 context:hyphen-context-using-sql
+create table hyphen_context (id integer);
+
+--changeset ryan:2 context:camelCaseContextUsingSql
+create table camel_context (id integer);
+
+--changeset ryan:1-bar
+create table bar_id (id integer);
+
+--changeset ryan:1-foo
+create table foo_id (id integer);
+
+
+================================================================================	
+
+	Changelog JSON Format
+	*********************
+
+To use JSON-based changelogs, you must include snakeyaml-1.12.jar in your classpath.
+
+
+
+
+================================================================================	
+
+
+	Changelog YAML Format
+	*********************
+
+
+databaseChangeLog:
+  - preConditions:
+    - runningAs:
+        username: liquibase
+
+  - changeSet:
+      id: 1
+      author: nvoxland
+      changes:
+        - createTable:
+            tableName: person
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: firstname
+                  type: varchar(50)
+              - column:
+                  name: lastname
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: state
+                  type: char(2)
+
+  - changeSet:
+      id: 2
+      author: nvoxland
+      changes:
+        - addColumn:
+            tableName: person
+            columns:
+              - column:
+                  name: username
+                  type: varchar(8)
+
+  - changeSet:
+      id: 3
+      author: nvoxland
+      changes:
+        - addLookupTable:
+            existingTableName: person
+            existingColumnName:state
+            newTableName: state
+            newColumnName: id
+            newColumnDataType: char(2)
+
+
+
+================================================================================	
+
+	Liquibase and Spring Boot
+	**************************
+
+ https://objectpartners.com/2018/05/09/liquibase-and-spring-boot/
+
+
+ I think it’s great that Spring Boot has built-in support for Liquibase but I think there is missing documentation on it. Some of it is on Spring’s part and others are in Liquibase. I hope to demystify it a bit.
+
+Spring Boot’s default master change log is db/changelog/db.changelog-master.yaml . 
+Note the file extension is yaml not the standard yml. No idea why they did it that way.
+
+For database migrations, I don’t like storing everything in one changelog file. Instead I like putting them in different files in a folder. Liquibase has an includeall directive but only documents it in XML. Not sure how I figured this out but here is how I did it with yaml:
+
+databaseChangeLog:
+   - includeAll:
+       path: classpath*:db/changelog/changes/
+
+So now I can store my changes in classpath*:db/changelog/changes/ with any format that I want.
+
+Lastly you can use Spring Intializr to put Liquibase in your project but, oddly, it doesn’t include the Liquibase plugin if you pick Maven or Gradle, which means that you don’t have Liquibase commands in your build file. So be aware that, regardless of your build tool, you will have to do more work to get things as workable as it should be.
+
+
+================================================================================	
+================================================================================	
