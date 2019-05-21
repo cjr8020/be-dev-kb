@@ -1,0 +1,1044 @@
+	
+	#############
+
+		JUnit
+
+	#############
+
+
+
+=================================================================
+=================================================================
+=================================================================
+
+	@@@@@@@@@@@@@@
+	
+		JUnit4
+		
+	@@@@@@@@@@@@@@
+
+
+@Before / @After order execution with inheritance
+--------------------------------------------------
+
+Base @Before
+Test @Before
+Test
+Test @Afer 
+Base @Afer
+
+This order is guaranteed UNLESS the mehod is OVERRIDDEN in the extending class.
+
+Base {
+	
+	@Before
+	public void setup() {}
+}
+
+BadTest extends Base {
+	@Before
+	public void setup() {}  <-- overridden!
+}
+
+GoodTest extends Base {
+	@Before void namedDifferentlySetup() {}
+}
+
+
+
+@Before and @After
+
+	Use @Before and @After annotations for "setup" and "tearDown" methods respectively.  They run before and after every test case.
+	
+		@Before
+		public void runBeforeEveryTest() {
+			simpleMath = new SimpleMath();
+		}
+
+		@After
+		public void runAfterEveryTest() {
+			simpleMath = null;
+		}
+	
+@BeforeClass and @AfterClass	
+
+	Use @BeforeClass and @AfterClass annotations for class-wide "setup" and "tearDown" respectively.  These run before and after ALL test cases.
+	
+		@BeforeClass
+		public static void runBeforeClass() {
+			// run for one time before all test cases
+		}
+
+		@AfterClass
+		public static void runAfterClass() {
+			// run for one time after all test cases
+		}
+
+Exception Handling
+
+	Use "expected" parameter with @Test annotation for test cases that expect exception.  Write the class name of the exception that will be thrown.
+	
+		@Test(expected = ArithmeticException.class)
+		public void divisionWithException() {
+			// divide by zero
+			simpleMath.divide(1, 0);
+		}
+		
+@Ignore
+
+	Put @Ignore annotation for test cases you want to ignore.  You can add a string parameter that defines the reason for ignoring if you want.
+	
+		@Ignore("Not Ready to Run")
+		@Test
+		public void multiplication() 
+		{
+			assertEquals(15, simpleMath.multiply(3, 5));
+		}
+	
+@Timeout
+
+	Define a timeout period in millis with "timeout" parameter.  The test fails when the timeout period exceeds.
+	
+		@Test(timeout = 1000)
+		public void infinity() 
+		{
+			while (true)
+				;
+		}
+	
+New Assertions
+
+	Compare arrays with new assertion methods.  Two arrays are equal if they have the same length and each element is equal to the corresponding element in the other array; otherwise, they are not.
+	
+		public static void assertEquals(Object[] expected, Object[] actual);
+		public static void assertEquals(String message, Object[] expected, Object[] actual);
+		
+	Example:
+	
+		@Test
+		public void listEquality() 
+		{
+			List<Integer> expected = new ArrayList<Integer>();
+			expected.add(5);
+
+			List<Integer> actual = new ArrayList<Integer>();
+			actual.add(5);
+
+			assertEquals(expected, actual);
+		}
+
+JUnit4Adapter
+
+	Run your JUnit4 tests in JUnit3 test runners with JUnit4Adapter
+	
+		public static junit.framework.Test suite() 
+		{
+			return new JUnit4TestAdapter(SimpleMathTest.class);
+		}
+        
+        
+        
+@RunWith(Suite.class)
+
+    where Suite extends Runner
+    
+    @Retention(value=RUNTIME)
+    @Target(value=TYPE)
+    @Inherited
+    public @interface RunWith    
+    
+    
+    When a class is annotated with @RunWith or extends a class annotated with @RunWith, JUnit will invoke the class it references to run the tests in that class instead of the runner built into JUnit.
+	
+    For example, suites in JUnit 4 are built using RunWith, and a custom runner named Suite:
+    
+     @RunWith(Suite.class)
+     @SuiteClasses(ATest.class, BTest.class, CTest.class)
+     public class ABCSuite {}
+     
+    
+    Note: @RunWith can also refer to a Suite which defines its own runner. E.g:
+    
+    
+        public class MySuite extends Suite 
+        {
+            ...
+
+            public static List<Runner> getRunners(Class<?>[] classes) throws InitializationError {
+                List<Runner> runners = new LinkedList<Runner>();
+
+                for (Class<?> klazz : classes) {
+                    runners.add(new MyRunner(klazz));
+                }
+
+                return runners;
+            }
+        }    
+    
+=================================================================	
+
+    JUnit 4 Test Suite
+    *******************
+    
+    
+NOTE: for assertTrue(), etc.:
+
+    import static org.junit.Assert.*;    
+    
+    
+It seems that not that many developers migrating to JUnit 4 are aware of the replacement for the old way of building suites--using the static suite() method and the junit.framework.TestSuite class--I decided to blog a simple example for Google's indexing hamsters to grab hold of.
+
+Here we go:
+
+    import org.junit.runner.RunWith;
+    import org.junit.runners.Suite;
+
+    @RunWith(Suite.class)
+    @Suite.SuiteClasses({
+      TestCalculatorAddition.class,
+      TestCalculatorSubtraction.class,
+      TestCalculatorMultiplication.class,
+      TestCalculatorDivision.class
+    })
+
+    public class CalculatorSuite {
+        // the class remains completely empty, 
+        // being used only as a holder for the above annotations
+    }
+
+The above class is a simple placeholder for the suite annotations, not containing any other functionality as such. 
+
+The key is in the @RunWith annotation, which tells the JUnit 4 test runner to use the org.junit.runners.Suite class for running this particular class. 
+
+The @Suite annotation, on the other hand, tells the Suite runner which test classes to include in this suite and in which order. 
+
+
+    JUnit 4 @BeforeClass & @AfterClass when using Suites 
+    ****************************************************
+    
+Write a @BeforeClass method in AllTests class which will be executed when the suite is started.
+ 
+ 
+public class MyTests1 { 
+    @BeforeClass
+    public static void beforeClass() {
+        System.out.println("MyTests1.beforeClass");
+    }
+
+    @Before
+    public void before() {
+        System.out.println("MyTests1.before");
+    }
+
+    @AfterClass
+    public static void afterClass() {
+        System.out.println("MyTests1.AfterClass");
+    }
+
+    @After
+    public void after() {
+        System.out.println("MyTests1.after");
+    }
+
+    @Test
+    public void test1() {
+        System.out.println("MyTests1.test1");
+    }
+
+    @Test
+    public void test2() {
+        System.out.println("MyTests1.test2");
+    }
+}
+
+
+
+public class MyTests2 { 
+    @BeforeClass
+    public static void beforeClass() {
+        System.out.println("MyTests2.beforeClass");
+    }
+
+    @Before
+    public void before() {
+        System.out.println("MyTests2.before");
+    }
+
+    @AfterClass
+    public static void afterClass() {
+        System.out.println("MyTests2.AfterClass");
+    }
+
+    @After
+    public void after() {
+        System.out.println("MyTests2.after");
+    }
+
+    @Test
+    public void test1() {
+        System.out.println("MyTests2.test1");
+    }
+
+    @Test
+    public void test2() {
+        System.out.println("MyTests2.test2");
+    }
+}
+
+
+
+
+@RunWith(Suite.class)
+@Suite.SuiteClasses( { MyTests1.class, MyTests2.class })
+public class AllTests {
+
+    @BeforeClass
+    public static void beforeClass() {
+        System.out.println("AllTests.beforeClass");
+    }
+
+    @Before
+    public void before() {
+        System.out.println("AllTests.before");
+    }
+
+    @AfterClass
+    public static void afterClass() {
+        System.out.println("AllTests.AfterClass");
+    }
+
+    @After
+    public void after() {
+        System.out.println("AllTests.after");
+    }
+
+    @Test
+    public void test1() {
+        System.out.println("AllTests.test1");
+    }
+
+    @Test
+    public void test2() {
+        System.out.println("AllTests.test2");
+    }
+
+} 
+    
+
+OUTPUT
+
+AllTests.beforeClass
+MyTests1.beforeClass
+MyTests1.before
+MyTests1.test1
+MyTests1.after
+MyTests1.before
+MyTests1.test2
+MyTests1.after
+MyTests1.AfterClass
+MyTests2.beforeClass
+MyTests2.before
+MyTests2.test1
+MyTests2.after
+MyTests2.before
+MyTests2.test2
+MyTests2.after
+MyTests2.AfterClass
+AllTests.AfterClass
+
+
+    
+
+=================================================================
+
+    Combine JUnit 3 and JUnit 4 suites/tests
+    ****************************************
+
+For those with a large set of 3.8 style suites/tests that need to coexist with the new v4 style you can do the following:
+
+    import org.junit.runner.RunWith;
+    import org.junit.runners.Suite;
+
+    @RunWith(Suite.class)
+    @Suite.SuiteClasses({
+    
+      // Add a JUnit 3 suite
+      CalculatorSuite.class,
+    
+      // JUnit 4 style tests
+      TestCalculatorAddition.class,
+      TestCalculatorDivision.class
+    })
+    
+    public class CalculatorSuite {
+    
+        // A traditional JUnit 3 suite
+        public static Test suite() {
+            TestSuite suite = new TestSuite();
+            suite.addTestSuite(TestCalculatorSubtraction.class);
+            return suite;
+            
+    }
+
+
+============================================================
+
+
+    JUnit 4 TestWatchman
+    **********************************
+    
+
+
+public void testA() {
+    log.info("{} being run...", name.getMethodName());
+}
+
+------------------------------------------------------
+
+Using TestWatchman to promote DRY principle (of not repeating the same line above)
+
+[This is JUnit up to 4.8.2]
+
+public class LoggingTest {
+    @Rule public MethodRule watchman = new TestWatchman() {
+        public void starting(FrameworkMethod method) {
+            logger.info("{} being run...", method.getName());
+        }
+    };
+    
+    final Logger logger = LoggerFactory.getLogger(LoggingTest.class);
+    
+    @Test
+    public void testA() {
+    
+    }
+
+}
+============================================================
+
+    JUnit 4 v4.9 TestWatchman and Rules
+    ***********************************
+    
+public class AbstractTest {    
+    
+    // @Rule public TestName name = new TestName();
+    @Rule public TestWatcher testWatcher = new TestWatcher() {
+        public void starting(Description d) {
+            log.info(" *** Executing Test{} ...", d.getMethodName());
+        }
+    };  
+    
+}
+
+=================================================================
+
+    JUnit Rules
+    ***********
+    
+http://www.silverbaytech.com/2013/01/28/junit-tricks-part-2-junit-rules/
+
+
+    
+JUnit rules allow you to write code to inspect a test before it is run, modify whether and how to run the test, and inspect and modify test results.
+
+JUnit represents each individual Test invocation as a Statement.  A Statement represents a class instance and specific method associated with that test.  Thus, running tests consists of creating and invoking Statements.  
+
+Statement is actually an interface, and has only one method - evaluate().
+
+What a Rule allows you to do is to intercept each Statement and, if you wish, wrap it up in another Statement that does stuff before and/or after the nested Statement is evaluated.
+
+In AOP-ese, this is providing "around advice" (the extra "before and after" stuff) on a "join point" (the individual test execution).
+
+As you can see, on line 3 we have a public member variable annotated as a @Rule. 
+
+    @Rule
+    public PostCheckRule rule = new PostCheckRule();
+    
+
+Our PostCheckRule implements the JUnit TestRule interface as required.
+
+TestRule has a single method named apply which, as you might expect, applies the rule to the Statement that is about to be evaluated. The apply method is passed the original Statement, and is expected to return a Statement that will result in the rule being applied. In our case, what we do is create a new Statement that prints "before", evaluates the original Statement, and then prints "after" and runs our check.
+
+
+    private class PostCheckRule implements TestRule
+    {
+        @Override
+        public Statement apply(final Statement base, Description description)
+        {
+            return new Statement()
+            {
+                @Override
+                public void evaluate() throws Throwable
+                {
+                    System.out.println("before");
+                    base.evaluate();
+                    System.out.println("after");
+                    assertTrue(stringThatShouldBeEvenLength.length() % 2 == 0);
+                }
+            };
+        }
+    }
+    
+    
+Test Initialization
+-------------------
+
+What if we had a test class that required some kind of initialization on a test-by-test basis. Clearly, of course, we can do this using @Before methods, but what if the specific details of the initialization needed to be somewhat different from test method to test method? In this case, we’d have to put the initialization code (or calls to helper methods) in each and every test method. What if we could instead just annotate each method with the configuration it needed, and then create reusable code that would do the setup?
+
+
+Lines 1-6 define the @Configuration annotation we will use. 
+
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @interface Configuration
+    {
+        String value();
+    }
+
+
+The two test methods are then each annotated with different values simulating the different configuration they expect.
+    
+
+    @Configuration("1")
+    @Test
+    public void firstConfigurationTest()
+    {
+        assertEquals("config:1", config);
+    }
+    
+    @Configuration(value = "2")
+    @Test
+    public void secondConfiguration()
+    {
+        assertEquals("config:2", config);
+    }
+
+
+Code reusability -- Properly designed, a TestRule class can be made reusable across test classes or projects. 
+
+JUnit ships with a number of pre-defined TestRule classes, including:
+
+    ErrorCollector:     collects multiple errors in one test method
+    ExpectedException:  makes flexible assertions about thrown exceptions
+    ExternalResource:   start and stop a server, for example
+    TemporaryFolder:    create fresh files, and delete after test
+    TestName:           remembers the test name for use during the method
+    TestWatcher:        adds logic at events during method execution
+    Timeout:            causes test to fail after a set time
+    Verifier:           fails test if object state ends up incorrect
+
+In AOP programming, you are not limited to a single piece of advice on a join point. This is true with JUnit rules as well. 
+
+Here, we have a test class that implements two different rules:
+
+    @Rule public MyRule one = new MyRule("one");
+    @Rule public MyRule two = new MyRule("two");
+    
+The order is not defined.  Therefore you might see
+
+    
+two before
+one before
+test
+one after
+two after
+
+or 
+
+one before
+two before
+test
+two after
+one after
+
+
+    Rule Ordering
+    **************
+
+
+If the order makes a difference, JUnit provides a convenient RuleChain class to provide deterministic ordering:
+
+        @Rule
+        public TestRule chain = RuleChain
+            .outerRule(new MyRule("outer"))
+            .around(new MyRule("inner"));
+
+outer before
+inner before
+test
+inner after
+outer after
+
+Finally:
+
+1. The examples above have focused on the @Rule annotation, which gives us access to the Statement associated with an individual test method. There is also a @ClassRule annotation that defines a rule at the class level. This gives access to a Statement associated with an entire class, providing the same type of AOP support that the @BeforeClass and @AfterClass annotations do.
+
+2. I mentioned that the fields annotated as @Rule must be public. Although the folks at JUnit could have gone spelunking inside our test classes to search for private fields, apparently they decided that was either not worth the effort, or they knew of cases in which that wouldn’t work. So, for the moment, the fields must be public. (public static for @ClassRule-annotated fields.)
+
+
+3. Rule support and @Before/@After support can be combined. Code annotated as either @Before or @After is executed inside that for a TestRule. Thus, you can think of the Statement passed to the inner-most TestRule as encapsulating both the test method and any @Before or @After methods. Similarly, @BeforeClass and @AfterClass processing are done within the Statement provided to a @ClassRule.
+
+
+    @Rule public MyRule one = new MyRule("one");
+    
+    @Before
+    public void before()
+    {
+        System.out.println("before");
+    }
+    
+    @After
+    public void after()
+    {
+        System.out.println("after");
+    }
+
+
+
+one before
+before
+test
+after
+one after
+
+
+@Rule Objects are not initialized before @BeforeClass
+-----------------------------------------------------
+https://garygregory.wordpress.com/2010/03/21/junit-rule-not-initialized-before-beforeclass/
+
+In JUnit, @Rule objects are not initialized before @BeforeClass methods are called (as of the current version 4.8.1.)
+Is this by design or a bug?
+Both:
+
+* Rules were not designed to be declared static, but to be set up and torn down for each @Test method run.
+
+* The bug is that the code comments inside JUnit indicate declaring @Rule static is not legal but the code does not disallow it like JUnit disallows @BeforeClass methods from not being static.
+
+Why is this an issue?
+In a test, we want to configure a server, start it, run tests, shutdown the server and clear any evidence left on disk.
+I was hoping this would map to JUnit as follows:
+
+1. Configure the server: Use a TemporaryFolder Rule to create server configuration files.
+2. Start the server in @BeforeClass using the configuration files
+3. Run tests in @Test methods
+4. Shutdown the server in @AfterClass
+5. Clearing configuration files and anything else the server created (logs and other temp files) is done  automatically by the TemporaryFolder Rule
+
+JUnit 4.9 adds the new @ClassRule annotation.
+
+
+===========================================================================================
+
+@ClassRule
+----------
+
+Annotates static fields that contain rules.
+
+Must be public, static and subtype of TestRule.
+
+The Statement passed to the TestRule will run 
+
+1. any BeforeClass methods,
+2. the entire body of the Test class (all contained methods or all contained classes if it is a Suite)
+3. any AfterClass methods
+
+The Statement passed to the TestRule will never throw an exception, and throwing an exception from the TestRule will result in undefined behaviour.
+
+    Ordering
+    ---------
+
+If there are multiple annotated ClassRules on a class, they will be applied in an order that depends on your JVM's implementation of the reflection API, which is undefined, in general. However, Rules defined by fields will always be applied before Rules defined by methods. 
+
+For example, here is a test suite that connects to a server once before all the test classes run, and disconnects after they are finished:
+
+ 
+ @RunWith(Suite.class)
+ @SuiteClasses({A.class, B.class, C.class})
+ public class UsesExternalResource 
+ {
+        public static Server myServer = new Server();
+ 
+        @ClassRule
+        public static ExternalResource resource= new ExternalResource() {
+                @Override
+                protected void before() throws Throwable {
+                        myServer.connect();
+                };
+ 
+                @Override
+                protected void after() {
+                        myServer.disconnect();
+                };
+        };
+ }
+
+
+
+
+Base Rules provided in the Distribution
+***************************************
+
+TemporaryFolder rule
+--------------------
+
+    The TemporaryFolder Rule allows creation of files and folders that are guaranteed to be deleted when the test method finishes (whether it passes or fails):
+        
+    TemporaryFolder#newFolder(String... folderNames) 
+    
+        creates recursively deep temporary folders
+    
+    TemporaryFolder#newFile() 
+    
+        creates a randomly named new file, and #newFolder() creates a randomly named new folder
+    
+
+ExternalResource Rules
+----------------------
+
+    ExternalResource is a base class for Rules (like TemporaryFolder) that set up an external resource before a test (a file, socket, server, database connection, etc.), and guarantee to tear it down afterward
+
+ErrorCollector Rule
+-------------------
+
+    The ErrorCollector Rule allows execution of a test to continue after the first problem is found (for example, to collect all the incorrect rows in a table, and report them all at once):
+
+
+Verifier Rule
+-------------
+
+    Verifier is a base class for Rules like ErrorCollector, which can turn otherwise passing test methods into failing tests if a verification check is failed.
+
+
+TestWatchman/TestWatcher Rules
+------------------------------
+
+
+    TestWatcher (and the deprecated TestWatchman) are base classes for Rules that take note of the testing action, without modifying it. 
+    
+    For example, this class will keep a log of each passing and failing test
+
+TestName rule
+--------------
+
+    The TestName Rule makes the current test name available inside test methods
+
+Timeout Rule
+-------------
+
+    The Timeout Rule applies the same timeout to all test methods in a class
+    
+    
+ExpectedException Rules
+-----------------------
+
+    The ExpectedException Rule allows in-test specification of expected exception types and messages
+    
+    
+
+
+
+Rules are similar to custom runners, but without some of the restrictions.
+Rules as Runners
+----------------
+Rules as Invariants
+-------------------
+http://www.alexecollins.com/content/tutorial-junit-rule/
+
+
+=================================================================
+
+    ErrorCollector Rule
+    ********************
+
+* The ErrorCollector rule allows execution of a test to continue after the first problem is found.
+ *
+ * ErrorCollector rule, which avoids annoying test-fail-fix cycles for a single test
+
+
+  @Rule
+  public ErrorCollector collector = new ErrorCollector();
+
+  @Test
+  public void myTest() {
+    collector.checkThat("a", equalTo("b"));
+    collector.checkThat(1, equalTo(2));
+  }
+
+
+=================================================================
+
+    Create custom rule from scratch
+    *******************************
+
+A custom rule can be implemented by
+
+1. implementing TestRule interface and providing implementation from scratch
+2. or.. it can extend ExternalResource or Verifier convenience class.
+
+
+The TestRule interface has exactly one method:
+
+    Statement apply(Statement base, Description description);
+
+The purpose of this method is to 
+a) decorate the default statement .. or
+b) produce a new statement that JUnit will later execute to run the test .. or
+c) ..
+
+
+Sequence of events in Detail
+-----------------------------
+Here is the sequence of events that occurs for each test:
+1. JUnit creates an instance of your test case
+2. JUnit creates a default statement whose evaluate() method knows how to call your test method directly
+3. JUnit inspects the test class to find fields annotated with @Rule
+4. JUnit calls apply() method on every class variable that was annotated with @Rule
+5. Each apply() method creates a new Statement passing it the default statement
+6. The constructor for the new Statement can decorate the default statement by providing some extra functionality before calling base.evaluate() on the default statement.. or it can replace it with something else..
+
+Here is an example:
+
+public class TestConfiguratorRule implements TestRule {
+
+  @Override
+  public Statement apply(Statement statement, Description description) {
+    return new Statement() {
+      @Override
+      public void evaluate() throws Throwable {
+        TestPropertiesLoader.load();
+        statement.evaluate();
+      }
+    };
+  }
+
+}
+
+
+
+Our job is to take statement supplied in the 'base' parameter and turn it into another statement.
+The statement represents a set of actions (e.g. test, test case, or test suite) to be run.
+
+The second parameter, 'description', describes the input statement.   It can tell test class name, test name, annotations placed on it, knows whether we are dealing with test or test suite .. 
+
+We need to create a new statement, which will do three things:
+- empty the list of files to be deleted
+
+
+External Resource
+-----------------
+The ExternalResource helps when you need to do some kind of preprocessing and postprocessing around the underlying test statement. 
+
+If you need preprocessing, override the before method. 
+If you need postprocessing, override the after method. 
+
+
+ A base class for Rules (like TemporaryFolder) that set up an external resource before a test (a file, socket, server, database connection, etc.), and guarantee to tear it down afterward:
+
+ public static class UsesExternalResource {
+  Server myServer= new Server();
+
+  @Rule
+  public ExternalResource resource= new ExternalResource() {
+      @Override
+      protected void before() throws Throwable {
+          myServer.connect();
+         };
+
+      @Override
+      protected void after() {
+          myServer.disconnect();
+         };
+     };
+
+  @Test
+  public void testFoo() {
+      new Client().run(myServer);
+     }
+ }
+ 
+
+
+Verifier
+---------
+
+The Verifier has only one method verify to override. That method runs after the wrapped test finished its work and only if it did not thrown an exception. As the name suggests, the verifier is good if you want to run additional checks after the test. 
+
+
+Example of External Resource for Dropwizard/JDBI test
+------------------------------------------------------
+
+
+import com.codahale.metrics.MetricRegistry;
+import io.dropwizard.db.DataSourceFactory;
+import io.dropwizard.jackson.Jackson;
+import io.dropwizard.jdbi.DBIFactory;
+import io.dropwizard.setup.Environment;
+import liquibase.Liquibase;
+import liquibase.database.jvm.JdbcConnection;
+import liquibase.exception.LiquibaseException;
+import liquibase.resource.ClassLoaderResourceAccessor;
+import org.junit.rules.ExternalResource;
+import org.skife.jdbi.v2.DBI;
+import org.skife.jdbi.v2.Handle;
+ 
+public class H2JDBIRule extends ExternalResource {
+ 
+    private DBI dbi;
+ 
+    private Handle handle;
+ 
+    private Liquibase liquibase;
+ 
+    public DBI getDbi() {
+        return dbi;
+    }
+ 
+    @Override
+    protected void before() throws Throwable {
+        Environment environment = new Environment("test-env", Jackson.newObjectMapper(), null, new MetricRegistry(), null);
+        dbi = new DBIFactory().build(environment, getDataSourceFactory(), "test");
+        handle = dbi.open();
+        migrateDatabase();
+    }
+ 
+    @Override
+    protected void after() {
+        try {
+            liquibase.dropAll();
+        } catch (Exception e) {
+            throw new RuntimeException("failed clearing up Liquibase object", e);
+        }
+        handle.close();
+    }
+ 
+    private void migrateDatabase() throws LiquibaseException {
+        liquibase = new Liquibase("migrations.xml", new ClassLoaderResourceAccessor(), new JdbcConnection(handle.getConnection()));
+        liquibase.update("");
+    }
+ 
+    private DataSourceFactory getDataSourceFactory() {
+        DataSourceFactory dataSourceFactory = new DataSourceFactory();
+        dataSourceFactory.setDriverClass("org.h2.Driver");
+        dataSourceFactory.setUrl("jdbc:h2:./build/h2db");
+        dataSourceFactory.setUser("sa");
+        dataSourceFactory.setPassword("sa");
+        return dataSourceFactory;
+    }
+}
+
+
+
+
+
+=================================================================
+
+    How to Execute Something Multiple Times in Java
+    ***********************************************
+    
+http://java.dzone.com/articles/how-execute-something-multiple
+
+When writing unit / integration tests, you often want to execute something multiple times, with different configurations / parameters / arguments every time. For instance, if you want to pass a "limit" or "timeout" or any other argument value of 1, 10, and 100, you could do this:
+
+
+    @Test
+    public void test() {
+        runCode(1);
+        runCode(10);
+        runCode(100);
+    }
+
+    private void runCode(int argument) {
+
+        // Run the actual test
+        assertNotNull(new MyObject(argument).execute());
+    }
+    
+ just use this little trick:
+ 
+ 
+ 
+     @Test
+     public void test() {
+
+         // Repeat the contents 3 times, for values 1, 10, 100
+         for (int argument : new int[] { 1, 10, 100 }) {
+
+             // Run the actual test
+             assertNotNull(new MyObject(argument).execute());
+         }
+
+         // Alternatively, use Arrays.asList(), which has a similar effect:
+         for (Integer argument : Arrays.asList(1, 10, 100)) {
+
+             // Run the actual test
+             assertNotNull(new MyObject(argument).execute());
+         }
+    }
+
+=================================================================
+
+
+    Comparing BigDecimal
+    ********************
+    
+    
+BigDecimal implementation of 
+
+    equals - takes precision into consideration
+    compareTo - does not care about precision
+    
+    
+Best way to compare BigDecimal’s is to use compareTo function. All possible result values of the compareTo are shown in the code below.
+
+    
+assertEquals(0,
+        new BigDecimal("2.3").compareTo(
+        new BigDecimal("2.30")));
+ 
+assertEquals(1,
+        new BigDecimal("2.31").compareTo(
+        new BigDecimal("2.30")));
+ 
+assertEquals(-1,
+        new BigDecimal("2.29").compareTo(
+        new BigDecimal("2.3")));    
+    
+    
+    
+=================================================================   
+
+    eclEmma java.lang.OutOfMemoryError: PermGen space
+    *************************************************
+    
+    
+Running too many testsuites in junit.report causes a failure with the message
+
+2009-02-11 08:33:25,664 [Thread-15] INFO ScriptRunner - junit.report:
+2009-02-11 08:33:25,667 [Thread-15] INFO ScriptRunner - [mkdir] Created dir: /a01/home/Construction_temp/reports/ebilling/junit
+2009-02-11 08:33:41,604 [Thread-14] WARN ScriptRunner - java.lang.OutOfMemoryError: PermGen space
+2009-02-11 08:33:41,605 [Thread-14] WARN ScriptRunner - PermGen space
+
+
+Resolution:
+
+in the build.bat or build.sh, add more memory to the JVM process like so:
+
+    ANT_OPTS="-Xms128m -Xmx512m -XX:MaxPermSize=256m"
+    export ANT_OPTS=$ANT_OPTS
+
+
+Eclipse: in the Run Configuration add more memory to the JVM process like so:
+
+A:
+
+    Another option, that has worked for me, is to adding in Run->Debug configurations...->(Your Maven build)->JRE tab->VM arguments some VM arguments:
+
+    -Xms512m -Xmx1024m -XX:PermSize=256m -XX:MaxPermSize=512m -XX:NewSize=128m
+
+    
+If you are doing it in eclipse, then goto Window -> Preferences -> Java -> Installed JREs -> and add the default parameter:
+
+    -XX:MaxPermSize=256m  
+
+
+=================================================================
