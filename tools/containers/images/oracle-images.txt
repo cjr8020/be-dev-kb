@@ -1,0 +1,561 @@
+
+	*****************
+	
+	  oracle-images
+
+	*****************
+
+
+https://mobiliardbblog.wordpress.com/2017/10/27/oracle-xe-docker-image-including-database-in-less-than-1-4gb-yes-you-can/
+
+In this post I will show you, how you can build a maximum optimized docker image with oracle XE including database. Today everybody talks about DevOps and continuous delivery. I think in most companies this is already standard or becomes standard in a short time.
+
+If you talk about DevOps you talk in most cases also about docker. The container technology is a great architecture for fast deploying or testing. In our case the developers want to have a docker image containing a standardized database that meets the following main requirements:
+
+The image should be as small as possible to allow a fast copy / management on the notebook.
+The Database in the container should be ready after a few seconds.
+The second requirement should not be a big problem for an oracle database. If you configure everything right you are able to startup a XE Database in less than 10 seconds. In most cases this is absolutely OK.
+
+The “small as possible” aspect is a bigger challenge. I think everybody knows that Oracle is a really good RDBMS than can used for dozens of Use Cases, but it is definitely not known as “small”.
+
+Oracle databases will never compete on size with Postgres or other open source databases. As a DBA you can give you best but a docker image including database will always be bigger than a Postgres.
+
+If you create a default docker images with oracle XE, the size is about 1.2GB. After adding the database to the image you will end up with more than 2GB.
+
+However, you have the possibility to optimize this image a lot.
+
+Remove all Components from the XE Database that you don’t need                     (APEX, TEXT, XDB)
+Remove all Files from the XE_HOME that are not necessary to running a database
+Shrink all tablespace including SYSAUX as small as possible
+This allows you to create an image with less than 1.4GB. This is a saving of over 40% of the original size.
+
+The tricky is, that all this tasks has to be done during the build process of the docker image. Now I will show you how you can achieve this.
+
+Sync the official oracle git repos with your Notebook.
+
+git clone https://github.com/oracle/docker-images
+Edit the Docker.xe File to remove ORACLE_HOME Folders that are not necessary to run a basic database setup.
+Remove the VOLUME from the Docker File. If you use the volume, the database has to be build every time you startup the docker container. That’s because the VOLUME is only valid for the current container.
+
+Modify the RUN Block in the File and add the following lines. This will delete some files out of the ORACLE_HOME during the build process of the image.
+
+vi /<repos_base>/docker-images/OracleDatabase/dockerfiles/11.2.0.2/Dockerfile.xe
+
+rm -rf $INSTALL_DIR && \
+rm -rf $ORACLE_HOME/demo && \
+rm -rf $ORACLE_HOME/jdbc && \
+rm -rf $ORACLE_HOME/jlib && \
+rm -rf $ORACLE_HOME/md && \
+rm -rf $ORACLE_HOME/nls/demo && \
+rm -rf $ORACLE_HOME/odbc && \
+rm -rf $ORACLE_HOME/rdbms/jlib && \
+rm -rf $ORACLE_HOME/rdbms/public && \
+rm -rf $ORACLE_HOME/rdbms/demo && \
+rm -rf $ORACLE_HOME/bin/rman && \
+#VOLUME ["$ORACLE_BASE/oradata"]
+Now you can save the file.
+
+Copy the official XE Binaries into the right folder
+
+cp oracle-xe-11.2.0-1.0.x86_64.rpm.zip /<repos_base>/docker-images/OracleDatabase/dockerfiles/11.2.0.2/
+Squash option
+
+Docker has a great option to build small images called squash. Docker Images are built as different layers. That’s the reason why it’s difficult to keep them small. The squash option can merge layers together and release free space from the image.
+
+This option is still an experimental feature. So before you can use it, be sure that experimental feature is enabled in you docker setup. You can find a lot of post in the Internet about it.
+
+Check that experimental features are enabled
+
+ [root@ld9c041d dockerfiles]# docker version
+Client:
+Version:         1.13.1
+API version:     1.26
+Package version: <unknown>
+Go version:      go1.8.3
+Git commit:      4df6abf
+Built:           Tue Aug  8 13:49:36 2017
+OS/Arch:         linux/amd64
+
+Server:
+Version:         1.13.1
+API version:     1.26 (minimum version 1.12)
+Package version: <unknown>
+Go version:      go1.8.3
+Git commit:      4df6abf
+Built:           Tue Aug  8 13:49:36 2017
+OS/Arch:         linux/amd64
+Experimental:    true
+Now we are ready to create the initial XE Image. That can be done with the buildDockerimages.sh How to execute the script is described here:
+
+https://github.com/oracle/docker-images/tree/master/OracleDatabase
+
+./buildDockerimages.sh –v 11.2.0.2 –x –o squash
+Check the Images
+
+[root@ld9c041d dockerfiles]# docker images
+
+REPOSITORY           TAG                 IMAGE ID            SIZE
+oracle/database      11.2.0.2-xe         71d2f2f35259        757 MB
+If you build the image without modification of the Dockerfile.xe and without the squash option it is about 1.2GB. So now we already saved more than 400M.
+
+So now we have the optimized base Image. This contains no database. If you now run a container from this image, it will create a database every time you create a new container. That’s not what we want. To meet the requirements of a fast startup, the database has to be already there and only needs to be started.
+
+The next step is to create our personally images including a very small database.
+For that we need some preparations
+Create a directory that will finally contain the following Files:
+
+mkdir my_image
+cd my_image
+copy the runOracle.sh script from the oracle repos to my_image directory
+
+cp /<repos_base>/docker-images/OracleDatabase/dockerfiles/11.2.0.2/runOracle.sh my_image
+Then we create a new file called shrink_sysaux.sql. This sql script will shrink the SYSAUX tablespace from 650M to 140M after we have removed APEX, XDB, TEXT from the database.
+
+Open the file and copy the the code into it. It will reorganize the SYSAUX TS that we can shrink him.
+
+-- create temporary sysaux tablespace for reorg
+
+create tablespace sysaux_temp datafile '/u01/app/oracle/oradata/XE/sysaux_temp.dbf' size 1M autoextend on next 1M maxsize unlimited;
+
+-- Move all Objects that uses blocks at the end of the datafile
+
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_TAB_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_IND_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux_temp;
+alter table "WRI$_OPTSTAT_IND_HISTORY" move tablespace sysaux_temp;
+
+-- Move Objects back to the default SYSAUX TS
+
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_TAB_HISTORY move" tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_IND_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTHEAD_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_HISTGRM_HISTORY" move tablespace sysaux;
+alter table "WRI$_OPTSTAT_IND_HISTORY" move tablespace sysaux;
+
+-- REBUILD INDEXES
+
+alter index "I_WRI$_OPTSTAT_H_OBJ#_ICOL#_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_OBJ_ICOL_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_H_OBJ#_ICOL#_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_H_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_TAB_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_OBJ_ICOL_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_OBJ_ICOL_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_OBJ_ICOL_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_OBJ_ICOL_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_OBJ_ICOL_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_IND_OBJ#_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_HH_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_H_OBJ#_ICOL#_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_H_OBJ#_ICOL#_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_H_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_H_OBJ#_ICOL#_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_H_OBJ#_ICOL#_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_H_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_H_OBJ#_ICOL#_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_IND_OBJ#_ST" REBUILD;
+
+-- Rebuild the following indexes again
+
+alter index "I_WRI$_OPTSTAT_HH_OBJ_ICOL_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_IND_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_TAB_ST" REBUILD;
+alter index "I_WRI$_OPTSTAT_TAB_OBJ#_ST" REBUILD;
+
+-- Resize SYSAUX TS
+
+alter database datafile '/u01/app/oracle/oradata/XE/sysaux.dbf' resize 137M;
+
+-- Drop SYSAUX_TEMP
+
+drop tablespace sysaux_temp including contents and datafiles;
+ 
+
+Then we create a file called start_oracle.sh. Open the file and copy the following code into it
+
+#!/bin/bash
+# This command will start the XE Database on Container Startup
+/etc/init.d/oracle-xe start 
+
+# Show the output of the alert.log during the Startup
+
+echo "The following output is now a tail of the alert.log:"
+tail -f $ORACLE_BASE/diag/rdbms/*/*/trace/alert*.log &
+childPID=$!
+wait $childPID
+ 
+
+Open the script runOracle.sh and do some modification of the code. The modifications are in red
+
+#!/bin/bash
+############# Execute custom scripts ##############
+function runUserScripts {
+  SCRIPTS_ROOT="$1";
+  # Check whether parameter has been passed on
+  if [ -z "$SCRIPTS_ROOT" ]; then
+    echo "$0: No SCRIPTS_ROOT passed on, no scripts will be run";
+    exit 1;
+  fi;
+
+  # Execute custom provided files (only if directory exists and has files in it)
+  if [ -d "$SCRIPTS_ROOT" ] && [ -n "$(ls -A $SCRIPTS_ROOT)" ]; then
+    echo "";
+    echo "Executing user defined scripts"
+    for f in $SCRIPTS_ROOT/*; do
+        case "$f" in
+            *.sh)     echo "$0: running $f"; . "$f" ;;
+            *.sql)    echo "$0: running $f"; echo "exit" | su -p oracle -c "$ORACLE_HOME/bin/sqlplus / as sysdba @$f"; echo ;;
+            *)        echo "$0: ignoring $f" ;;
+        esac
+        echo "";
+    done
+
+    echo "DONE: Executing user defined scripts"
+    echo "";
+  fi;
+}
+
+########### Move DB files ############
+function moveFiles {
+   if [ ! -d $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID ]; then
+      su -p oracle -c "mkdir -p $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/"
+   fi;
+
+   su -p oracle -c "mv $ORACLE_HOME/dbs/spfile$ORACLE_SID.ora $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/"
+   su -p oracle -c "mv $ORACLE_HOME/dbs/orapw$ORACLE_SID $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/"
+   su -p oracle -c "mv $ORACLE_HOME/network/admin/listener.ora $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/"
+   su -p oracle -c "mv $ORACLE_HOME/network/admin/tnsnames.ora $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/"
+   mv /etc/sysconfig/oracle-xe $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/
+   symLinkFiles;
+}
+
+########### Symbolic link DB files ############
+function symLinkFiles {
+   if [ ! -L $ORACLE_HOME/dbs/spfile$ORACLE_SID.ora ]; then
+      ln -s $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/spfile$ORACLE_SID.ora $ORACLE_HOME/dbs/spfile$ORACLE_SID.ora
+   fi;
+   if [ ! -L $ORACLE_HOME/dbs/orapw$ORACLE_SID ]; then
+      ln -s $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/orapw$ORACLE_SID $ORACLE_HOME/dbs/orapw$ORACLE_SID
+   fi;
+   if [ ! -L $ORACLE_HOME/network/admin/listener.ora ]; then
+      ln -sf $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/listener.ora $ORACLE_HOME/network/admin/listener.ora
+   fi;
+
+   if [ ! -L $ORACLE_HOME/network/admin/tnsnames.ora ]; then
+      ln -sf $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/tnsnames.ora $ORACLE_HOME/network/admin/tnsnames.ora
+   fi;
+
+   if [ ! -L /etc/sysconfig/oracle-xe ]; then
+      ln -s $ORACLE_BASE/oradata/dbconfig/$ORACLE_SID/oracle-xe /etc/sysconfig/oracle-xe
+   fi;
+}
+
+########### SIGTERM handler ############
+
+function _term() {
+   echo "Stopping container."
+   echo "SIGTERM received, shutting down database!"
+  /etc/init.d/oracle-xe stop
+}
+
+########### SIGKILL handler ############
+
+function _kill() {
+   echo "SIGKILL received, shutting down database!"
+   /etc/init.d/oracle-xe stop
+}
+
+############# Create DB ################
+
+function createDB {
+   # Auto generate ORACLE PWD if not passed on
+   export ORACLE_PWD=${ORACLE_PWD:-"`openssl rand -hex 8`"}
+   echo "ORACLE PASSWORD FOR SYS AND SYSTEM: $ORACLE_PWD";
+
+   sed -i -e "s|###ORACLE_PWD###|$ORACLE_PWD|g" $ORACLE_BASE/$CONFIG_RSP && \
+   /etc/init.d/oracle-xe configure responseFile=$ORACLE_BASE/$CONFIG_RSP
+
+   # Listener
+   echo "# listener.ora Network Configuration File:
+
+         SID_LIST_LISTENER =
+           (SID_LIST =
+             (SID_DESC =
+               (SID_NAME = PLSExtProc)
+               (ORACLE_HOME = $ORACLE_HOME)
+               (PROGRAM = extproc)
+             )
+           )
+
+         LISTENER =
+           (DESCRIPTION_LIST =
+             (DESCRIPTION =
+               (ADDRESS = (PROTOCOL = IPC)(KEY = EXTPROC_FOR_XE))
+               (ADDRESS = (PROTOCOL = TCP)(HOST = 0.0.0.0)(PORT = 1521))
+             )
+           )
+
+         DEFAULT_SERVICE_LISTENER = (XE)" > $ORACLE_HOME/network/admin/listener.ora
+
+
+# TNS Names.ora
+   echo "# tnsnames.ora Network Configuration File:
+
+         XE =
+           (DESCRIPTION =
+             (ADDRESS = (PROTOCOL = TCP)(HOST = 0.0.0.0)(PORT = 1521))
+             (CONNECT_DATA =
+               (SERVER = DEDICATED)
+               (SERVICE_NAME = XE)
+             )
+           )
+
+         EXTPROC_CONNECTION_DATA =
+           (DESCRIPTION =
+             (ADDRESS_LIST =
+               (ADDRESS = (PROTOCOL = IPC)(KEY = EXTPROC_FOR_XE))
+             )
+             (CONNECT_DATA =
+               (SID = PLSExtProc)
+               (PRESENTATION = RO)
+             )
+           )
+         " > $ORACLE_HOME/network/admin/tnsnames.ora
+
+   su -p oracle -c "sqlplus / as sysdba <<EOF
+      EXEC DBMS_XDB.SETLISTENERLOCALACCESS(FALSE);
+      ALTER DATABASE ADD LOGFILE GROUP 4 ('$ORACLE_BASE/oradata/$ORACLE_SID/redo04.log') SIZE 10m; #Smaller REDO
+      ALTER DATABASE ADD LOGFILE GROUP 5 ('$ORACLE_BASE/oradata/$ORACLE_SID/redo05.log') SIZE 10m; #Smaller REDO
+      ALTER SYSTEM SWITCH LOGFILE;
+      ALTER SYSTEM SWITCH LOGFILE;
+      ALTER SYSTEM CHECKPOINT;
+      ALTER DATABASE DROP LOGFILE GROUP 1;
+      ALTER DATABASE DROP LOGFILE GROUP 2;
+
+      ALTER SYSTEM SET db_recovery_file_dest='';
+
+--Drop Sample Schema in Users TS and delete the TS
+drop user hr cascade;
+drop tablespace users including contents and datafiles;
+
+-- create your Data Tablespace. In my case a very small APP_DATA TS
+create tablespace app_data datafile '/u01/app/oracle/oradata/XE/app_data.dbf' size 1M autoextend on next 1M maxsize 100M;
+
+-- Create a default APP User in your Database. Only if you want
+create user AOO_TESTS identified by AOO_TESTS default tablespace app_data;
+GRANT ALTER SESSION TO AOO_TESTS;
+GRANT ANALYZE ANY TO AOO_TESTS;
+GRANT CREATE ANY SYNONYM TO AOO_TESTS;
+GRANT CREATE JOB TO AOO_TESTS;
+GRANT CREATE PROCEDURE TO AOO_TESTS;
+GRANT CREATE SEQUENCE TO AOO_TESTS;
+GRANT CREATE SESSION TO AOO_TESTS;
+GRANT CREATE SYNONYM TO AOO_TESTS;
+GRANT CREATE TABLE TO AOO_TESTS;
+GRANT CREATE TYPE TO AOO_TESTS;
+GRANT CREATE VIEW TO AOO_TESTS;
+GRANT CREATE TRIGGER TO AOO_TESTS;
+GRANT DEBUG CONNECT SESSION TO AOO_TESTS;
+alter user aoo_tests quota unlimited on app_data;
+
+-- Shrink Temp / SYSTEM Tablespace
+alter database tempfile '/u01/app/oracle/oradata/XE/temp.dbf' resize 10M;
+alter database datafile '/u01/app/oracle/oradata/XE/system.dbf' resize 353M;
+
+
+-- Remove Apex
+@/u01/app/oracle/product/11.2.0/xe/apex/apxremov.sql
+drop package HTMLDB_SYSTEM;
+
+-- Remove XDB
+shutdown immediate
+startup upgrade;
+@/u01/app/oracle/product/11.2.0/xe/rdbms/admin/catnoqm.sql
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/catxdbdv.sql
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/dbmsmeta.sql
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/dbmsmeti.sql
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/dbmsmetu.sql
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/dbmsmetb.sql
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/dbmsmetd.sql
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/dbmsmet2.sql
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/catmeta.sql
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/prvtmeta.plb
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/prvtmeti.plb
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/prvtmetu.plb
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/prvtmetb.plb
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/prvtmetd.plb
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/prvtmet2.plb
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/catmet2.sql
+
+-- Remove Text
+@/u01/app/oracle/product/11.2.0/xe/ctx/admin/catnoctx.sql
+drop procedure sys.validate_context;
+drop user MDSYS cascade;
+start /u01/app/oracle/product/11.2.0/xe/rdbms/admin/utlrp.sql
+
+-- After removing TEXT and APEX from the DB we can remove it from the Home
+host rm -rf /u01/app/oracle/product/11.2.0/xe/apex
+host rm -rf /u01/app/oracle/product/11.2.0/xe/ctx
+
+-- Here we execute the shrink Script to reduce the SYSAUX TS
+@/u01/app/oracle/shrink_sysaux.sql
+shutdown immediate;
+startup;
+
+-- Create a Smaller UNDO. We add a new one and drop the old
+create undo tablespace undotbs2 datafile '/u01/app/oracle/oradata/XE/undotbs2.dbf' size 1M autoextend on next 10M maxsize 1G;
+alter system set undo_tablespace='undotbs2';
+shutdown immediate;
+startup
+drop tablespace undotbs1 including contents and datafiles;
+shutdown immediate;
+exit;
+EOF"
+
+  # Move database operational files to oradata
+  moveFiles;
+}
+############# MAIN ################
+# Set SIGTERM handler
+trap _term SIGTERM
+# Set SIGKILL handler
+trap _kill SIGKILL
+
+# Check whether database already exists
+if [ -d $ORACLE_BASE/oradata/$ORACLE_SID ]; then
+   symLinkFiles;
+   # Make sure audit file destination exists
+   if [ ! -d $ORACLE_BASE/admin/$ORACLE_SID/adump ]; then
+      su -p oracle -c "mkdir -p $ORACLE_BASE/admin/$ORACLE_SID/adump"
+   fi;
+fi;
+
+/etc/init.d/oracle-xe start | grep -qc "Oracle Database 11g Express Edition is not configured"
+if [ "$?" == "0" ]; then
+
+   # Check whether container has enough memory
+   if [ `df -k /dev/shm | tail -n 1 | awk '{print $2}'` -lt 1048576 ]; then
+      echo "Error: The container doesn't have enough memory allocated."
+      echo "A database XE container needs at least 1 GB of shared memory (/dev/shm)."
+      echo "You currently only have $((`df -k /dev/shm | tail -n 1 | awk '{print $2}'`/1024)) MB allocated to the container."
+      exit 1;
+   fi;
+
+   # Create database
+   createDB;
+
+   # Execute custom provided setup scripts
+   runUserScripts $ORACLE_BASE/scripts/setup
+fi;
+
+echo "#########################"
+echo "DATABASE IS READY TO USE!"
+echo "#########################"
+
+# Execute custom provided startup scripts
+#runUserScripts $ORACLE_BASE/scripts/startup
+
+-- The following lines have to be out commented with #
+#echo "The following output is now a tail of the alert.log:"
+#tail -f $ORACLE_BASE/diag/rdbms/*/*/trace/alert*.log &
+#childPID=$!
+#wait $childPID
+So finally we need the new Dockerfile that executes all the files that we have prepared to build the image
+
+vi Dockerfile
+FROM oracle/database:11.2.0.2-xe
+COPY runOracle.sh /u01/app/oracle/
+COPY start_oracle.sh /u01/app/oracle/
+COPY shrink_sysaux.sql /u01/app/oracle/
+ENV ORACLE_PWD=manager
+RUN chmod 755 /u01/app/oracle/runOracle.sh ; chmod 755 /u01/app/oracle/start_oracle.sh ; chmod 755 /u01/app/oracle/shrink_sysaux.sql ; /u01/app/oracle/runOracle.sh
+CMD exec /u01/app/oracle/start_oracle.sh
+ File Description
+
+From
+The base image that we use to create our image. That’s the image that we have created before
+
+COPY
+We copy all necessary files into the docker container that they can be executed during the build process
+
+ENV
+Here we submit the default SYS PW for the XE Database
+
+RUN
+We change the permission of all Files that we have copied into the container and at the end we execute the runOracle.sh Script
+
+CMD
+The CMD part will only executed during the “run container”. If the new image is ready and we create a container from it, the start_oracle.sh script will start the XE DB
+
+Now you should have the following files in your directory:
+
+-rw-r-----.  1 root root   544 Oct 18 14:37 Dockerfile
+-rw-r-----.  1 root root  6976 Oct 25 06:28 runOracle.sh
+-rw-r-----.  1 root root  4280 Oct 25 11:18 shrink_sysaux.sql
+-rw-r-----.  1 root root   187 Oct 11 16:23 start_oracle.sh
+Now we build our new highly optimized oracle XE Docker image.
+
+docker build -t oracle/database:xe_tuned --shm-size=1g --squash .
+The name of the new image is „xe_tuned“ and the docker build command has to be executed from the directory containing the Dockerfile and don’t forget the . at the end of the command!
+
+If the build was successful you see the new image including database
+
+[root@ld9c041d docker_files]# docker images
+REPOSITORY           TAG       IMAGE ID      CREATED            SIZE
+oracle/database    xe_tuned   549861eef472  2 minutes ago       1.33 GB
+Create the container from the image and test if you could connect
+
+docker run –shm-size=1g –p 1521:1521 oracle/database:xe_tuned
+Starting Oracle Net Listener.
+Starting Oracle Database 11g Express Edition instance.
+The following output is now a tail of the alert.log:
+Database Characterset is AL32UTF8
+Opening with Resource Manager plan: INTERNAL_PLAN_XE
+Starting background process VKRM
+Fri Oct 27 14:07:22 2017
+VKRM started with pid=23, OS id=248
+replication_dependency_tracking turned off (no async multimaster replication found)
+Starting background process QMNC
+Fri Oct 27 14:07:22 2017
+QMNC started with pid=24, OS id=250
+Completed: ALTER DATABASE OPEN
+The database is now ready and we can connect over the forwarded listener port 1521
+
+sqlplus sys/manager@//localhost:1521/XE as sysdba
+SQL*Plus: Release 12.1.0.2.0 Production on Fri Oct 27 16:09:11 2017
+Copyright (c) 1982, 2014, Oracle.  All rights reserved.
+
+Connected to:
+
+Oracle Database 11g Express Edition Release 11.2.0.2.0 - 64bit Production
+
+SQL>
