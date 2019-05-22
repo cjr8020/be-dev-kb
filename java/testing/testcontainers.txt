@@ -1,0 +1,191 @@
+
+
+	********************
+		testcontainers
+	********************
+
+
+
+================================================================================
+
+	Oracle-XE Module
+	****************
+
+https://stackoverflow.com/questions/55705417/using-docker-and-testcontainers-for-database-integration-testing
+
+
+Oracle-XE container image for testing
+*************************************
+
+
+https://hub.docker.com/r/oracleinanutshell/oracle-xe-11g
+
+
+	$ docker pull oracleinanutshell/oracle-xe-11g
+
+Run with 1521 port opened:
+
+	$ docker run -d -p 49161:1521 oracleinanutshell/oracle-xe-11g
+
+Run this, if you want the database to be connected remotely:
+
+	$ docker run -d -p 49161:1521 -e ORACLE_ALLOW_REMOTE=true oracleinanutshell/oracle-xe-11g
+
+For performance concern, you may want to disable the disk asynch IO:
+
+	$ docker run -d -p 49161:1521 -e ORACLE_DISABLE_ASYNCH_IO=true oracleinanutshell/oracle-xe-11g
+
+Enable XDB user with default password: xdb, run this:
+
+	$ docker run -d -p 49161:1521 -e ORACLE_ENABLE_XDB=true oracleinanutshell/oracle-xe-11g
+
+For APEX user:
+
+	$ docker run -d -p 49161:1521 -p 8080:8080 oracleinanutshell/oracle-xe-11g
+
+# Login http://localhost:8080/apex/apex_admin with following credential:
+username: ADMIN
+password: admin
+
+
+For latest APEX(18.1) user, please pull oracleinanutshell/oracle-xe-11g:18.04-apex first:
+
+	$ docker run -d -p 49161:1521 -p 8080:8080 oracleinanutshell/oracle-xe-11g:18.04-apex
+
+# Login http://localhost:8080/apex/apex_admin with following credential:
+username: ADMIN
+password: Oracle_11g
+By default, the password verification is disable(password never expired)
+
+Connect database with following setting:
+
+hostname: localhost
+port: 49161
+sid: xe
+username: system
+password: oracle
+Password for SYS & SYSTEM
+
+oracle
+Support custom DB Initialization and running shell scripts
+
+# Dockerfile
+FROM oracleinanutshell/oracle-xe-11g
+
+ADD init.sql /docker-entrypoint-initdb.d/
+ADD script.sh /docker-entrypoint-initdb.d/
+Running order is alphabetically.
+
+
+
+JUnit test 
+***********
+
+
+source/test/resources/testcontainer.properties
+----------------------------------------------
+
+oracle.container.image=oracleinanutshell/oracle-xe-11g
+
+
+
+public class AbstractPersistenceTest {
+
+  @ClassRule
+  public static OracleContainer oracleContainer;
+
+  private Liquibase liquibase;
+  private Handle handle;
+
+  /**
+   * Obtain connection to test DB in Container.
+   * @return Handle
+   */
+  protected Handle getHandle() {
+    return this.handle;
+  }
+
+
+  /**
+   * Creates Oracle Container
+   */
+  @BeforeClass
+  public static void beforeClass() {
+    logger.info("Starting Oracle Container ... {}", LocalDateTime.now());
+    oracleContainer = new OracleContainer();
+    oracleContainer.start();
+    logger.info("Oracle Container started. {}", LocalDateTime.now());
+  }
+
+  /**
+   * Before each test.
+   * Creates Jdbi handle (connection).
+   * Executes DB migration before each test.
+   * @throws SQLException
+   * @throws LiquibaseException
+   */
+  @Before
+  public void setupHandleAndMigrateDatabase() throws SQLException, LiquibaseException {
+    handle = Jdbi.create(getTestDataSource()).installPlugin(new SqlObjectPlugin()).open();
+    // execute test DB migration
+    migrateDatabase();
+  }
+
+
+  /**
+   * After each test.
+   * Closes Jdbi handle (connection).
+   * Drops everything in the test DB after each test.
+   * @throws DatabaseException
+   */
+  @After
+  public void closeHandleAndDropAll() throws DatabaseException {
+    handle.close();
+    CatalogAndSchema catalogAndSchema = new CatalogAndSchema("", "TEST");
+    liquibase.dropAll(catalogAndSchema);
+  }
+
+  /**
+   * Stops the Oracle Container after all Persistence test suites are complete.
+   */
+  @AfterClass
+  public static void afterClass() {
+    logger.info("Stopping Oracle Container ... {}", LocalDateTime.now());
+    oracleContainer.stop();
+    logger.info("Oracle Container stopped. {}", LocalDateTime.now());
+  }
+
+  /**
+   * Test DataSource
+   *
+   * @return DataSourceFactory
+   */
+  private DataSource getTestDataSource() throws SQLException {
+
+    OracleDataSource oracleDataSource = new OracleDataSource();
+    oracleDataSource.setURL(oracleContainer.getJdbcUrl());
+    oracleDataSource.setUser(oracleContainer.getUsername());
+    oracleDataSource.setPassword(oracleContainer.getPassword());
+
+    return oracleDataSource;
+  }
+
+  private void migrateDatabase() throws SQLException, LiquibaseException {
+
+    Database database = DatabaseFactory.getInstance()
+        .findCorrectDatabaseImplementation(
+            new JdbcConnection(getTestDataSource().getConnection()));
+
+    liquibase = new liquibase.Liquibase(
+        "db/changelog/db.changelog-master-test.yaml",
+        new ClassLoaderResourceAccessor(),
+        database);
+
+    liquibase.update(new Contexts(), new LabelExpression());
+  }
+
+}
+
+
+
+================================================================================
