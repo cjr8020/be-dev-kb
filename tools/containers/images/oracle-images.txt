@@ -6,6 +6,24 @@
 	*****************
 
 
+
+
+================================================================================
+
+	Oracle How to Build Images
+	**************************
+
+https://github.com/oracle/docker-images/tree/master/OracleDatabase/SingleInstance
+
+
+
+
+================================================================================
+
+	shriking Oracle db image
+	************************
+
+
 https://mobiliardbblog.wordpress.com/2017/10/27/oracle-xe-docker-image-including-database-in-less-than-1-4gb-yes-you-can/
 
 In this post I will show you, how you can build a maximum optimized docker image with oracle XE including database. Today everybody talks about DevOps and continuous delivery. I think in most companies this is already standard or becomes standard in a short time.
