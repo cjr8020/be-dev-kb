@@ -4,6 +4,8 @@
 		testcontainers
 	********************
 
+resources:
+https://testcontainers.gitbook.io/workshop/step-1-getting-started
 
 
 ================================================================================
