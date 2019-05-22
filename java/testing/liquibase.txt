@@ -8,13 +8,29 @@
 
 ================================================================================	
 
+	defaultSchemaName
+	-----------------
+
+The defaultSchemaName varies depending on the dbms implementation. 
+
+On Oracle, the default defaultSchemaName is the username. 
+On MS SQL Server, it is dbo. 
+MySQL does not support schemas, so there is no default schema name. 
+On Postgres the default schema name is 'public'.
+
+
+================================================================================	
+
 	Running
 	*******
 
-Liquibase liquibase = new Liquibase(...);
-liquibase.update("test");
+  liquibase = new liquibase.Liquibase(
+      "db/changelog/db.changelog-master-test.yaml",
+      new ClassLoaderResourceAccessor(),
+      database);
 
-liquibase.dropAll();
+  liquibase.update(new Contexts(), new LabelExpression());
+
 
 
 
@@ -25,6 +41,23 @@ liquibase.dropAll();
 
 Drops all database objects owned by user
 
+
+	liquibase.dropAll(); // drops tables, sequences in default schema (logged in user)
+
+
+specify catalog, schema:
+
+
+    CatalogAndSchema catalogAndSchema = new CatalogAndSchema("", "TEST");
+    liquibase.dropAll(catalogAndSchema);
+
+
+
+*** NOTE ****
+
+dropAll does not 
+
+	- drop USER
 
 ================================================================================	
 
@@ -96,6 +129,8 @@ NOTE:   The db.changelog-master.xml is the changelog you pass to all Liquibase c
 
 
 
+================================================================================	
+================================================================================	
 ================================================================================	
 
 	Changelog SQL Format
@@ -216,6 +251,52 @@ create table bar_id (id integer);
 create table foo_id (id integer);
 
 
+
+	PL/SQL
+	=====================
+
+Invalid SQL:
+
+	--liquibase formatted sql
+
+	--changeset conor:1.3.0_createproc2
+	CREATE OR REPLACE PROCEDURE conor_proc2
+	    IS
+	    BEGIN
+	      DBMS_OUTPUT.PUT_LINE('Hello From The Database!');
+	    END conor_proc2;
+
+	--rollback drop procedure conor_proc2;
+
+
+Works:
+
+	--changeset conor:1.3.0_createproc2 endDelimiter:/
+	CREATE OR REPLACE PROCEDURE conor_proc2
+	    IS
+	    BEGIN
+	      DBMS_OUTPUT.PUT_LINE('Hello From The Database!');
+	    END conor_proc2;
+	/
+	--rollback drop procedure conor_proc2;
+
+
+splitStatement:false
+---------------------
+
+
+Even easier than endDelimiter:/ is probabably using splitStatement:false. 
+
+That will cause liquibase to not do any processing of the SQL in the changeSet 
+and just send it as it is. 
+
+For most statements, don't bother with splitStatements tag, 
+but if you have a procedure or something that is causing problems, 
+just add splitStatements:false at that point.
+
+
+================================================================================	
+================================================================================	
 ================================================================================	
 
 	Changelog JSON Format
@@ -226,6 +307,8 @@ To use JSON-based changelogs, you must include snakeyaml-1.12.jar in your classp
 
 
 
+================================================================================	
+================================================================================	
 ================================================================================	
 
 
