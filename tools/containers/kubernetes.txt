@@ -1,0 +1,277 @@
+
+	#######################
+
+				Kubernetes
+
+	#######################
+
+
+you use Kubernetes API objects to describe your cluster’s desired state: 
+what applications or other workloads you want to run, 
+what container images they use, the number of replicas, 
+what network and disk resources you want to make available, and more. 
+
+You set your desired state by creating objects using the Kubernetes API, 
+typically via the command-line interface, kubectl. 
+You can also use the Kubernetes API directly to interact with the cluster 
+and set or modify your desired state.
+
+Once you’ve set your desired state, 
+the Kubernetes Control Plane makes the cluster’s current state match 
+the desired state via the Pod Lifecycle Event Generator (PLEG). 
+
+To do so, Kubernetes performs a variety of tasks automatically – 
+such as starting or restarting containers, scaling the number of replicas of a given application, and more. 
+
+The Kubernetes Control Plane consists of a collection of processes running on your cluster:
+
+Kubernetes Master is a collection of three processes that run on a single node in your cluster, 
+which is designated as the master node. 
+Those processes are:
+
+`kube-apiserver, 
+- kube-controller-manager and 
+- kube-scheduler.
+
+Each individual non-master node in your cluster runs two processes:
+
+- kubelet, which communicates with the Kubernetes Master.
+- kube-proxy, a network proxy which reflects Kubernetes networking services on each node.
+
+
+The basic Kubernetes objects include:
+
+Pod
+Service
+Volume
+Namespace
+
+In addition, Kubernetes contains a number of higher-level abstractions called Controllers. 
+Controllers build upon the basic objects, and provide additional functionality and convenience features. 
+
+They include:
+
+ReplicaSet
+Deployment
+StatefulSet
+DaemonSet
+Job
+
+
+Pod
+-----------------------
+
+A Pod is the basic building block of Kubernetes–the smallest and simplest unit 
+in the Kubernetes object model that you create or deploy. 
+A Pod represents processes running on your Cluster.
+
+A Pod encapsulates 
+- an application’s container (or, in some cases, multiple containers), 
+- storage resources, 
+- a unique network IP, and 
+- options that govern how the container(s) should run. 
+
+A Pod represents a unit of deployment: 
+a single instance of an application in Kubernetes, 
+which might consist of either 
+	a single container or 
+	a small number of containers that are tightly coupled and that share resources.
+
+Docker is the most common container runtime used in a Kubernetes Pod, 
+but Pods support other container runtimes as well.
+
+Pods in a Kubernetes cluster can be used in two main ways:
+
+1. Pods that run a single container. 
+
+	The “one-container-per-Pod” model is the most common Kubernetes use case; in this case, you can think of a Pod as a wrapper around a single container, and Kubernetes manages the Pods rather than the containers directly.
+
+2. Pods that run multiple containers that need to work together. 
+
+	A Pod might encapsulate an application composed of multiple co-located containers that are tightly coupled and need to share resources. These co-located containers might form a single cohesive unit of service–one container serving files from a shared volume to the public, while a separate “sidecar” container refreshes or updates those files. The Pod wraps these containers and storage resources together as a single manageable entity. The Kubernetes Blog has some additional information on Pod use cases. 
+
+
+Service
+-----------------------
+
+The Service abstraction enables the decoupling of the frontend from the backend.
+
+Kubernetes Pods are mortal. They are born and when they die, they are not resurrected. 
+ReplicaSets in particular create and destroy Pods dynamically (e.g. when scaling out or in).
+
+if some set of Pods (let’s call them backends) provides functionality to other Pods (let’s call them frontends) inside the Kubernetes cluster, how do those frontends find out and keep track of which backends are in that set?
+
+
+
+
+Volume
+-----------------------
+
+On-disk files in a Container are ephemeral, which presents some problems for non-trivial applications when running in Containers. First, when a Container crashes, kubelet will restart it, but the files will be lost - the Container starts with a clean state. Second, when running Containers together in a Pod it is often necessary to share files between those Containers. The Kubernetes Volume abstraction solves both of these problems.
+
+
+Namespace
+-----------------------
+
+Kubernetes supports multiple virtual clusters backed by the same physical cluster. 
+These virtual clusters are called namespaces.
+
+Namespaces are intended for use in environments with many users spread across multiple teams, or projects. For clusters with a few to tens of users, you should not need to create or think about namespaces at all. Start using namespaces when you need the features they provide.
+
+Namespaces are a way to divide cluster resources between multiple users (via resource quota).
+
+
+================================================================================
+
+	Minicube
+	********
+
+Running Kubernetes Locally via Minikube
+Minikube is a tool that makes it easy to run Kubernetes locally. 
+Minikube runs a single-node Kubernetes cluster inside a VM on your laptop 
+for users looking to try out Kubernetes or develop with it day-to-day.
+
+Installing Minicube - MacOS
+---------------------------
+
+check if virtualization is supported on macOS, run the following command on your terminal.
+
+	$ sysctl -a | grep machdep.cpu.features
+
+If you see VMX in the output, the VT-x feature is supported on your OS.
+
+1. Install a hypervisor - VirtualBox
+https://www.virtualbox.org/wiki/Downloads
+
+2. Install kubectl
+
+https://kubernetes.io/docs/tasks/tools/install-kubectl/
+
+	Install with Homebrew on macOS
+	..............................
+
+	If you are on macOS and using Homebrew package manager, you can install kubectl with Homebrew.
+
+	Run the installation command:
+
+		$ brew install kubernetes-cli
+
+	Test to ensure the version you installed is up-to-date:
+
+		$ kubectl version
+
+3. Install Minikube
+
+		$ brew cask install minikube
+
+4. Install helm
+
+		$ brew install kubernetes-helm
+
+
+Running minikube locally - MacOS
+--------------------------------
+
+https://kubernetes.io/docs/setup/minikube/
+
+Connectivity issues?
+Error restarting cluster: waiting for apiserver: timed out waiting for the condition #4302
+
+https://github.com/kubernetes/minikube/issues/4302
+
+Shut down Cisco Anyconnect VPN ... 
+
+
+brief demo of Minikube usage
+----------------------------
+If you want to change the VM driver add the appropriate --vm-driver=xxx flag to minikube start. Minikube supports the following drivers:
+
+virtualbox
+...
+
+1. Start a minikube
+
+	$ minikube start
+
+	😄  minikube v1.1.0 on darwin (amd64)
+	💡  Tip: Use 'minikube start -p <name>' to create a new cluster, or 'minikube delete' to delete this one.
+	🔄  Restarting existing virtualbox VM for "minikube" ...
+	⌛  Waiting for SSH access ...
+	🐳  Configuring environment for Kubernetes v1.14.2 on Docker 18.09.6
+	🔄  Relaunching Kubernetes v1.14.2 using kubeadm ...
+	⌛  Verifying: apiserver proxy etcd scheduler controller dns
+	🏄  Done! kubectl is now configured to use "minikube"
+
+2. Create an echo server deployment
+
+	$ kubectl run hello-minikube --image=k8s.gcr.io/echoserver:1.10 --port=8080
+
+	-->  NOTE: --port=8080 is important in this demo!!
+
+The output of a successful command verifies that the deployment is created:
+
+	deployment.apps/hello-minikube created
+
+3. Expose an echo server deployment to create service
+
+	$ kubectl expose deployment hello-minikube --type=NodePort
+	service/hello-minikube exposed
+
+4. Check whether the pod is up and running
+
+	$ kubectl get pod
+	NAME                              READY   STATUS    RESTARTS   AGE
+	hello-minikube-7447499b8c-4glfs   1/1     Running   0          109s
+
+5. Curl service which we have created
+
+	$ curl $(minikube service hello-minikube --url)
+
+
+   Probe a running service for its URL:
+
+   $ minikube service hello-minikube --url
+		http://192.168.99.100:30291
+
+
+
+6. Delete the service which we have created
+
+	$ kubectl delete services hello-minikube
+
+
+7. Delete the deployment which we have created
+
+	$ kubectl delete deployment hello-minikube
+
+8. Stop a minikube
+
+	$ minikube stop
+
+✋  Stopping "minikube" in virtualbox ...
+🛑  "minikube" stopped.
+
+================================================================================
+
+Installing Minicube - Windows
+---------------------------
+
+To check if virtualization:
+
+	> systeminfo
+
+If you see the following output, virtualization is supported on Windows.
+
+Hyper-V Requirements:     VM Monitor Mode Extensions: Yes
+                          Virtualization Enabled In Firmware: Yes
+                          Second Level Address Translation: Yes
+                          Data Execution Prevention Available: Yes
+
+1. Install a hypervisor - VirtualBox
+
+
+
+
+================================================================================
+
+
