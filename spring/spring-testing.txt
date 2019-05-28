@@ -433,9 +433,9 @@ public class TypicalRestServiceSecurityTest {
 	Debugging Property Loading
 	**************************
 
-package com.standard.cis.configuration;
+package com.acme.cis.configuration;
 
-import com.standard.cis.security.OAuthProperties;
+import com.acme.cis.security.OAuthProperties;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;

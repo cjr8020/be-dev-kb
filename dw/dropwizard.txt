@@ -3680,7 +3680,7 @@ public class AdminConstraintSecurityHandler extends ConstraintSecurityHandler {
   /version resource
   *****************
 
-package com.standard.portalng.service.resources;
+package com.acme.portalng.service.resources;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.CharStreams;

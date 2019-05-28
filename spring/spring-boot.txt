@@ -646,9 +646,9 @@ This provides access to the JWT content at the REST resource/controller level:
 SomeResourceController.java
 ---------------------------
 
-import com.standard.cis.domain.DraftClaim;
-import com.standard.cis.security.JwtAuthenticationContextFactory.JwtAuthenticationContext;
-import com.standard.cis.service.DraftClaimsService;
+import com.acme.cis.domain.DraftClaim;
+import com.acme.cis.security.JwtAuthenticationContextFactory.JwtAuthenticationContext;
+import com.acme.cis.service.DraftClaimsService;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

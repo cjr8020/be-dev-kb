@@ -81,7 +81,7 @@ Maven setup
                     <schemaDirectory>${project.basedir}/src/main/resources</schemaDirectory>
                     <schemaFiles>Person.xsd, Common.xsd</schemaFiles>
                     <!-- The package in which the source files will be generated. -->
-                    <packageName>com.standard.eb.member</packageName>
+                    <packageName>com.acme.eb.member</packageName>
                     <!-- The working directory to create the generated java source files. -->
                     <outputDirectory>${project.basedir}/target/generated-sources/jaxb2</outputDirectory>
                     <bindingDirectory>${project.basedir}/src/main/resources</bindingDirectory>
@@ -184,7 +184,7 @@ NOTE: since you're generating the Java Object contract methods
 
 you need to make sure that your Base class
 
-  <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+  <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
 
 implements those methods as well, so you'll have to do it manually...
 
@@ -200,13 +200,13 @@ implements those methods as well, so you'll have to do it manually...
         <!-- use java8 localDate for xsd:date -->
         <jxb:javaType name="java.time.LocalDate"
                       xmlType="xsd:date"
-                      parseMethod="com.standard.dev.jaxb.DateTimeAdapter.parseLocalDate"
-                      printMethod="com.standard.dev.jaxb.DateTimeAdapter.printLocalDate"/>
+                      parseMethod="com.acme.dev.jaxb.DateTimeAdapter.parseLocalDate"
+                      printMethod="com.acme.dev.jaxb.DateTimeAdapter.printLocalDate"/>
         <!-- use java8 offsetDateTime for xsd:dateTime -->
         <jxb:javaType name="java.time.LocalDateTime"
                       xmlType="xsd:dateTime"
-                      parseMethod="com.standard.dev.jaxb.DateTimeAdapter.parseLocalDateTime"
-                      printMethod="com.standard.dev.jaxb.DateTimeAdapter.printLocalDateTime"/>
+                      parseMethod="com.acme.dev.jaxb.DateTimeAdapter.parseLocalDateTime"
+                      printMethod="com.acme.dev.jaxb.DateTimeAdapter.printLocalDateTime"/>
         <!-- use java.lang.Long instead of java.math.BigInteger (overkill!) for xsd:integer used for sequences in XSD (should use xsd:long) -->
         <jxb:javaType name="java.lang.Long"
                       xmlType="xsd:integer"/>
@@ -254,8 +254,8 @@ implements those methods as well, so you'll have to do it manually...
     <jxb:bindings schemaLocation="Person.xsd">
         <jxb:bindings node="//xsd:complexType[@name='DataType_Address']">
             <jxb:class name="Address"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Addresses']">
             <jxb:class name="Addresses"/>
@@ -263,8 +263,8 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_WorkHour']">
             <jxb:class name="WorkHour"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_WorkHours']">
             <jxb:class name="WorkHours"/>
@@ -272,8 +272,8 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_Billing']">
             <jxb:class name="Billing"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Billings']">
             <jxb:class name="Billings"/>
@@ -281,19 +281,19 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_Contact']">
             <jxb:class name="Contact"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Contacts']">
             <jxb:class name="Contacts"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_Earning']">
             <jxb:class name="Earning"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Earnings']">
             <jxb:class name="Earnings"/>
@@ -301,8 +301,8 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_Email']">
             <jxb:class name="Email"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Emails']">
             <jxb:class name="Emails"/>
@@ -310,8 +310,8 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_Employment']">
             <jxb:class name="Employment"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Employments']">
             <jxb:class name="Employments"/>
@@ -319,8 +319,8 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_Enrollment']">
             <jxb:class name="Enrollment"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Enrollments']">
             <jxb:class name="Enrollments"/>
@@ -328,8 +328,8 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_Payroll']">
             <jxb:class name="Payroll"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Payrolls']">
             <jxb:class name="Payrolls"/>
@@ -337,14 +337,14 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_PersonDemographic']">
             <jxb:class name="PersonDemographic"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_HRContact']">
             <jxb:class name="HrContact"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_HRContacts']">
             <jxb:class name="HrContacts"/>
@@ -352,8 +352,8 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_Membership']">
             <jxb:class name="Membership"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Memberships']">
             <jxb:class name="Memberships"/>
@@ -361,14 +361,14 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_Person']">
             <jxb:class name="Person"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_PersonIdentification']">
             <jxb:class name="PersonIdentification"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_PersonIdentifications']">
             <jxb:class name="PersonIdentifications"/>
@@ -379,8 +379,8 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_PersonName']">
             <jxb:class name="PersonName"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_PersonNames']">
             <jxb:class name="PersonNames"/>
@@ -391,8 +391,8 @@ implements those methods as well, so you'll have to do it manually...
 
         <jxb:bindings node="//xsd:complexType[@name='DataType_RelatedPerson']">
             <jxb:class name="RelatedPerson"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
-            <inheritance:implements>com.standard.eb.AuditAware</inheritance:implements>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
+            <inheritance:implements>com.acme.eb.AuditAware</inheritance:implements>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_RelatedPersons']">
             <jxb:class name="RelatedPersons"/>
@@ -403,7 +403,7 @@ implements those methods as well, so you'll have to do it manually...
 DateTimeAdapter
 --------------------------------------------------------
 
-package com.standard.dev.jaxb;
+package com.acme.dev.jaxb;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -484,7 +484,7 @@ public class DateTimeAdapter {
 Base Entity impl
 ------------------------------------------------
 
-package com.standard.eb;
+package com.acme.eb;
 
 import com.google.common.base.Objects;
 
@@ -1841,7 +1841,7 @@ my implementation:
                     <schemaDirectory>${project.basedir}/src/main/resources</schemaDirectory>
                     <schemaFiles>Person.xsd, Common.xsd</schemaFiles>
                     <!-- The package in which the source files will be generated. -->
-                    <packageName>com.standard.eb.member</packageName>
+                    <packageName>com.acme.eb.member</packageName>
                     <!-- The working directory to create the generated java source files. -->
                     <outputDirectory>${project.basedir}/target/generated-sources/jaxb2</outputDirectory>
                     <bindingDirectory>${project.basedir}/src/main/resources</bindingDirectory>
@@ -1919,7 +1919,7 @@ my implementation:
     <jxb:bindings schemaLocation="Person.xsd">
         <jxb:bindings node="//xsd:complexType[@name='DataType_Address']">
             <jxb:class name="Address"/>
-            <inheritance:extends>com.standard.eb.BaseEntity</inheritance:extends>
+            <inheritance:extends>com.acme.eb.BaseEntity</inheritance:extends>
         </jxb:bindings>
         <jxb:bindings node="//xsd:complexType[@name='DataType_Addresses']">
             <jxb:class name="Addresses"/>
