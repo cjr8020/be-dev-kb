@@ -188,7 +188,7 @@ server:
       trustStoreType: JKS
       trustStoreProvider: SUN
       validateCerts: false
-      #certAlias: pdxlmicni001.standard.com
+      #certAlias: pdxlmicni001.acme.com
       validatePeers: false
       # supportedProtocols: [SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2]
       supportedProtocols: [SSLv2Hello, TLSv1.2]
@@ -2895,7 +2895,7 @@ Here is a list of changes that I would like to be persisted via RHEL7 image so t
 
 
 1. Enhanced the description for Java microservice port assignment strategy:
-http://collab.standard.com/sites/Collaboration/AppEngCoE/devwiki/Pages/service-transport-port-number-registry.aspx
+http://collab.acme.com/sites/Collaboration/AppEngCoE/devwiki/Pages/service-transport-port-number-registry.aspx
 
 2. Changed the encryption algorithm to “AES” (in the “3. Generate key for encrypted passwords encrtypion/decryption” section below)
 
