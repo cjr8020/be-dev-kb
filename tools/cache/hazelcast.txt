@@ -1,0 +1,54 @@
+
+	@@@@@@@@@@@@@@@@@@
+	
+		Hazelcast
+
+	@@@@@@@@@@@@@@@@@@
+
+
+Resources:
+
+Hazelcast with Java
+https://www.baeldung.com/java-hazelcast
+
+How do you secure your data in memory?
+Oct 19, 2015 | Articles, Practice - Data
+https://www.brickendon.com/articles/how-do-you-secure-your-data-in-memory/
+
+Spring Boot and Hazelcast
+https://medium.com/@oscdj113/spring-boot-and-hazelcast-f68d42b2a83d
+
+hazelcast-aws
+https://github.com/hazelcast/hazelcast-aws
+
+hazelcast ldap security
+http://davebrimley.com/blog/hazelcast-ldap-security/
+
+================================================================================
+
+Hazelcast as Redis replacement
+******************************
+https://hazelcast.org/use-cases/redis-replacement/
+
+
+Architecture
+Key architectural differences between Hazelcast IMDG® and Redis include:
+
+Language: Hazelcast IMDG is written in Java, while Redis is implemented in C.
+Threading: Redis is single-threaded. Hazelcast IMDG can benefit from all available CPU cores.
+Design: Hazelcast IMDG is designed from the ground up to be used in a distributed environment; Redis was initially intended to be used in standalone mode. Clustered Redis does not support SELECT command, meaning it only supports a single DB (namespace) per cluster. In contrast, Hazelcast IMDG supports unlimited number of maps and caches per cluster.
+High availability: More on this in failover section
+
+
+Hazelcast IMDG provides a Discovery Service Provider Interface (SPI), which allows users to implement custom member discovery mechanisms to deploy Hazelcast IMDG on any platform. Hazelcast® Discovery SPI also allows you to use third-party software like Zookeeper, Eureka, Consul, etcd for implementing custom discovery mechanism.
+
+Failover
+When it comes to providing fault-tolerance, Redis uses a traditional master-slave approach, where each primary site for the data is backed up by one or more slaves that are promoted if the master goes down.
+
+In a Hazelcast IMDG cluster, all members are equal and hold primary data as well as backup of the primary on other members in the cluster. Thus, Hazelcast IMDG requires fewer physical machines to establish the same level of resilience. Also, Redis slave nodes do not process read requests, which reduces the throughput of the entire system.
+
+High availability of Redis is provided by Redis Sentinel, which continuously monitors the Redis cluster and initiates a slave promotion if it detects a master failure. At least three instances of Sentinel are recommended for a reliable deployment, which unnecessarily uses resources.
+
+
+
+================================================================================
