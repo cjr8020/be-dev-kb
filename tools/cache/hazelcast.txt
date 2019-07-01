@@ -8,6 +8,9 @@
 
 Resources:
 
+Mastering Hazelcast IMDG
+https://hazelcast.org/mastering-hazelcast/
+
 Hazelcast with Java
 https://www.baeldung.com/java-hazelcast
 
@@ -23,6 +26,272 @@ https://github.com/hazelcast/hazelcast-aws
 
 hazelcast ldap security
 http://davebrimley.com/blog/hazelcast-ldap-security/
+
+================================================================================
+
+	Serialization
+	*************
+
+resources:
+https://docs.hazelcast.org/docs/3.0/manual/html/ch03.html ch 3: serialization
+https://hazelcast.com/blog/serialize-enumerable-ways/
+
+
+Hazelcast relies heavily on serialization. It is designed to be a distributed cache and honestly it is not very suitable for a local cache.
+
+Sometimes people compare it with other caching solutions and notice that Hazelcast is very slow. This is because a local cache doesn’t need to serialize its entries, but Hazelcast does. And serialization is very costly.
+
+Hazelcast 3 comes with a big update on serialization. 
+Not only it provides 2 new way of serialization, now you can plug your own serialization and it works like a charm.
+
+
+
+Comparing Serialization Methods
+--------------------------------------------------------------------------------
+
+https://hazelcast.com/blog/comparing-serialization-methods/
+
+To summarize; Java serialization is the worst. 
+
+With Custom Serialization you can easily implement and plug Kryo or Jackson Smile serializers. Hazelcast supports Stream based or ByteArray based serializers. 
+They are way better than Java Serialization and doesn’t require to change your Classes. 
+Can be easily used for third party objects. 
+They don’t even have to be Serializable.
+
+However Hazelcast DataSerializable, IdentifiedDataSerializable and Portable are better for serialization and deserialization. They are very optimized and produces less binary. However they have an implementation overhead, you need to implement additional serialization methods for all your Classes. But if you need better query performance without having to add index to all your fields, then it should be worth of trying Portable.
+
+
+Kryo
+	
+	https://github.com/EsotericSoftware/kryo
+	Kryo is a fast and efficient binary object graph serialization framework for Java.
+
+	The beauty of Kryo is that, you don’t need to make your domain classes implement anything. 
+	We just need to implement a StreamSerializer.
+
+	Note that Kryo is not thread-safe. 
+	That is why each thread needs to have its own Kryo. 
+	Here is the implementation details:
+	https://hazelcast.com/blog/comparing-serialization-methods/
+
+
+Jackson Smile
+
+	Smile is a computer data interchange format based on JSON. It can also be considered a binary serialization of the generic JSON data model, which means tools that operate on JSON may be used with Smile as well, as long as a proper encoder/decoder exists for the tool. 
+
+	The name comes from first 2 bytes of the 4 byte header, which consist of Smiley ":)" followed by a linefeed: choice made to make it easier to recognize Smile-encoded data files using textual command-line tools.
+
+	https://github.com/FasterXML/smile-format-specification
+
+	To use Jackson Smile with Hazelcast, implement it as a ByteArraySearilizer.
+
+	Note that Jackson is already thread-safe:
+	https://hazelcast.com/blog/comparing-serialization-methods/
+
+	simplest serialization code so far
+
+
+Kryo wins in terms of both time and size compared to Jackson Smile.
+But you may consider Jackson Smile for simplicity.
+
+
+--------------------------------------------------------------------------------
+
+All your distributed objects such as your key and value objects, 
+objects you offer into distributed queue and your distributed callable/runnable objects 
+have to be Serializable.	
+
+Hazelcast serializes all your objects into an instance of
+
+	com.hazelcast.nio.serialization.Data - binary representation of an object.
+
+When Hazelcast serializes an object into `Data`, it first checks whether the object is an instance of 
+
+	com.hazelcast.nio.serialization.DataSerializable, 
+
+if not it checks if it is an instance of 
+
+	com.hazelcast.nio.serialization.Portable 
+
+and serializes it accordingly.
+
+
+
+Custom Serialization
+--------------------------------------------------------------------------------
+
+Hazelcast allows you to plug a custom serializer.
+
+https://hazelcast.com/blog/serialize-enumerable-ways/
+
+prefer to use either ByteArraySerializer or StreamSerializer, for a couple of reasons:
+
+1. They facilitate separation of concerns, 
+   i.e. the serialization code is separate from the class itself.
+
+2. Because they facilitate separation of concerns, there’s no required dependency 
+   on Hazelcast in the actual classes being serialized. 
+   This is particularly important if you don’t own or control the classes, 
+   and thus cannot implement any of the Hazelcast serialization interfaces.
+
+3. Full constructor freedom. 
+   Because the instantiation is done in the Serializer class, 
+   which you write and control, there’s full freedom in how the class is designed, 
+   e.g. no need for a default constructor.
+
+
+DataSerializable
+--------------------------------------------------------------------------------
+
+For a faster serialization of objects, Hazelcast recommends to implement 
+
+	com.hazelcast.nio.serialization.IdentifiedDataSerializable 
+
+which is slightly better version of 
+
+	com.hazelcast.nio.serialization.DataSerializable
+
+
+Portable Serialization
+--------------------------------------------------------------------------------
+
+Portable serialization has the following advantages:
+
+Support multiversion of the same object type.
+Fetching individual fields without having to rely on reflection
+Querying and indexing support without de-serialization and/or reflection
+
+    @Override
+    public void writePortable(PortableWriter writer) throws IOException {
+        writer.writeUTF("foo", foo);
+    }
+
+    @Override
+    public void readPortable(PortableReader reader) throws IOException {
+        foo = reader.readUTF("foo");
+    }
+
+
+================================================================================
+
+
+	Kryo Custom Serialization
+	*************************
+
+https://github.com/EsotericSoftware/kryo
+Kryo is a fast and efficient binary object graph serialization framework for Java.	
+
+1. facilitates separation of concerns, 
+2. Because they facilitate separation of concerns, there’s no required dependency 
+   on Hazelcast in the actual classes being serialized. 
+3. Full constructor freedom. 
+
+Just need to implement a StreamSerializer.
+https://hazelcast.com/blog/serialize-enumerable-ways/
+
+https://github.com/hazelcast/hazelcast/issues/6781
+
+
+
+GenericHazelCastKryoSerializer.java
+-----------------------------------
+
+public abstract class GenericHazelcastKryoSerializer<T> implements StreamSerializer<T> {
+
+  private final int typeId;
+
+  public GenericHazelcastKryoSerializer(int typeId) {
+    this.typeId = typeId;
+  }
+
+  @Override
+  public int getTypeId() {
+    return typeId;
+  }
+
+  @Override
+  public void write(ObjectDataOutput objectDataOutput, T product)
+      throws IOException {
+    Kryo kryo = getSharedThreadLocalKyro();
+    OutputChunked output = new OutputChunked((OutputStream) objectDataOutput, 4096);
+    kryo.writeClassAndObject(output, product);
+    output.endChunks();
+    output.flush();
+  }
+
+  protected abstract Kryo getSharedThreadLocalKyro();
+
+  @Override
+  public T read(ObjectDataInput objectDataInput)
+      throws IOException {
+    InputStream in = (InputStream) objectDataInput;
+    InputChunked input = new InputChunked(in, 4096);
+    Kryo kryo = getSharedThreadLocalKyro();
+    return (T) kryo.readClassAndObject(input);
+  }
+
+  @Override
+  public void destroy() {
+  }
+
+}
+
+SerializationId.class
+---------------------
+
+public class SerializationId {
+  public static final int ID = 1;
+
+  private SerializationId() {
+    throw IllegalStateException("this should never be instantiated, even using reflection");
+  }
+}
+
+
+FooKryoSerializer.class
+------------------------
+
+public class FooKryoSerializer extends GenericHazelcastKryoSerializer<SomeObject> {
+
+  private static final ThreadLocal<Kryo> kryoThreadLocal
+      = new ThreadLocal<Kryo>() {
+    @Override
+    protected Kryo initialValue() {
+      Kryo kryo = new Kryo();
+      kryo.register(Foo.class);
+      return kryo;
+    }
+  };
+
+  public SomeObjectKryoSerializer() {
+    super(SerializationId.ID);
+  }
+
+  @Override
+  protected Kryo getSharedThreadLocalKyro() {
+    return kryoThreadLocal.get();
+  }
+
+}
+
+
+
+
+Issues:
+---------------------------------
+
+
+	HazelcastSerializationException: java.io.EOFException: Cannot read 4 bytes!
+	***************************************************************************
+
+https://github.com/hazelcast/hazelcast/issues/6781
+
+was using input & output stream as described in mastering hazelcast guide 
+instead of InputChunked & OutputChunked.
+After changing to chunked, I no longer see the issue.
+
+
+
 
 ================================================================================
 
@@ -50,5 +319,25 @@ In a Hazelcast IMDG cluster, all members are equal and hold primary data as well
 High availability of Redis is provided by Redis Sentinel, which continuously monitors the Redis cluster and initiates a slave promotion if it detects a master failure. At least three instances of Sentinel are recommended for a reliable deployment, which unnecessarily uses resources.
 
 
+
+================================================================================
+
+	
+https://octoperf.com/blog/2018/06/12/spring-boot-hazelcast-tutorial/
+https://github.com/jloisel/spring-boot-hazelcast
+
+
+look at multiple problems arising when clustering a web application 
+(and especially Rest APIs):
+
+1. Get an understanding of why clustering is inherently difficult (but not insurmountable),
+
+2. How to hide clustering problematics behind a service that handles the difficult work for us,
+
+3. How to enable clustering in a Spring Boot Rest API? Which framework should I use? (obviously we’re talking about Hazelcast here)
+
+4. How to make your Spring Boot App configurable to support High Availability without changing a single line of code, (using @ConditionalOnProperty)
+
+5. How to implement a very simple Leader Election mechanism using Hazelcast and know when your instance is the leader.
 
 ================================================================================

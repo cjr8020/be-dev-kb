@@ -1184,7 +1184,15 @@ RHEL commands
 
 # systemctl start | stop | restart | reload | status <service-name>
 
+	also
+
+	# service consul status | stop | start | reload 
+
+
 # systemctl enable | disable <service-name>
+
+	e.g.:
+	systemctl disable consul.service
 
 # systemctl is-active | is-enabled <service-name>
 
