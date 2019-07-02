@@ -1,0 +1,325 @@
+
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+		Spring Boot Caching
+
+	@@@@@@@@@@@@@@@@@@@@@@@@@@@		
+
+
+Resources:
+https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-caching.html	
+
+
+The Spring Framework provides support for transparently adding caching to an application. 
+At its core, the abstraction applies caching to methods, thus reducing the number of executions based on the information available in the cache.
+
+The caching logic is applied transparently, without any interference to the invoker. Spring Boot auto-configures the cache infrastructure as long as caching support is enabled via the @EnableCaching annotation.
+
+
+Adding caching to an operation:
+
+@Component
+public class MathService {
+
+	@Cacheable("piDecimals")
+	public int computePiDecimal(int i) {
+		// ...
+	}
+
+}
+
+
+
+
+Before invoking computePiDecimal, the abstraction looks for an entry in the piDecimals cache that matches the i argument. 
+
+If an entry is found, the content in the cache is immediately returned to the caller, and the method is not invoked. Otherwise, the method is invoked, and the cache is updated before returning the value.
+
+
+================================================================================
+
+	Cache Abstraction
+	*****************
+
+Resources:
+https://docs.spring.io/spring/docs/3.1.x/spring-framework-reference/html/cache.html
+
+At its core, the abstraction applies caching to Java methods, reducing thus the number of executions based on the information available in the cache.
+
+That is, each time a targeted method is invoked, the abstraction will apply a caching behaviour checking whether the method has been already executed for the given arguments. If it has, then the cached result is returned without having to execute the actual method; if it has not, then method is executed, the result cached and returned to the user so that, the next time the method is invoked, the cached result is returned. This way, expensive methods (whether CPU or IO bound) can be executed only once for a given set of parameters and the result reused without having to actually execute the method again. The caching logic is applied transparently without any interference to the invoker.
+
+To use the cache abstraction, the developer needs to take care of two aspects:
+
+caching declaration - identify the methods that need to be cached and their policy
+cache configuration - the backing cache where the data is stored and read from
+
+
+================================================================================
+
+	Caching Annotations
+	********************
+
+@Cacheable : Triggers cache population
+
+@CachePut : Updates the cache, without interfering with the method execution
+
+@CacheEvict : Triggers cache eviction[removing items from cache]
+
+@Caching : Regroups multiple cache operations to be applied on a method
+
+@CacheConfig : Shares some common cache-related settings at class-level
+
+@EnableCaching : Configuration level annotation, enables Caching
+
+
+================================================================================
+
+	@EnableCaching
+	**************
+
+When @EnableCaching is present in your configuration, a suitable cache configuration is expected as well. 	
+
+Spring Boot auto-configures the cache infrastructure as long as caching support is enabled via the @EnableCaching annotation.
+
+If you do not add any specific cache library, Spring Boot auto-configures a simple provider that uses concurrent maps in memory. When a cache is required (such as piDecimals in the preceding example), this provider creates it for you. 	
+
+Not recommended for production.
+
+If you need to disable caching altogether in certain environments, force the cache type to none to use a no-op implementation, as shown in the following example:
+
+	spring.cache.type=none
+
+================================================================================
+
+	@Cacheable
+	**********
+
+used to demarcate methods that are cacheable - that is, methods for whom the result is stored into the cache so on subsequent invocations (with the same arguments), the value in the cache is returned without having to actually execute the method. 
+
+	@Cacheable("books")
+	public Book findBook(ISBN isbn) {...}
+
+the method `findBook` is associated with the cache named "books".
+
+While in most cases, only one cache is declared, the annotation allows multiple names to be specified so that more then one cache are being used. In this case, each of the caches will be checked before executing the method - if at least one cache is hit, then the associated value will be returned:
+
+	@Cacheable({ "books", "isbns" })
+	public Book findBook(ISBN isbn) {...}
+
+================================================================================
+
+	Default Key Generator
+	*********************
+
+Since caches are essentially key-value stores, each invocation of a cached method needs to be translated into a suitable key for cache access. Out of the box, the caching abstraction uses a simple KeyGenerator based on the following algorithm:
+
+If no params are given, return 0.
+If only one param is given, return that instance.
+If more the one param is given, return a key computed from the hashes of all parameters.
+
+This requires the parameters to have a decent hashCode()/equals() implementation, which is not usually a problem in and of itself, except that the performance of hashCode() and equals() also impacts the performance of cache retrieval. 
+
+
+	Custom Key Generation Declaration
+	*********************************
+
+the @Cacheable annotation allows the user to specify how the key is generated through its key attribute.   
+
+The developer can 
+- use SpEL to pick the arguments of interest (or their nested properties), 
+- perform operations or even 
+- invoke arbitrary methods without having to write any code or implement any interface. 
+
+This is the recommended approach over the default generator since methods tend to be quite different in signatures as the code base grows; while the default strategy might work for some methods, it rarely does for all methods.
+
+Below are some examples of various SpEL declarations:
+
+@Cacheable(value="books", key="#isbn"
+public Book findBook(ISBN isbn, boolean checkWarehouse, boolean includeUsed)
+
+
+@Cacheable(value="books", key="#isbn.rawNumber")
+public Book findBook(ISBN isbn, boolean checkWarehouse, boolean includeUsed)
+
+
+@Cacheable(value="books", key="T(someType).hash(#isbn)")
+public Book findBook(ISBN isbn, boolean checkWarehouse, boolean includeUsed)
+
+
+================================================================================
+
+	Beware of the default cache keys
+	********************************
+
+https://www.foreach.be/blog/spring-cache-annotations-some-tips-tricks
+
+	In short: you should not only pay attention to the unicity of your cache keys, but also to the size of the actual cache key being generated.  Use the key property or a custom key generator to have more fine-grained control over your cache keys.
+
+
+default key generation strategy that creates a SimpleKey that consists of all the parameters with which the method was called. This requires the parameters to have a decent hashCode()/equals() implementation, which is not usually a problem in and of itself, except that the performance of hashCode() and equals() also impacts the performance of cache retrieval. Again, that's usually not much of an issue.
+
+
+A more important caveat here is that the parameters themselves become an integral part of the cache key, and that can have an unwanted impact on the actual heap size being used, as the cache key is kept on the heap as well. 
+
+Consider our example: we use a Restaurant as the cache key. However the restaurant is a complex domain entity holding lots of data and having several collections of related entities. All this data is kept alive as long as the cache entry exists and keeps taking up room on the heap, even if it is no longer relevant.
+
+Suppose our restaurant has an id property that uniquely identifies that specific restaurant, which domain classes often do. We can easily adapt our code as follows:
+
+	@Cacheable(value = "reservationsCache", key = "#restaurant.id")
+	public List<Reservation> getReservationsForRestaurant( Restaurant restaurant ) {
+	}
+
+This uses SpEL for declaring a custom key that will be the value of the id property.  In our case this would be a simple long, and that would remain the case even if the Restaurant entity grows over time. 
+
+================================================================================
+
+	Cache and Synchronization
+	*************************
+
+For very expensive methods, you want to optimize the cache hits as much as possible.
+When being accessed by multiple threads, you ideally want the first thread to do the actual calculation and all other threads to fetch it from the cache.  A classic case where you would synchronize access to the method.  However, the following code does not do what we want:
+
+	@Cacheable(value = "reservationsCache", key = "#restaurand.id")
+	public synchronized List<Reservation> getReservationsForRestaurant( Restaurant restaurant ) {
+	}
+
+When using @Cacheable on a method, the caching code is outside of the original method body (added through AOP).  This means that any form of synchronization inside or on the method itself will take place after the actual cache lookup.
+
+As of Spring Framework 4.3 there is some direct support for synchronized caching: @Cacheable allows you to specify the sync attribute to ensure only a single thread is building the cache value. To get the behavior we want, the above example could be updated to:
+
+	@Cacheable(value = "reservationsCache", key = "#restaurand.id", sync = true)
+	public List<Reservation> getReservationsForRestaurant( Restaurant restaurant ) {
+	}
+
+
+================================================================================
+
+	conditional caching
+	*******************
+
+- condition
+- unless
+
+@Cacheable(value="book", condition="#name.length < 32")
+public Book findBook(String name)
+
+
+Examples:
+-------------------------------
+
+
+	class UserService {
+		@Cacheable(value = "userCache", unless = "#result != null")
+		public User getUserById( long id ) {
+	   		return userRepository.getById( id );
+		}
+	}
+
+	class UserRepository {
+		@Caching(
+	      put = {
+	            @CachePut(value = "userCache", key = "'username:' + #result.username", condition = "#result != null"),
+	            @CachePut(value = "userCache", key = "#result.id", condition = "#result != null")
+	      }
+		)
+		@Transactional(readOnly = true)
+		public User getById( long id ) {
+		   ...
+		}
+	}	
+ 
+
+
+================================================================================
+
+	@CachePut
+	*********
+
+For cases where the cache needs to be updated without interferring with the method execution, one can use the @CachePut annotation.
+
+That is, the method will always be executed and its result placed into the cache (according to the @CachePut options).
+
+It supports the same options as @Cacheable and should be used for cache population rather then method flow optimization.
+
+	Do not use @Cacheable and @CachePut together
+
+Note that using @CachePut and @Cacheable annotations on the same method is generaly discouraged because they have different behaviours. 
+
+While the latter (Cacheable) causes the method execution to be skipped by using the cache, the former 
+(CachePut) forces the execution in order to execute a cache update. This leads to unexpected behaviour and with the exception of specific corner-cases (such as annotations having conditions that exclude them from each other), such declarations should be avoided.
+
+
+================================================================================
+
+	@CacheEvict
+	***********
+
+The cache abstraction allows not just population of a cache store but also eviction.
+This process is useful for removing stale or unused data from the cache. Opposed to @Cacheable, annotation @CacheEvict demarcates methods that perform cache eviction, that is methods that act as triggers for removing data from the cache. 
+
+
+Just like its sibling, @CacheEvict requires one to specify one (or multiple) caches that are affected by the action, allows a key or a condition to be specified but in addition, features an extra parameter allEntries which indicates whether a cache-wide eviction needs to be performed rather then just an entry one (based on the key):
+
+	@CacheEvict(value = "books", allEntries=true)
+	public void loadBooks(InputStream batch)
+
+This option comes in handy when an entire cache region needs to be cleared out - rather then evicting each entry (which would take a long time since it is inefficient), all the entires are removed in one operation as shown above.
+
+
+	beforeInvocation=true|false
+
+One can also indicate whether the eviction should occur after (the default) or before the method executes through the beforeInvocation attribute.
+
+
+after (beforeInvocation=false)
+provides the same semantics as the rest of the annotations - once the method completes successfully, an action (in this case eviction) on the cache is executed.
+
+before (beforeInvocation=true)
+causes the eviction to occur always, before the method is invoked - this is useful in cases where the eviction does not need to be tied to the method outcome.
+
+
+The latter (beforeInvocation=true) causes the eviction to occur always, before the method is invoked - this is useful in cases where the eviction does not need to be tied to the method outcome.
+
+================================================================================
+
+	@Caching
+	********
+There are cases when multiple annotations of the same type, such as @CacheEvict or @CachePut need to be specified, for example because the condition or the key expression is different between different caches. Unfortunately Java does not support such declarations however there is a workaround - using a enclosing annotation, in this case, @Caching. @Caching allows multiple nested @Cacheable, @CachePut and @CacheEvict to be used on the same method:
+
+	@Caching(evict = { @CacheEvict("primary"), @CacheEvict(value = "secondary", key = "#p0") })
+	public Book importBooks(String deposit, Date date)
+
+================================================================================
+
+	Supported Cache Providers
+	*************************
+https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-caching.html#boot-features-caching-provider
+
+If you have not defined a bean of type CacheManager or a CacheResolver named cacheResolver (see CachingConfigurer), Spring Boot tries to detect the following providers (in the indicated order):
+
+Generic
+JCache (JSR-107) (EhCache 3, Hazelcast, Infinispan, and others)
+EhCache 2.x
+Hazelcast
+Infinispan
+Couchbase
+Redis
+Caffeine
+Simple
+
+
+
+
+================================================================================
+
+	Simple provider
+	---------------
+
+If none of the other providers can be found, a simple implementation using a ConcurrentHashMap as the cache store is configured.
+
+
+The simple provider is not really recommended for production usage, but it is great for getting started and making sure that you understand the features. When you have made up your mind about the cache provider to use, please make sure to read its documentation to figure out how to configure the caches that your application uses.
+
+
+
+================================================================================
