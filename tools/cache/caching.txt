@@ -1,0 +1,160 @@
+
+	*****************
+
+		Caching
+
+	*****************
+
+
+================================================================================
+
+	Distributed Cache
+	*****************
+
+https://en.wikipedia.org/wiki/Distributed_cache
+a distributed cache is an extension of the traditional concept of cache used in a single locale. A distributed cache may span multiple servers so that it can grow in size and in transactional capacity. It is mainly used to store application data residing in database and web session data.
+
+Distributed across N cluser nodes.
+
+From the list of supported spring-boot cache providers
+https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-caching.html
+
+Couchbase
+Ehcache
+Hazelcast
+Infinispan
+Redis
+
+
+DISTRIBUTED CACHE – OVERVIEW
+https://techblog.bozho.net/distributed-cache-overview/
+
+Very practical aritcle. Im a heavy user of hazelcast distributed cache in conjunction with spring boot frontend instances for a e-commerece solution. I can highly recommend this setup.
+Spring Cache is able to abstract away the clustering and the remote connection to the cluster.
+
+================================================================================
+
+	Hazelcast vs Redis
+	******************
+
+Hazelcast is unique in that it can be embedded in a Java host process.
+
+https://hazelcast.org/use-cases/redis-replacement/
+
+Language: Hazelcast IMDG is written in Java, while Redis is implemented in C.
+Threading: Redis is single-threaded. Hazelcast IMDG can benefit from all available CPU cores.
+
+Design: Hazelcast IMDG is designed from the ground up to be used in a distributed environment; Redis was initially intended to be used in standalone mode. Clustered Redis does not support SELECT command, meaning it only supports a single DB (namespace) per cluster. In contrast, Hazelcast IMDG supports unlimited number of maps and caches per cluster.
+
+
+Redis
+
+A Redis client connects to a Redis cluster through a TCP connection. There is no provision for discovering Redis servers on a multicast UDP network.
+
+Redis does not provide an automatic discovery mechanism for any cloud provider, which makes it difficult to use in custom cloud deployments.
+
+Establishing a Redis cluster is not straightforward — one needs to launch a special utility script while specifying all member addresses. This utility script (“redis-trib.rb”) is written in Ruby and thus requires additional Ruby runtime dependencies (script is included in Redis distribution).
+
+
+Failover
+When it comes to providing fault-tolerance, Redis uses a traditional master-slave approach, where each primary site for the data is backed up by one or more slaves that are promoted if the master goes down.
+
+In a Hazelcast IMDG cluster, all members are equal and hold primary data as well as backup of the primary on other members in the cluster. Thus, Hazelcast IMDG requires fewer physical machines to establish the same level of resilience. Also, Redis slave nodes do not process read requests, which reduces the throughput of the entire system.
+
+
+Benchmarking Redis Enterprise 5.2.0 vs. Hazelcast 3.9
+https://redislabs.com/blog/benchmarking-redis-enterprise-5-2-0-vs-hazelcast-3-9/
+
+Hazelcast Responds to Redis Labs’ Benchmark
+https://hazelcast.com/blog/hazelcast-responds-to-redis-labs-benchmark/
+
+
+================================================================================
+
+	Redis vs Memcached
+	*******************
+
+https://www.infoworld.com/article/3063161/why-redis-beats-memcached-for-caching.html
+
+Both Memcached and Redis serve as in-memory, key-value data stores, although Redis is more accurately described as a data structure store. 
+Both Memcached and Redis belong to the NoSQL family of data management solutions, and both are based on a key-value data model. 
+Both in-memory - keep all data in RAM.
+
+In terms of performance, the two data stores are also remarkably similar, exhibiting almost identical characteristics (and metrics) with respect to throughput and latency.
+
+Both Memcached and Redis are mature and hugely popular open source projects. 
+
+When to use Memcached
+---------------------
+1. Memcached could be preferable when caching relatively small and static data, such as HTML code fragments. Memcached’s internal memory management, while not as sophisticated as that of Redis, is more efficient in the simplest use cases because it consumes comparatively less memory resources for metadata. Strings (the only data type supported by Memcached) are ideal for storing data that is only read, because strings require no further processing.
+
+Large data sets often involve serialized data, which always requires more space to store. While Memcached is effectively limited to storing data in its serialized form, the data structures in Redis can store any aspect of the data natively, thus reducing serialization overhead.
+
+
+When to use Redis
+-----------------
+You’ll almost always want to use Redis because of its data structures. With Redis as a cache, you gain a lot of power (such as the ability to fine-tune cache contents and durability) and greater efficiency overall. Once you use the data structures, the efficiency boost becomes tremendous for specific application scenarios.
+
+Redis in-memory data replication 
+--------------------------------
+Redis can also replicate the data that it manages. Replication can be used for implementing a highly available cache setup that can withstand failures and provide uninterrupted service to the application. A cache failure falls only slightly short of application failure in terms of the impact on user experience and application performance, so having a proven solution that guarantees the cache’s contents and service availability is a major advantage in most cases.
+
+Redis provides a slew of metrics and a wealth of introspective commands with which to monitor and track usage and abnormal behavior. Real-time statistics about every aspect of the database, the display of all commands being executed, the listing and managing of client connections—Redis has all that and more.
+
+However, given Redis’s richer functionality, more advanced design, many potential uses, and greater cost efficiency at scale, Redis should be your first choice in nearly every case.
+
+
+================================================================================
+
+Decision Point for Choosing an Application Services Implementation Architecture
+Published 26 March 2015 - ID G00273316 - 44 min read
+
+https://www.gartner.com/document/3015419?ref=solrAll&refval=225447665&qid=4a0e60fcc10fbd391491bb394
+
+Modernizing Application Infrastructure
+
+These alternatives include adoption of technologies such as:
+Application platform as a service (aPaaS) providers or frameworks (e.g., Apprenda, Heroku, Microsoft Azure, Pivotal Cloud Foundry, Red Hat OpenShift)
+Lightweight runtime stacks (e.g., Dropwizard, Microsoft Open Web Interface [OWIN], Node.js, Pivotal Spring Boot)
+Contemporary messaging technology (e.g., Apache ActiveMQ, RabbitMQ, Apache Kafka, ZeroMQ and cloud message-oriented middleware [MOM] providers)
+In-memory data grids (e.g., Hazelcast, Oracle Coherence, Software AG Terracotta)
+OS containers and related tools (e.g., Docker, Kubernetes, Consul) to manage packaging and deployment of service implementations
+
+--------------------------------------------------------------------------------
+
+Architect Cloud-Native Solutions With In-Memory Computing
+Published 28 January 2016 - ID G00292676 - 35 min read
+https://www.gartner.com/document/3192817?ref=solrAll&refval=225447893&qid=4a0e60fcc10fbd391491bb394
+
+IMDGs
+IMDGs provide a lightweight, distributed and scale-out in-memory object store: the data grid. Multiple applications can concurrently perform transactional and/or analytical operations in the low-latency data grid, thus minimizing access to high-latency disk, and making the data grid particularly useful in caching scenarios. IMDGs maintain data grid durability across physical or virtual servers (usually called nodes) via replication, partitioning and on-disk persistence. Objects in the data grid are uniquely identified through a primary key, but can also be retrieved via other attributes. The IMDG market features a wide variety of offerings, including products from commercial vendors (such as Oracle Coherence and IBM WebSphere eXtreme Scale) and open-source solutions (such as Redis and Hazelcast).
+ IMDGs can support a number of computing scenarios — ranging from Web applications, to mobile applications, to cloud applications and integration — where performance and scalability are important.
+
+
+
+--------------------------------------------------------------------------------
+
+Identifying and Selecting the Optimal Persistent Data Store for Big Data Initiatives
+Published 5 April 2017 - ID G00322578 - 60 min read
+
+https://www.gartner.com/document/3670917?ref=solrAll&refval=225447893&qid=4a0e60fcc10fbd391491bb394
+
+
+Redis
+Redis is one of the most widely deployed databases in the key-value category. It also supports document, graph and time-series. As the product has matured, it has added support for complex data types in addition to string keys and string values.
+It stores data in memory to provide high performance and scalability. Optional disk-based (including flash drives) persistence is available.
+It is available on-premises and in the cloud (private and public) by Redis Labs in open-source and commercial versions. Can be used to complement data processed in memory by Apache Spark.
+
+Memcached
+Memcached was an early pioneer in this category. It is open-source key-value in-memory cache and is better-suited for smaller and static data compared to Redis.
+It has multithreaded architecture, as opposed to single threaded Redis.
+
+Hazelcast
+Hazelcast is optimized as in-memory data grid (IMDG). Works with recently announced open-source distributed data processing engine called Jet.
+It is optimized to ingest high-volume data.
+Hazelcast is available in open-source and commercial version in on-premises and cloud models.
+
+--------------------------------------------------------------------------------
+
+
+
