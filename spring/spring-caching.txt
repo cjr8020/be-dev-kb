@@ -106,6 +106,69 @@ While in most cases, only one cache is declared, the annotation allows multiple 
 	@Cacheable({ "books", "isbns" })
 	public Book findBook(ISBN isbn) {...}
 
+
+@Cacheable#key
+---------------
+
+allows to use Spring Expression Language (SpEL) for computing the key dynamically.
+
+  @Cacheable(key = "#root.methodName")
+  public Employee[] getAllEmployees() {
+  	. . .
+  }
+
+#root.methodName refers to the method which is being invoked - so the method 
+name will be used as key for this cache
+
+================================================================================
+
+	Available Caching SpEL Evaluation Context
+	*****************************************
+https://docs.spring.io/spring/docs/current/spring-framework-reference/integration.html#cache-spel-context-tbl
+
+
+methodName
+
+	The name of the method being invoked
+	#root.methodName
+
+method
+	The method being invoked
+	#root.method.name
+
+target
+	The target object being invoked
+	#root.target
+
+targetClass
+	The class of the target being invoked
+	#root.targetClass
+
+args
+	The arguments (as array) used for invoking the target
+	#root.args[0]
+
+caches
+	Collection of caches against which the current method is executed
+	#root.caches[0].name
+
+Argument name
+	Name of any of the method arguments. 
+	If the names are not available (perhaps due to having no debug information), 
+	the argument names are also available under the #a<#arg> 
+	where #arg stands for the argument index (starting from 0).
+
+	e.g. 
+	#iban or #a0 
+	(you can also use #p0 or #p<#arg> notation as an alias).
+
+result
+	The result of the method call (the value to be cached). 
+	Only available in unless expressions, cache put expressions (to compute the key), 
+	or cache evict expressions (when beforeInvocation is false).
+
+	#result
+
 ================================================================================
 
 	Default Key Generator
@@ -113,7 +176,10 @@ While in most cases, only one cache is declared, the annotation allows multiple 
 
 Since caches are essentially key-value stores, each invocation of a cached method needs to be translated into a suitable key for cache access. Out of the box, the caching abstraction uses a simple KeyGenerator based on the following algorithm:
 
-If no params are given, return 0.
+If no params are given, return 0 (SimpleKey.EMPTY)
+
+	public static final SimpleKey EMPTY = new SimpleKey(new Object[0]);
+
 If only one param is given, return that instance.
 If more the one param is given, return a key computed from the hashes of all parameters.
 
@@ -122,6 +188,18 @@ This requires the parameters to have a decent hashCode()/equals() implementation
 
 	Custom Key Generation Declaration
 	*********************************
+
+https://www.logicbig.com/tutorials/spring-framework/spring-integration/cache-key-generation.html
+
+Caching is generic, and target method are likely to have various signatures 
+that cannot be readily mapped on top of cache structures.
+
+Considering this example:
+
+	@Cacheable("books")
+	public Book findBook(ISBN isbn, boolean checkWarehouse, boolean includeUsed)	
+
+The two boolean arguments are not very useful as cache key .. 
 
 the @Cacheable annotation allows the user to specify how the key is generated through its key attribute.   
 
@@ -234,8 +312,10 @@ Examples:
 
 	@CachePut
 	*********
+https://docs.spring.io/spring/docs/current/spring-framework-reference/integration.html#cache-annotations-put	
 
-For cases where the cache needs to be updated without interferring with the method execution, one can use the @CachePut annotation.
+For cases where the cache needs to be updated without interferring with the method execution, 
+one can use the @CachePut annotation.
 
 That is, the method will always be executed and its result placed into the cache (according to the @CachePut options).
 
@@ -254,19 +334,37 @@ While the latter (Cacheable) causes the method execution to be skipped by using 
 	@CacheEvict
 	***********
 
+https://www.logicbig.com/tutorials/spring-framework/spring-integration/cache-evict.html
+
 The cache abstraction allows not just population of a cache store but also eviction.
 This process is useful for removing stale or unused data from the cache. Opposed to @Cacheable, annotation @CacheEvict demarcates methods that perform cache eviction, that is methods that act as triggers for removing data from the cache. 
 
 
 Just like its sibling, @CacheEvict requires one to specify one (or multiple) caches that are affected by the action, allows a key or a condition to be specified but in addition, features an extra parameter allEntries which indicates whether a cache-wide eviction needs to be performed rather then just an entry one (based on the key):
 
-	@CacheEvict(value = "books", allEntries=true)
-	public void loadBooks(InputStream batch)
+
+@CacheEvict#allEntries=true
+
+	  @CacheEvict(value = "employee", allEntries = true)
+	  public void resetAllEntries() {
+	    // Intentionally blank
+	  }
 
 This option comes in handy when an entire cache region needs to be cleared out - rather then evicting each entry (which would take a long time since it is inefficient), all the entires are removed in one operation as shown above.
 
+	  @Test
+	  public void testCacheResetOfAllEntries() {
+
+	    Person employee1 = instance.findEmployee("John", "Smith", 22);
+	    instance.resetAllEntries();
+	    Person employee2 = instance.findEmployee("John", "Smith", 22);
+
+	    assertNotSame(employee1, employee2); // <---
+	  }
+
 
 	beforeInvocation=true|false
+	---------------------------
 
 One can also indicate whether the eviction should occur after (the default) or before the method executes through the beforeInvocation attribute.
 
@@ -279,6 +377,29 @@ causes the eviction to occur always, before the method is invoked - this is usef
 
 
 The latter (beforeInvocation=true) causes the eviction to occur always, before the method is invoked - this is useful in cases where the eviction does not need to be tied to the method outcome.
+
+
+	Removing cache by specific key
+	------------------------------
+
+This one creates `getAllEmployees` cache with key='getAllEmployees'	:
+
+  @Cacheable(key = "#root.methodName")
+  public Employee[] getAllEmployees() {
+      System.out.println("getAllEmployees() invoked");
+      return new Employee[]{new Employee(30, "Joe", "Account")};
+  }
+
+
+This one Evicts 'getAllEmployees' cache only and leaves other named caches alone:
+
+
+  @CacheEvict(key = "'getAllEmployees'")
+  public void clearAllEmployeesCache(){
+      System.out.println("clearAllEmployeesCache() invoked");
+
+  }
+
 
 ================================================================================
 
