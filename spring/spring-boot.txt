@@ -158,6 +158,47 @@ or via application.properties file:
 spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.SecurityAutoConfiguration
 
 
+
+
+  Debug Auto-Configuration
+  -------------------------
+
+debug=true 
+
+or
+
+debug: true
+
+or 
+
+  public static void main(String[] args) {
+
+      //just doing this programmatically for demo
+      String[] appArgs = {"--debug"};
+
+      SpringApplication app = new SpringApplication(DebugModeExample.class);
+      app.setBannerMode(Banner.Mode.OFF);
+      app.setLogStartupInfo(false);
+      app.run(appArgs);
+  }
+
+
+============================
+CONDITIONS EVALUATION REPORT
+============================
+
+
+   SimpleCacheConfiguration matched:
+      - Cache org.springframework.boot.autoconfigure.cache.SimpleCacheConfiguration automatic cache type (CacheCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.cache.CacheManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+
+   NoOpCacheConfiguration:
+      Did not match:
+         - @ConditionalOnMissingBean (types: org.springframework.cache.CacheManager; SearchStrategy: all) found beans of type 'org.springframework.cache.CacheManager' cacheManager (OnBeanCondition)
+      Matched:
+         - Cache org.springframework.boot.autoconfigure.cache.NoOpCacheConfiguration automatic cache type (CacheCondition)
+
 ================================================================================
 
 	SpringBoot Security

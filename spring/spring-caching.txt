@@ -54,6 +54,34 @@ caching declaration - identify the methods that need to be cached and their poli
 cache configuration - the backing cache where the data is stored and read from
 
 
+	SpringBoot Cache Providers
+	--------------------------
+
+The cache abstraction does not provide an actual store and relies on the abstraction
+materialized by the 
+
+	org.springframework.cache.Cache 
+	org.springframework.cache.CacheManager 
+
+interfaces.
+
+If you have not provided a bean of type `CacheManager` or `CacheResolver` named `cacheResolver`,
+Spring Boot tries to detect any of the supported providers.
+
+
+Here is an example of CacheManager using ConcurrentMap:
+
+@Configuration
+@EnableCaching
+public class CachingConfig {
+ 
+    @Bean
+    public CacheManager cacheManager() {
+        return new ConcurrentMapCacheManager("addresses");
+    }
+}
+
+
 ================================================================================
 
 	Caching Annotations
