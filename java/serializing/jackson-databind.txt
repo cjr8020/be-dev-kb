@@ -1,0 +1,222 @@
+
+	**************************
+
+		FasterXML Jackson
+
+	**************************
+
+
+================================================================================			
+
+	Flatten nested JSON objects
+	***************************
+
+Target:
+
+public class Product {
+ 
+    private String id;
+    private String name;
+    private String brandName;
+    private String ownerName;
+ 
+    // standard getters and setters
+}
+
+
+source:
+
+{
+    "id": "957c43f2-fa2e-42f9-bf75-6e3d5bb6960a",
+    "name": "The Best Product",
+    "brand": {
+        "id": "9bcd817d-0141-42e6-8f04-e5aaab0980b6",
+        "name": "ACME Products",
+        "owner": {
+            "id": "b21a80b1-0c09-4be3-9ebd-ea3653511c13",
+            "name": "Ultimate Corp, Inc."
+        }
+    }  
+}
+
+using annotation
+---------------------
+
+To map nested brand/name into `brandName`, we need to 
+first unpack the nested object to a Map, and extract the "name" property:
+
+instruct Jackson to unpack the nested property using a combination of @JsonProperty
+and some custom logic:
+
+
+public class Product {
+    // ...
+ 
+    @SuppressWarnings("unchecked")
+    @JsonProperty("brand")
+    private void unpackNested(Map<String,Object> brand) {
+        this.brandName = (String)brand.get("name");
+        Map<String,String> owner = (Map<String,String>)brand.get("owner");
+        this.ownerName = owner.get("name");
+    }
+}
+
+using custom JsonDeserializer
+------------------------------
+
+ProductDeserializer.class
+=========================
+public class ProductDeserializer extends StdDeserializer<Product> {
+ 
+    public ProductDeserializer() {
+        this(null);
+    }
+ 
+    public ProductDeserializer(Class<?> vc) {
+        super(vc);
+    }
+ 
+    @Override
+    public Product deserialize(JsonParser jp, DeserializationContext ctxt) 
+      throws IOException, JsonProcessingException {
+  
+        JsonNode productNode = jp.getCodec().readTree(jp);
+        Product product = new Product();
+        product.setId(productNode.get("id").textValue());
+        product.setName(productNode.get("name").textValue());
+        product.setBrandName(productNode.get("brand")
+          .get("name").textValue());
+        product.setOwnerName(productNode.get("brand").get("owner")
+          .get("name").textValue());        
+        return product;
+    }
+}
+
+Register the Deserializer on the Product.class
+
+@JsonDeserialize(using = ProductDeserializer.class)
+public class Product {
+    // ...
+}
+
+
+================================================================================			
+
+	Ignore empty (null) values
+	**************************
+
+Configure ObjectMapper:
+
+	mapper.setSerializationInclusion(Include.NON_NULL);
+
+============================================================================	
+
+	UnrecognizedPropertyException
+	*****************************
+
+	@JsonIgnore
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+
+		this will of course help, but you wouldn't know exactly what
+		you're ignoriing.. 
+
+You could be getting an exception like this 
+
+javax.ws.rs.ProcessingException: Error reading entity from input stream.
+        at com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException.from(UnrecognizedPropertyException.java:51)
+
+without any hint as to what might be causing it.
+
+In your DTO classes, it isn't only fields you need to worry about.
+
+It is also methods like:
+
+	isEligible
+	isSomethingSometing
+
+that might be causing this during marshalling and unmarshaling.        
+
+What seems to work is to add @JsonIgnore above such methods:
+
+  @JsonIgnore
+  public boolean isLegacyAppBridge() {
+    return id.equals(LEGACY_APP_BRIDGE_ID);
+  }
+
+  @JsonIgnore
+  public boolean isExternallyConfigured() {
+    return this.type.equals(APP_CONFIG_EXTERNAL);
+  }
+
+  @JsonIgnore
+  public boolean isStaticallyConfigured() {
+    return this.type.equals(APP_CONFIG_STATIC);
+  }
+
+
+================================================================================			
+
+	Custom Deserializer
+	*******************
+
+SomeOuterObject.class
+
+public class OuterObject {
+	
+	@JsonProperty
+	private Long id;
+
+	@JsonProperty
+	private InnerObject innerObject;
+
+}
+
+
+@JsonDeserialize(using = InnerObjectDeserializer.class)
+public class InnerObject {
+
+  @JsonProperty
+  private String firstName;
+
+  @JsonProperty
+  private String lastName;
+}
+
+InnerObjectDeserializer.class
+------------------------------
+
+public class InnerObjecttDeserializer extends StdDeserializer<InnerObject> {
+
+  public InnerObjectDeserializer() {
+    super(InnerObject.class);
+  }
+
+  protected InnerObjectDeserializer(Class<?> vc) {
+    super(vc);
+  }
+
+  protected InnerObjectDeserializer(JavaType valueType) {
+    super(valueType);
+  }
+
+  protected InnerObjectDeserializer(StdDeserializer<?> src) {
+    super(src);
+  }
+
+  @Override
+  public InnerObject deserialize(JsonParser jsonParser,
+      DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+
+    ObjectCodec oc = jsonParser.getCodec();
+    JsonNode node = oc.readTree(jsonParser);
+
+    InnerObject innerObject = new InnerObject();
+    innerObject.setFirstName(node.get("firstName").asText());
+    innerObject.setLastName(node.get("lastName").asText());
+
+    return aboutClaimant;
+  }
+}
+
+================================================================================			
