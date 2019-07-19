@@ -19,6 +19,55 @@ On the other hand, the spy will wrap an existing instance. It will still behave 
 
 ================================================================================
 
+    creating spy with spring injection
+    **********************************
+
+component under test
+---------------------
+
+@Component
+public class SomeComponent {
+    
+    private OneDependency oneDependency;
+    private TwoDependency twoDependency;
+
+    @Autowired
+    public SomeCompnent(
+        final OneDependency oneDependency,
+        final TwoDependency twoDependency) {
+      .
+      . 
+    }
+}
+
+test suite
+----------------------
+@RunWith(MockitoJUnitRunner.class)
+public class SomeComponentTest {
+    
+  @Mock private OneDependency oneDependency;;
+  @Mock private TwoDependency twoDependency;
+
+  @InjectMocks
+  @Spy
+  private SomeComponent someComponent;
+
+
+  @Test
+  public void testFoo_whenBarIsRed() {
+
+    // this mocks  `someComponent.getBar()` method that isn't under test
+    doReturn("red").when(someComponent).getBar();
+
+    // exercise actual method that is under test
+    assertTrue(someComponent.isFoo());
+  }
+ 
+}
+
+
+================================================================================
+
 Real Partial Mocks
 ------------------			
 
