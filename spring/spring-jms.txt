@@ -155,6 +155,47 @@ public CachingConnectionFactory cachingConnectionFactory(){
 
 ================================================================================
 
+  JmsTemplate send
+  ****************
+
+      jmsTemplate.send(requestQueue, session -> {
+
+        // msgId
+        String msgId = UUID.randomUUID().toString();
+
+        TextMessage message = session.createTextMessage("blah");
+        message.setJMSCorrelationID(msgId);  // .. or not .. 
+
+        // replyToQueue
+        Destination replyToDestination
+            = session.createQueue(responseQueue);
+        message.setJMSReplyTo(replyToDestination);
+
+        return message;
+      });
+
+
+
+================================================================================
+
+  JmsTemplate receiveSelected
+  ***************************
+
+Message receiveSelected(Destination destination, String messageSelector)
+  Receive a message synchronously from the specified destination, 
+  but only wait up to a specified time for delivery.
+
+Message receiveSelected(String messageSelector)
+  Receive a message synchronously from the default destination, 
+  but only wait up to a specified time for delivery.
+
+Message receiveSelected(String destinationName, String messageSelector)
+  Receive a message synchronously from the specified destination, 
+  but only wait up to a specified time for delivery.  
+
+
+================================================================================
+
 	JmsTemplate sendAndReceieve
 	****************************
 
