@@ -523,3 +523,335 @@ While the creation of producers and consumers has less overhead, it’s good to 
 If you are using Spring JMS, CachingConnectionFactory can wrap your connection factory to reuse a single connection, cache sessions and producers.
 
 ================================================================================	
+
+  setJMSMessageId does nothing
+  ****************************
+
+https://stackoverflow.com/questions/56135309/spring-jmstemplate-setmessageid-is-overridden
+
+  This method is for use by JMS providers only to set this field when a message is sent. This message cannot be used by clients to configure the message ID. This method is public to allow a JMS provider to set this field when sending a message whose implementation is not its own.
+
+you have to set the JMS_IBM_MQMD_MsgId property and it will override the generated JMSMessageID
+
+
+================================================================================  
+
+  setting MQFMT_STRING format
+  ****************************
+  
+TextMessage message = session.createTextMessage(stringWriter.toString());
+message.setStringProperty(WMQConstants.JMS_IBM_FORMAT, MQConstants.MQFMT_STRING); 
+
+
+
+================================================================================  
+
+  set message ID for IBM MQ using java
+  ************************************
+
+https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q032330_.htm
+https://www-01.ibm.com/support/docview.wss?uid=swg27020570&aid=3
+
+
+You control the ability to access the message descriptor (MQMD) by setting properties on a Destination and a Message.
+
+
+
+https://stackoverflow.com/questions/19835743/cannot-set-the-property-value-for-jms-ibm-mqmd-msgid-in-weblogic-jms-java
+For setObjectProperty:
+
+The setObjectProperty method accepts values of class Boolean, Byte, Short, Integer, Long, Float, Double, and String. An attempt to use any other class must throw a JMSException.
+
+So it does not accept ByteArray. setObjectProperty accepts Object so you don't get compile error.
+
+--------------------------------------------------------------------------------
+
+
+MQ V7 provides the following 2 JMS samples that do NOT use JNDI for the
+specification of the Connection Factory and of the Destination (such as Queue).
+These are the samples:
+Unix:
+/opt/mqm/samp/jms/samples/simple/SimpleMQMDWrite.java
+/opt/mqm/samp/jms/samples/simple/SimpleMQMDRead.java
+Windows:
+C:\Program Files\IBM\WebSphere MQ\tools\jms\samples\simple\SimpleMQMDWrite.java
+C:\Program Files\IBM\WebSphere MQ\tools\jms\samples\simple\SimpleMQMDRead.java
+
+
+
+      // Enable write of MQMD fields. See documentation for further details.
+      ((JmsDestination) destination).setBooleanProperty(WMQConstants.WMQ_MQMD_WRITE_ENABLED, true);
+
+      // Set message context, if needed. See comment at the top.
+
+      // Create a producer
+      producer = session.createProducer(destination);
+
+      // Create a message
+      long uniqueNumber = System.currentTimeMillis() % 1000;
+      TextMessage message = session
+          .createTextMessage("SimpleMQMDWrite: Your lucky number today is " + uniqueNumber);
+
+      // Generate a custom message id
+      byte[] customMessageId = new byte[24];
+      for (int i = 0; i < 24; i++) {
+        // Hex-string 010203040506070801020304050607080102030405060708
+        customMessageId[i] = (byte) ((i % 8) + 1);
+      }
+
+      // Write to MQMD.MsgId via JMS_IBM_MQMD_MSGID message property
+      message.setObjectProperty(WMQConstants.JMS_IBM_MQMD_MSGID, customMessageId);
+
+
+--------------------------------------------------------------------------------
+
+SimpleMQMDWrite.java
+-----------------------
+
+// SCCSID "@(#) samples/jms/simple/SimpleMQMDWrite.java, jmscc.samples, k710, k710-007-151026  1.9.2.1 11/10/17 15:53:32"
+/*
+ * <N_OCO_COPYRIGHT>
+ * Licensed Materials - Property of IBM
+ * 
+ * 5724-H72, 5655-R36, 5724-L26, 5655-L82     
+ * 
+ * (c) Copyright IBM Corp. 2008, 2009 All Rights Reserved.
+ * 
+ * US Government Users Restricted Rights - Use, duplication or
+ * disclosure restricted by GSA ADP Schedule Contract with
+ * IBM Corp.
+ * <NOC_COPYRIGHT>
+ */
+
+package simple;
+
+import javax.jms.Connection;
+import javax.jms.Destination;
+import javax.jms.JMSException;
+import javax.jms.MessageProducer;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+
+import com.ibm.msg.client.jms.JmsConnectionFactory;
+import com.ibm.msg.client.jms.JmsDestination;
+import com.ibm.msg.client.jms.JmsFactoryFactory;
+import com.ibm.msg.client.wmq.WMQConstants;
+
+/**
+ * A simple application that demonstrates how a JMS application may write MQ Message Descriptor
+ * (MQMD) fields. No messages are received.
+ * 
+ * Application makes use of fixed literals, any customisations will require re-compilation of this
+ * source file.
+ * 
+ * Notes:
+ * 
+ * API type: IBM JMS API (v1.1, unified domain)
+ * 
+ * Messaging domain: Point-to-point
+ * 
+ * Provider type: WebSphere MQ
+ * 
+ * Connection mode: Client connection
+ * 
+ * JNDI in use: No
+ * 
+ * Queue manager level assumed: v7 or above
+ * 
+ */
+public class SimpleMQMDWrite {
+
+  /*
+   * The following note is based on MQMD_VERSION_2. For information about newer fields introduced by
+   * a newer version of the MQMD structure, refer to the WebSphere MQ documentation.
+   * 
+   * Message context: Certain fields in MQMD contain the message context. There are two types of
+   * message context -- identity context and origin context. Setting a MQMD field that contains the
+   * message context requires the current user to have appropriate WebSphere MQ authority. For the
+   * information about Message context, refer to the WebSphere MQ documentation.
+   * 
+   * Following fields can be set without setting the message context:
+   * 
+   * CodedCharSetId, CorrelId, Encoding, Expiry, Feedback, Format, GroupId, MsgFlags, MsgId,
+   * MsgSeqNumber, MsgType, Offset, OriginalLength, Persistence, Priority, ReplyToQ, ReplyToQMgr,
+   * Report.
+   * 
+   * Following fields require the identity context authority or, the superset, origin context
+   * authority: AccountingToken, ApplIdentityData, UserIdentifier.
+   * 
+   * Following fields require the origin context authority: ApplOriginData, PutApplName,
+   * PutApplType, PutDate, PutTime.
+   * 
+   * The identity context can be set in JMS by the following:
+   * 
+   * ((JmsDestination) destination).setIntProperty(WMQConstants.WMQ_MQMD_MESSAGE_CONTEXT,
+   * WMQConstants.WMQ_MDCTX_SET_ALL_CONTEXT);
+   * 
+   * The origin context can be set in JMS by the following:
+   * 
+   * ((JmsDestination) destination).setIntProperty(WMQConstants.WMQ_MQMD_MESSAGE_CONTEXT,
+   * WMQConstants.WMQ_MDCTX_SET_ALL_CONTEXT);
+   * 
+   * The identity context must be set in the above manner by setting a property on the destination
+   * before the corresponding (identified) Producer object is instantiated.
+   */
+
+  // System exit status value (assume unset value to be 1)
+  private static int status = 1;
+
+  /**
+   * Main method
+   * 
+   * @param args
+   */
+  public static void main(String[] args) {
+
+    // Variables
+    Connection connection = null;
+    Session session = null;
+    Destination destination = null;
+    MessageProducer producer = null;
+
+    try {
+      // Create a connection factory
+      JmsFactoryFactory ff = JmsFactoryFactory.getInstance(WMQConstants.WMQ_PROVIDER);
+      JmsConnectionFactory cf = ff.createConnectionFactory();
+
+      // Set the properties
+      cf.setStringProperty(WMQConstants.WMQ_HOST_NAME, "localhost");
+      cf.setIntProperty(WMQConstants.WMQ_PORT, 1414);
+      cf.setStringProperty(WMQConstants.WMQ_CHANNEL, "SYSTEM.DEF.SVRCONN");
+      cf.setIntProperty(WMQConstants.WMQ_CONNECTION_MODE, WMQConstants.WMQ_CM_CLIENT);
+      cf.setStringProperty(WMQConstants.WMQ_QUEUE_MANAGER, "QM1");
+
+      // Insist on queue manager level to be v7 or above
+      cf.setStringProperty(WMQConstants.WMQ_PROVIDER_VERSION, "7.0.0.0");
+
+      // Create JMS objects
+      connection = cf.createConnection();
+      session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+      destination = session.createQueue("queue:///Q1");
+
+      // Enable write of MQMD fields. See documentation for further details.
+      ((JmsDestination) destination).setBooleanProperty(WMQConstants.WMQ_MQMD_WRITE_ENABLED, true);
+
+      // Set message context, if needed. See comment at the top.
+
+      // Create a producer
+      producer = session.createProducer(destination);
+
+      // Create a message
+      long uniqueNumber = System.currentTimeMillis() % 1000;
+      TextMessage message = session
+          .createTextMessage("SimpleMQMDWrite: Your lucky number today is " + uniqueNumber);
+
+      // Generate a custom message id
+      byte[] customMessageId = new byte[24];
+      for (int i = 0; i < 24; i++) {
+        // Hex-string 010203040506070801020304050607080102030405060708
+        customMessageId[i] = (byte) ((i % 8) + 1);
+      }
+
+      // Write to MQMD.MsgId via JMS_IBM_MQMD_MSGID message property
+      message.setObjectProperty(WMQConstants.JMS_IBM_MQMD_MSGID, customMessageId);
+
+      // Start the connection
+      connection.start();
+
+      // And, send the message
+      producer.send(message);
+      System.out.println("Sent message:\n" + message);
+
+      recordSuccess();
+    }
+    catch (JMSException jmsex) {
+      recordFailure(jmsex);
+    }
+    finally {
+      if (producer != null) {
+        try {
+          producer.close();
+        }
+        catch (JMSException jmsex) {
+          System.out.println("Producer could not be closed.");
+          recordFailure(jmsex);
+        }
+      }
+
+      if (session != null) {
+        try {
+          session.close();
+        }
+        catch (JMSException jmsex) {
+          System.out.println("Session could not be closed.");
+          recordFailure(jmsex);
+        }
+      }
+
+      if (connection != null) {
+        try {
+          connection.close();
+        }
+        catch (JMSException jmsex) {
+          System.out.println("Connection could not be closed.");
+          recordFailure(jmsex);
+        }
+      }
+    }
+    System.exit(status);
+    return;
+  } // end main()
+
+  /**
+   * Process a JMSException and any associated inner exceptions.
+   * 
+   * @param jmsex
+   */
+  private static void processJMSException(JMSException jmsex) {
+    System.out.println(jmsex);
+    Throwable innerException = jmsex.getLinkedException();
+    if (innerException != null) {
+      System.out.println("Inner exception(s):");
+    }
+    while (innerException != null) {
+      System.out.println(innerException);
+      innerException = innerException.getCause();
+    }
+    return;
+  }
+
+  /**
+   * Record this run as successful.
+   */
+  private static void recordSuccess() {
+    System.out.println("SUCCESS");
+    status = 0;
+    return;
+  }
+
+  /**
+   * Record this run as failure.
+   * 
+   * @param ex
+   */
+  private static void recordFailure(Exception ex) {
+    if (ex != null) {
+      if (ex instanceof JMSException) {
+        processJMSException((JMSException) ex);
+      }
+      else {
+        System.out.println(ex);
+      }
+    }
+    System.out.println("FAILURE");
+    status = -1;
+    return;
+  }
+
+}
+
+
+
+
+
+================================================================================  
