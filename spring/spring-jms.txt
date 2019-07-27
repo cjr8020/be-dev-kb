@@ -552,17 +552,202 @@ message.setStringProperty(WMQConstants.JMS_IBM_FORMAT, MQConstants.MQFMT_STRING)
 https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q032330_.htm
 https://www-01.ibm.com/support/docview.wss?uid=swg27020570&aid=3
 
-
-You control the ability to access the message descriptor (MQMD) by setting properties on a Destination and a Message.
-
+See details for generating message ID for IBM MQ below.
 
 
-https://stackoverflow.com/questions/19835743/cannot-set-the-property-value-for-jms-ibm-mqmd-msgid-in-weblogic-jms-java
-For setObjectProperty:
+  You control the ability to access the message descriptor (MQMD) by setting properties on a Destination and a Message:
 
-The setObjectProperty method accepts values of class Boolean, Byte, Short, Integer, Long, Float, Double, and String. An attempt to use any other class must throw a JMSException.
+    1. on destination, you enable write of MQMD fields
+    2. on message, you set various properties
 
-So it does not accept ByteArray. setObjectProperty accepts Object so you don't get compile error.
+
+      Destination requestQueue
+          = session.createQueue("queue:///" + myRequestQueue);
+
+      // Enable write of MQMD fields. See documentation for further details.
+      ((JmsDestination) requestQueue)
+          .setBooleanProperty(WMQConstants.WMQ_MQMD_WRITE_ENABLED, true);
+      producer = session.createProducer(requestQueue);
+
+      // create TextMessage
+      TextMessage message = session.createTextMessage(stringWriter.toString());
+      // set MQSTR format on the message
+      message.setStringProperty(WMQConstants.JMS_IBM_FORMAT, MQConstants.MQFMT_STRING);
+
+      // MsgID
+      message.setObjectProperty(
+          WMQConstants.JMS_IBM_MQMD_MSGID,
+          msgId);
+
+
+================================================================================
+
+  Generate Message ID for IBM MQ
+  ******************************
+
+Short version:
+--------------
+
+1. Generate a random byte[24]  byte array of 24 bytes
+
+  private byte[] generateMsgId() {
+    SecureRandom random = new SecureRandom();
+    byte bytes[] = new byte[24];
+    random.nextBytes(bytes);
+    return bytes;
+  }
+
+2. Enable write of MQMD fields
+
+      ((JmsDestination) requestQueue)
+          .setBooleanProperty(WMQConstants.WMQ_MQMD_WRITE_ENABLED, true);
+
+
+3. Pass that byte[] msgId into
+
+      // create TextMessage
+      TextMessage message = session.createTextMessage(stringWriter.toString());
+      // set MQSTR format on the message
+      message.setStringProperty(WMQConstants.JMS_IBM_FORMAT, MQConstants.MQFMT_STRING);
+
+      // MsgID
+      message.setObjectProperty(
+          WMQConstants.JMS_IBM_MQMD_MSGID,
+          msgId);
+
+
+4. If you need to save this Message ID as Correlation ID
+
+  get a HEX representation of the msgId byte[] byte array:
+
+  String correlationId = byteArrayToHexStringWithDatatypeConverter(msgId);
+
+
+  /**
+   * http://docs.oracle.com/javase/6/docs/api/javax/xml/bind/DatatypeConverter.html
+   * @param bytes
+   * @return
+   */
+  private static String byteArrayToHexStringWithDatatypeConverter(final byte[] bytes) {
+    return javax.xml.bind.DatatypeConverter.printHexBinary(bytes);
+  }
+
+
+  more options for getting HEX string from byte array described below.
+
+
+TL;DR
+----------------
+
+
+MQ message ID is a 24 byte string - or to be more specific 
+a string representation of a byte array of length 24.
+
+On java systems, UUID is a 32 byte long string.  Well, if you count dashes (-)
+it is actually 36 ..   If you trunkate UUID, it will no longer be considered 
+unique across multiple nodes, and clearly you'd have to trunkate it if you wanted
+to base your MQ message ID off of a UUID.
+
+You can try to use different Random based strategies and assume the risks for 
+your application.   E.g.:
+
+  private byte[] generateMsgId() {
+    SecureRandom random = new SecureRandom();
+    byte bytes[] = new byte[24];
+    random.nextBytes(bytes);
+    return bytes;
+  }
+
+The byte[] array valule is next passed into:
+
+      message.setObjectProperty(
+          WMQConstants.JMS_IBM_MQMD_MSGID,
+          msgId);
+
+
+You can use java.util.Base64 to handle conversion from byte array to string and back
+
+  private static final Encoder encoder = Base64.getEncoder().withoutPadding();
+  private static final Decoder decoder = Base64.getDecoder();
+
+
+  private String byteArrayToString(final byte[] bytes) {
+    return encoder.encodeToString(bytes);
+  }
+
+  private byte[] stringToByteArray(final String string) {
+    return decoder.decode(string);
+  }
+
+So using 
+
+    // MQ msgId
+    byte[] msgId = generateMsgId();
+    String stringRepresentationOfMyMsgId = byteArrayToString(msgId);
+
+you would get the following 
+
+    msgId=vajzFVeSCUkUO1PMOFoJEfjxRQPTjdrv
+
+but when you actually dump the content of the message, it will show a different ID
+being set on the message:
+
+  JMSMessage class: jms_text
+  JMSType:          null
+  JMSDeliveryMode:  2
+  JMSDeliveryDelay: 0
+  JMSDeliveryTime:  0
+  JMSExpiration:    0
+  JMSPriority:      4
+  JMSMessageID:     null
+  JMSTimestamp:     0
+  JMSCorrelationID: null
+  JMSDestination:   null
+  JMSReplyTo:       queue:///MY.REPLYTO.Q
+  JMSRedelivered:   false
+    JMS_IBM_Format: MQSTR
+    JMS_IBM_MQMD_MsgId: BDA8F31557920949143B53CC385A0911F8F14503D38DDAEF
+
+so what is that "BDA8F31557920949143B53CC385A0911F8F14503D38DDAEF"?!
+
+That is actually a HEX representation of the byte array (byte[24]) msgId!
+
+You can obtain it using several methods:
+
+
+  @Test
+  public void testByteArrayToHexValue() {
+    String byteArrayAsString = "vajzFVeSCUkUO1PMOFoJEfjxRQPTjdrv";
+    byte[] byteArrayFromString = stringToByteArray(byteArrayAsString);
+    String expectedHexRepresentationOfByteArray
+        = "BDA8F31557920949143B53CC385A0911F8F14503D38DDAEF";
+
+    String stringFromByByteArray = byteArrayToHexStringWithDatatypeConverter(byteArrayFromString);
+  or
+    String stringFromByByteArray = byteArrayToHexStringWithGuavaHashCode(byteArrayFromString);
+
+    assertThat(stringFromByByteArray, equalTo(expectedHexRepresentationOfByteArray));
+  }
+
+
+  /**
+   * http://docs.oracle.com/javase/6/docs/api/javax/xml/bind/DatatypeConverter.html
+   * @param bytes
+   * @return
+   */
+  private static String byteArrayToHexStringWithDatatypeConverter(final byte[] bytes) {
+    return javax.xml.bind.DatatypeConverter.printHexBinary(bytes);
+  }
+
+  /**
+   * With Guava BaseEncoding.
+   * @param bytes
+   * @return
+   */
+  private static String byteArrayToHexStringWithGuavaBaseEncoding(final byte[] bytes) {
+    return BaseEncoding.base16().encode(bytes);
+  }
+
 
 --------------------------------------------------------------------------------
 
