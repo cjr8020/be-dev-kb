@@ -546,6 +546,35 @@ message.setStringProperty(WMQConstants.JMS_IBM_FORMAT, MQConstants.MQFMT_STRING)
 
 ================================================================================  
 
+  JMSCorrelationID
+  ****************
+
+====> NOTE: 'ID:' prepended to the actual ID
+
+ MessageConsumer consumer = session.createConsumer(queue, "JMSCorrelationID='ID:30313233343536373839'"); 
+
+ resources:
+ http://www-01.ibm.com/support/docview.wss?uid=swg21569646
+ http://www.mqseries.net/phpBB2/viewtopic.php?t=65014&sid=932f294131f9e2e2096c369c1871c64e
+
+
+    3. Use the following code changes, which take advantage of the following statement: "The first 24 bytes of the string, in UTF8 format, are written into the MQMD.CorrelID."
+
+    On the JMS application expecting to receive the reply message:
+
+
+    //create message consumer
+    byte[] b = new byte[24]; // correlation id can be up to 24 bytes.
+
+    b = "123-456".getBytes();
+
+    String selector = "JMSCorrelationID='ID:" + getHexString(b) + "'";
+
+    MessageConsumer MC = (MessageConsumer) sess.createConsumer(destination,selector);
+
+
+================================================================================  
+
   set message ID for IBM MQ using java
   ************************************
 
