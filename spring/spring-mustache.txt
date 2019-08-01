@@ -37,6 +37,18 @@ spring.mustache.suffix=.mustache
 Generating EMAIL with mustache
 ******************************
 
+resources:
+
+mustache
+	https://github.com/spullara/mustache.java
+
+spring-mail with mustache	
+	https://amydegregorio.com/2018/12/26/using-spring-mail-with-mustache-templates/
+	https://github.com/amdegregorio/EmailWithMustacheTemplates
+
+spring-mail	
+	https://www.baeldung.com/spring-email
+
 mustache templates
 ------------------
 
