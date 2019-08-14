@@ -8,6 +8,100 @@
 
 ================================================================================
 
+	using @Async
+	************
+
+1. enable Async support
+
+	 @Configuration
+	 @EnableAsync
+	 public class AppConfig implements AsyncConfigurer {
+	 	. . . 
+
+	 }	
+
+2. Provide your own customized Executor
+
+	By default, SimpleAsyncTaskExecutor will be used which does not impose 
+	a limit upone the number of spawned threads.
+
+
+	2.1. Override the Executor at the Application Level to configure:
+
+		core pool size
+
+			When a new task is submitted, and fewer than corePoolSize threads are running, a new thread is created to handle the request, even if other worker threads are idle.
+
+		max pool size
+
+			If there are more than corePoolSize but less than  maximumPoolSize threads running, a new thread will be created only if the queue is full. By setting  corePoolSize and maximumPoolSize the same, you create a fixed-size thread pool. 
+
+		queue capacity
+
+
+	example: 
+ 
+		Starting thread pool size: 1
+		core pool size is 5
+		max pool size is 10
+		queue capacity: 100
+
+	As requests come in, threads will be created up to 5 and then tasks will be added to the queue until it reaches 100. When the queue is full new threads will be created up to maxPoolSize. Once all the threads are in use and the queue is full tasks will be rejected. As the queue reduces, so does the number of active threads.
+
+
+	 @Configuration
+	 @EnableAsync
+	 public class SpringAsyncConfig implements AsyncConfigurer {
+
+	     @Override
+	     public Executor getAsyncExecutor() {
+	         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+	         executor.setCorePoolSize(7);
+	         executor.setMaxPoolSize(42);
+	         executor.setQueueCapacity(11);
+	         executor.setThreadNamePrefix("MyExecutor-");
+	         executor.initialize();
+	         return executor;
+	     }
+
+	     @Override
+	     public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
+	         return new MyAsyncUncaughtExceptionHandler();
+	     }
+	 }
+
+
+	2.2. Override the Executor at the Method Level
+
+		Create a @Bean:
+
+			@Configuration
+			@EnableAsync
+			public class SpringAsyncConfig {
+			     
+			    @Bean(name = "threadPoolTaskExecutor")
+			    public Executor threadPoolTaskExecutor() {
+			        return new ThreadPoolTaskExecutor();
+			    }
+			}
+
+		Then the executor name should be provided as an attribute in @Async:
+
+
+			@Async("threadPoolTaskExecutor")
+			public void asyncMethodWithConfiguredExecutor() {
+			    System.out.println("Execute method with configured executor - "
+			      + Thread.currentThread().getName());
+			}
+
+
+
+3. provide AsyncUncaughtExceptionHandler 
+
+
+
+================================================================================
+
 	TaskExecutor
 	************
 
@@ -168,6 +262,139 @@ CompletableFuture.anyOf()
 join()
 	join() - Returns the result value when complete, or throws an (unchecked) exception if completed exceptionally.
 	
+
+
+================================================================================
+
+	Avoid OutOfMemoryError when @Async
+	**********************************
+
+OutOfMemoryError: unable to create new native thread error
+
+https://craftingjava.com/prevent-oome-async/
+
+@EnableAsync
+-------------------------
+
+	public @interface EnableAsync {
+
+	  Class<? extends Annotation> annotation() default Annotation.class;
+	  boolean proxyTargetClass() default false;
+	  AdviceMode mode() default AdviceMode.PROXY;
+	  int order() default Ordered.LOWEST_PRECEDENCE;
+
+	}
+
+@EnableAsync enables async method execution capability.
+
+https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/scheduling/annotation/EnableAsync.html
+
+	By default, Spring will be searching for an associated thread pool definition: either a unique TaskExecutor bean in the context, or an Executor bean named "taskExecutor" otherwise. If neither of the two is resolvable, a SimpleAsyncTaskExecutor will be used to process async method invocations. Besides, annotated methods having a void return type cannot transmit any exception back to the caller. By default, such uncaught exceptions are only logged.
+
+`SimpleAsyncTaskExecutor` will be used without explicitly configured Executor ..
+(when mode is AdviceMode.PROXY (default))
+which DOES NOT IMPOSE A LIMIT ON THE NUMBER OF SPAWNED THREADS
+
+
+	To customize all this, implement AsyncConfigurer and provide:
+
+	your own Executor through the getAsyncExecutor() method, and
+	your own AsyncUncaughtExceptionHandler through the getAsyncUncaughtExceptionHandler() method.
+
+AsyncConfiguration.java implementing AsyncConfigurer
+------------------------
+
+@Data
+@EnableAsync
+@Configuration
+@ConfigurationProperties(prefix = "async.thread.pool")
+public class AsyncConfiguration implements AsyncConfigurer {
+
+  private int coreSize;
+  private int maxSize;
+  private int queueCapacity;
+
+  @Override
+  public Executor getAsyncExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(coreSize);
+    executor.setMaxPoolSize(maxSize);
+    executor.setQueueCapacity(queueCapacity);
+    executor.setThreadNamePrefix("worker-exec-");
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+    return executor;
+  }
+
+  @Override
+  public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
+    return (ex, method, params) -> {
+      Class<?> targetClass = method.getDeclaringClass();
+      Logger logger = LoggerFactory.getLogger(targetClass);
+      logger.error(ex.getMessage(), ex);
+    };
+  }
+
+}
+
+
+	NOTE: AsyncConfigurer configuration classes get initialized early in the application context bootstrap. If you need any dependencies on other beans there, make sure to declare them 'lazy' as far as possible in order to let them go through other post-processors as well.
+
+
+	 @Configuration
+	 @EnableAsync
+	 public class AppConfig implements AsyncConfigurer {
+
+	     @Override
+	     public Executor getAsyncExecutor() {
+	         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+	         executor.setCorePoolSize(7);
+	         executor.setMaxPoolSize(42);
+	         executor.setQueueCapacity(11);
+	         executor.setThreadNamePrefix("MyExecutor-");
+	         executor.initialize();
+	         return executor;
+	     }
+
+	     @Override
+	     public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
+	         return new MyAsyncUncaughtExceptionHandler();
+	     }
+	 }
+
+Note: In the above example the ThreadPoolTaskExecutor is not a fully managed Spring bean. Add the @Bean annotation to the getAsyncExecutor() method if you want a fully managed bean. In such circumstances it is no longer necessary to manually call the executor.initialize() method as this will be invoked automatically when the bean is initialized.
+
+
+	 If only one item needs to be customized, null can be returned to keep the default settings. Consider also extending from AsyncConfigurerSupport when possible.
+
+
+
+
+
+================================================================================
+
+	Custom AsyncUncaughtExceptionHandler
+	************************************
+
+When a method return type is a Future, exception handling is easy – Future.get() method will throw the exception.
+
+But, if the return type is void, exceptions will not be propagated to the calling thread. Hence we need to add extra configurations to handle exceptions.
+
+
+public class CustomAsyncExceptionHandler
+  implements AsyncUncaughtExceptionHandler {
+ 
+    @Override
+    public void handleUncaughtException(
+      Throwable throwable, Method method, Object... obj) {
+  
+        System.out.println("Exception message - " + throwable.getMessage());
+        System.out.println("Method name - " + method.getName());
+        for (Object param : obj) {
+            System.out.println("Parameter value - " + param);
+        }
+    }
+     
+}
 
 
 ================================================================================

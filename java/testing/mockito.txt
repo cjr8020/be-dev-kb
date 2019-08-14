@@ -10,6 +10,43 @@ http://static.javadoc.io/org.mockito/mockito-core/2.21.0/org/mockito/Mockito.htm
 
 ================================================================================
 
+    configure mock behavior
+    ***********************
+
+when(dao.sve(customer)).thenReturn(true);
+
+thenReturn(returnValue)
+thenThrow(exception)
+thenCallRealMethod()
+thenAnswer() - if we our mocked void method to do something 
+
+================================================================================
+
+    partial mocks
+    *************
+
+Important gotcha on spying real objects!
+----------------------------------------
+
+use:  doReturn|Answer|Throw() 
+
+
+Sometimes it's impossible or impractical to use when(Object) for stubbing spies. Therefore when using spies please consider doReturn|Answer|Throw() family of methods for stubbing. 
+
+Example:
+
+   List list = new LinkedList();
+   List spy = spy(list);
+
+   //Impossible: real method is called so spy.get(0) throws IndexOutOfBoundsException (the list is yet empty)
+   when(spy.get(0)).thenReturn("foo");
+
+   //You have to use doReturn() for stubbing
+   doReturn("foo").when(spy).get(0);
+ 
+
+================================================================================
+
     mock vs spy
     ***********
 
@@ -431,5 +468,51 @@ Handling null message with IsNull<T> Matcher:
     Matcher<String> nullMatcher = new IsNull<>();
     thrown.expectMessage(nullMatcher);
 
+
+================================================================================
+
+    doAnswer
+    ********
+
+doAnswer - If we want our mocked void method to do something (mock the behavior despite being void).
+
+    @Test
+    public void testUpdate() {
+
+        doAnswer(new Answer<Void>() {
+
+            @Override
+            public Void answer(InvocationOnMock invocation) throws Throwable {
+                Object[] arguments = invocation.getArguments();
+                if (arguments != null && arguments.length > 1 && arguments[0] != null && arguments[1] != null) {
+
+                    Customer customer = (Customer) arguments[0];
+                    String email = (String) arguments[1];
+                    customer.setEmail(email);
+
+                }
+                return null;
+            }
+        }).when(daoMock).updateEmail(any(Customer.class), any(String.class));
+
+        // calling the method under test
+        Customer customer = service.changeEmail("old@test.com", "new@test.com");
+
+        //some asserts
+        assertThat(customer, is(notNullValue()));
+        assertThat(customer.getEmail(), is(equalTo("new@test.com")));
+
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testUpdate_throwsException() {
+
+        doThrow(RuntimeException.class).when(daoMock).updateEmail(any(Customer.class), any(String.class));
+
+        // calling the method under test
+        Customer customer = service.changeEmail("old@test.com", "new@test.com");
+
+    }
+}
 
 ================================================================================
