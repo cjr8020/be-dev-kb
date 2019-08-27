@@ -34,6 +34,59 @@ spring.mustache.suffix=.mustache
 
 ================================================================================
 
+	HTML MIME message
+	*****************
+
+https://stackoverflow.com/questions/5289849/how-do-i-send-html-email-in-spring-mvc
+
+import javax.mail.internet.MimeMessage;
+import org.springframework.mail.javamail.MimeMessageHelper;
+
+MimeMessage mimeMessage = mailSender.createMimeMessage();
+MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
+String htmlMsg = "<h3>Hello World!</h3>";
+//mimeMessage.setContent(htmlMsg, "text/html"); /** Use this or below line **/
+helper.setText(htmlMsg, true); // Use this or above line.
+helper.setTo("someone@abc.com");
+helper.setSubject("This is the test message for testing gmail smtp server using spring mail");
+helper.setFrom("abc@gmail.com");
+mailSender.send(mimeMessage);
+
+
+Example:
+-------------------------------
+
+spring:
+  application:
+    name: email-hello-mustache
+  mail:
+    host: smtp.company.com
+    port: 25
+    properties:
+      mail:
+        smpt:
+          auth: false
+        starttls:
+          enable: false
+
+
+  @Autowired
+  private JavaMailSender emailSender;	
+
+    emailSender.send(mimeMessage -> {
+      MimeMessageHelper messageHelper = new MimeMessageHelper(mimeMessage, "UTF-8");
+	  String htmlMessage = "<h3>Hello World</h3>";
+
+      messageHelper.setTo(to);
+      messageHelper.setFrom(from);
+      messageHelper.setSubject(subject);
+      // mimeMessage.setContent(htmlMessage, "text/html"); // use this or line below
+      messageHelper.setText(htmlMessage, true);
+    });
+
+
+================================================================================
+
 Generating EMAIL with mustache
 ******************************
 
