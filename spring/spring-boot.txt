@@ -2027,3 +2027,121 @@ email.html, and pass in a Context object. The Context object is used by Thymelea
 resolve the attributes, in our case the msg one.
 
 ================================================================================
+
+  build information at runtime
+  ****************************
+
+https://www.vojtechruzicka.com/spring-boot-version/  
+
+spring-boot-maven-plugin
+------------------------
+
+<plugin>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <executions>
+        <execution>
+            <id>build-info</id>
+            <goals>
+                <goal>build-info</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+
+
+@Autowired
+BuildProperties buildProperties;
+
+
+// Artifact's name from the pom.xml file
+buildProperties.getName();
+// Artifact version
+buildProperties.getVersion();
+// Date and Time of the build
+buildProperties.getTime();
+// Artifact ID from the pom file
+buildProperties.getArtifact();
+// Group ID from the pom file
+buildProperties.getGroup();
+
+
+adding custom properties
+-------------------------
+
+<plugin>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <executions>
+        <execution>
+            <goals>
+                <goal>build-info</goal>
+            </goals>
+            <configuration>
+                <additionalProperties>
+                    <java.version>${java.version}</java.version>
+                    <some.custom.property>some value</some.custom.property>
+                </additionalProperties>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+
+
+You can pass a value directly or use your custom properties defined in the <properties> section of your pom.xml and then referenced using ${property.name} placeholder.
+
+You can access custom properties defined this way by calling  buildProperties.get("property.name").
+
+
+For Gradle projects, custom properties can be defined this way:
+
+springBoot {
+    buildInfo {
+        properties {
+            additional = [
+                'property.name': 'property value',
+                'other.property': 'different.value'
+            ]
+        }
+    }
+}
+
+Under the hood
+-----------------------
+
+When build-info of spring-boot-maven-plugin is run, it generates a property file containing all the build information. By default, it is located at  ${project.build.outputDirectory}/META-INF/build-info.properties, but you can customize it by providing outputFile parameter. The file looks something like this:
+
+#Properties
+#Sat Jun 23 15:58:56 CEST 2018
+build.version=0.0.1-SNAPSHOT
+build.group=com.vojtechruzicka
+build.name=spring-rest-docs-example
+build.artifact=spring-rest-docs-example
+build.time=2018-06-23T13\:58\:56.742472800Z
+
+When Spring detects there is this file on the classpath, it creates BuildProperties bean unless it is explicitly declared. This is configured in  org.springframework.boot.autoconfigure.info.ProjectInfoAutoConfiguration. This is a nice example of Spring Boot Auto-Configuration, where certain beans can be created just by having specific files on the classpath.
+
+
+@ConditionalOnResource(resources = 
+"${spring.info.build.location:classpath:META-INF/build-info.properties}")
+@ConditionalOnMissingBean
+@Bean
+public BuildProperties buildProperties() throws Exception {
+    return new BuildProperties(
+            loadFrom(this.properties.getBuild().getLocation(), 
+            "build"));
+}
+
+
+================================================================================
+
+  Detecting Spring profiles
+  *************************
+
+@Autowired
+private Environment environment;
+
+environment.getActiveProfiles();
+
+
+================================================================================

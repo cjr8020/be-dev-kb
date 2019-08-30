@@ -18,7 +18,7 @@ when(dao.sve(customer)).thenReturn(true);
 thenReturn(returnValue)
 thenThrow(exception)
 thenCallRealMethod()
-thenAnswer() - if we our mocked void method to do something 
+thenAnswer() - if we want our mocked void method to do something 
 
 ================================================================================
 
@@ -59,6 +59,19 @@ On the other hand, the spy will wrap an existing instance. It will still behave 
     creating spy with spring injection
     **********************************
 
+You want to create a partial mock (spy) for your component under test.. 
+AND 
+you want that partial mock to be injected with dependencies.
+
+To do that you combine 
+
+  @InjectMocks
+  @Spy
+  private ComponentUnderTest compUnderTest;
+
+Example:
+--------
+
 component under test
 ---------------------
 
@@ -69,7 +82,7 @@ public class SomeComponent {
     private TwoDependency twoDependency;
 
     @Autowired
-    public SomeCompnent(
+    public SomeComponent(
         final OneDependency oneDependency,
         final TwoDependency twoDependency) {
       .
