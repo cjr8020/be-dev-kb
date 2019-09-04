@@ -150,6 +150,25 @@ public class AdultValidator implements ConstraintValidator<Adult, LocalDate> {
 
 ================================================================================			
 
+  LocalDate LocalDateTime handling in objectMapper
+  ************************************************
+
+    objectMapper = new ObjectMapper()
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    objectMapper.setSerializationInclusion(Include.NON_EMPTY);
+    objectMapper.setSerializationInclusion(Include.NON_NULL);
+    objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+
+    JavaTimeModule javaTimeModule = new JavaTimeModule();
+    LocalDateDeserializer localDateDeserializer = new LocalDateDeserializer(
+        DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+    javaTimeModule.addDeserializer(LocalDate.class, localDateDeserializer);
+    objectMapper.registerModule(new JavaTimeModule());
+
+
+    
+================================================================================      
+
 	Flatten nested JSON objects
 	***************************
 
@@ -250,6 +269,13 @@ public class Product {
 Configure ObjectMapper:
 
 	mapper.setSerializationInclusion(Include.NON_NULL);
+
+and sometimes the above doesn't work so do this:
+
+@JsonInclude(Include.NON_NULL)
+public class SomeBean {
+
+}
 
 ============================================================================	
 
@@ -362,3 +388,25 @@ public class InnerObjecttDeserializer extends StdDeserializer<InnerObject> {
 }
 
 ================================================================================			
+
+  escaping newlines
+  *****************
+
+Error:
+
+com.fasterxml.jackson.databind.JsonMappingException: Illegal unquoted character ((CTRL-CHAR, code 13)): has to be escaped using backslash to be included in string value
+
+b/c:
+
+{
+  "body": "This is message body line 1 \n This is message body line 2"
+}
+
+So either escape `\\n`
+
+or 
+
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.configure(Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);
+
+================================================================================      
