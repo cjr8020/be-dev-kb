@@ -149,6 +149,41 @@ public class AdultValidator implements ConstraintValidator<Adult, LocalDate> {
 
 ================================================================================
 
+	Java Bean Validation 2.0 
+	*************************
+
+https://stackoverflow.com/questions/2781771/how-can-i-validate-two-or-more-fields-in-combination
+
+
+https://dzone.com/articles/create-your-own-constraint-with-bean-validation-20
+
+
+https://www.baeldung.com/javax-validation-method-constraints
+
+https://stackoverflow.com/questions/36357713/java-8-jackson-validation
+
+You used Spring Validator approach. There is another approach:
+J2EE JSR-303/JSR-349 Bean Validation API. it provides validation annotations (javax, not jackson).
+
+	Validate a RESTful web service request in spring
+	------------------------------------------------
+
+Screencast #17: Validate a RESTful request in spring. Find out how to validate a RESTFul request when posting to...
+
+
+https://www.leveluplunch.com/java/tutorials/017-validate-spring-rest-webservice-request/
+
+
+Constructor like validation
+
+@JsonCreator
+JsonCreator (Jackson-annotations 2.7.0 API)
+
+
+
+
+================================================================================
+
 
 	Class-Level Constraint
 	**********************
@@ -240,7 +275,7 @@ public class AboutClaimValidator implements ConstraintValidator<ValidAboutClaim,
 	Field-level constraint
 	**********************
 
-	
+
 
 
 
