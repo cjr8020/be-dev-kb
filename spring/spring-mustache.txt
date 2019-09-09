@@ -212,3 +212,14 @@ public class EmailController {
 
 
 ================================================================================
+
+	newlines
+	********
+
+Use tripple curly brace to prevent mustache from escaping HTML.
+And use <br> instead of `\n`
+
+or <pre> to preserve formatting.
+
+
+================================================================================

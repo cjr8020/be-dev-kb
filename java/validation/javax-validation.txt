@@ -1,0 +1,250 @@
+
+************************
+
+	javax.validation
+
+************************
+
+
+================================================================================			
+
+  spring boot input validation
+  ****************************
+
+Hibernate Validator
+=======================
+
+Included with spring-boot-starter-web.
+
+
+    DecimalMax
+    DecimalMin
+    Digits
+    Email
+    Future
+    FutureOrPresent
+    Max
+    Min
+    Negative
+    NegativeOrZero
+    NotBlank
+    NotEmpty
+    NotNull
+    Null
+    Past
+    PastOrPresent
+    Pattern
+    Positive
+    PositiveOrZero
+
+To enable validate on a resource
+
+    public ResponseEntity<Object> createStudent(@Valid @RequestBody Student student) {
+    }
+
+  and annotate your REST resource class fields with appropriate validators.
+
+
+Examples of validation
+----------------------
+
+  @JsonProperty
+  @NotNull
+  @Pattern(regexp = "^[\\d]+$")
+  private String digitsOnly;
+
+  @JsonProperty
+  @NotNull
+  @Pattern(regexp = "^[\\d]{6}$")
+  private String sixDigits;
+
+  @JsonProperty
+  @NotNull
+  @Digits(integer = 6, fraction = 0) <-- Did not work for me, @Pattern instead.
+  private String blah;  
+
+  @JsonProperty
+  @NotNull
+  @Pattern(regexp = "[^\\d{4}-\\d{2}-\\d{2}$]")
+  private Date birthDate;  // 2000-12-31
+
+  // dollar amount
+  @Pattern(regexp = "^[0-9]+(\\.[0-9]+)?$")  - does not work with BigDecimal
+
+  // decimal amount - BigDecimal
+
+  @JsonProperty
+  @NotNull
+  @Digits(integer=15, fraction=2)
+  private BigDecimal lastPayment;
+
+  // dates
+
+  // this pattern is valid but does not work with LocalDate
+  @Pattern(regexp = "^(0[1-9]|1[012])[- \\/.](0[1-9]|[12][0-9]|3[01])[- \\/.](19|20)\\d\\d$")
+
+  @Past / @PastOrPresent
+  @Future / @FutureOrPresent
+
+  @JsonProperty
+  @NotNull
+  @PastOrPresent
+  private LocalDate periodEndDate;
+
+  
+ Value is a two-letter code 
+
+  /* AB|CD|EF|GH| etc  */
+  @JsonProperty
+  @NotNull
+  @Pattern(regexp = "^[a-zA-Z]{2}$", flags = Flag.CASE_INSENSITIVE)
+  private String claimCategory;
+
+email
+
+  @JsonProperty
+  @NotNull
+  @Pattern(regexp = "^([\\w.\\-]+)@([\\w\\-]+)((\\.(\\w){2,})+)$")
+  private String email;
+
+
+ one of two values
+
+   @JsonProperty
+   @NotNull
+   @Pattern(regexp = "^(yes|no)$", flags = Flag.CASE_INSENSITIVE)
+   private String yesOrNo;
+
+
+Custom Validators
+==================
+https://g00glen00b.be/validating-the-input-of-your-rest-api-with-spring/
+
+While there are many built-in validations already, sometimes, there isn’t an annotation that’s doing exactly what you want. But no worries, what isn’t there can be made! For example, let’s say that our users have to be at least 18 years old (no, it’s not what you’re thinking), so let’s create our own, @Adult annotation:
+
+@Documented
+@Retention(RUNTIME)
+@Target({FIELD, ANNOTATION_TYPE, PARAMETER})
+@Constraint(validatedBy = AdultValidator.class)
+public @interface Adult {
+    String message() default "{adult}";
+    Class<?>[] groups() default { };
+    Class<? extends Payload>[] payload() default { };
+}
+
+
+Now, to make this annotation work, we also have to write our business logic in a class called AdultValidator, which we pass to the @Constraint annotation as you can see above.
+
+
+@Component
+public class AdultValidator implements ConstraintValidator<Adult, LocalDate> {
+    private static final int ADULT_AGE = 18;
+
+    @Override
+    public boolean isValid(LocalDate dateOfBirth, ConstraintValidatorContext constraintValidatorContext) {
+        return dateOfBirth != null && LocalDate.now().minusYears(ADULT_AGE).isAfter(dateOfBirth);
+    }
+}
+
+
+================================================================================
+
+
+	Class-Level Constraint
+	**********************
+
+@JsonInclude(Include.NON_NULL)
+@ValidAboutClaim
+public class AboutClaim {
+
+}
+
+
+import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+import static java.lang.annotation.ElementType.TYPE;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import javax.validation.Constraint;
+import javax.validation.Payload;
+
+@Documented
+@Target({ TYPE, ANNOTATION_TYPE })
+@Retention(RetentionPolicy.RUNTIME)
+@Constraint(validatedBy = { AboutClaimValidator.class })
+public @interface ValidAboutClaim {
+
+  /**
+   * Default message.
+   * @return String
+   */
+  String message() default "Valid AboutClaim must contain object matching disabilityType";
+
+  Class<?>[] groups() default {};
+
+  Class<? extends Payload>[] payload() default {};
+
+}
+
+
+
+import static com.standard.cis.CisPvConstants.ABOUT_CLAIM_DISABILITY_TYPE_ILLNESS;
+import static com.standard.cis.CisPvConstants.ABOUT_CLAIM_DISABILITY_TYPE_INJURY;
+import static com.standard.cis.CisPvConstants.ABOUT_CLAIM_DISABILITY_TYPE_PREGNANCY;
+
+import com.google.common.base.Preconditions;
+import com.standard.cis.domain.draft.AboutClaim;
+import com.standard.cis.domain.draft.Illness;
+import com.standard.cis.domain.draft.Injury;
+import com.standard.cis.domain.draft.Pregnancy;
+import com.standard.util.ObjectGraph;
+import java.util.Optional;
+import javax.validation.ConstraintValidator;
+import javax.validation.ConstraintValidatorContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * AboutClaim custom validator.
+ */
+public class AboutClaimValidator implements ConstraintValidator<ValidAboutClaim, AboutClaim> {
+
+  @Override
+  public void initialize(ValidAboutClaim constraintAnnotation) {
+
+  }
+
+  /**
+   * AboutClaim validator.
+   * Enforcing presence of objects depending on the disability type.
+   * @param aboutClaim AboutClaim
+   * @param constraintValidatorContext context
+   * @return boolean
+   */
+  @Override
+  public boolean isValid(AboutClaim aboutClaim,
+      ConstraintValidatorContext constraintValidatorContext) {
+
+
+      // check and return boolean
+
+  }
+
+}
+
+
+================================================================================
+
+	Field-level constraint
+	**********************
+
+	
+
+
+
+================================================================================
+
+
+
