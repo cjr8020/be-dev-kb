@@ -53,3 +53,29 @@ use {{var}} syntax.
 Authorization {{JWT}}; // assuming there is either env or some other var "JWT" exists.
 
 ================================================================================
+
+    parse Set-Cookie in Tests
+    *************************
+
+
+pm.test("Status code is 201", function () {
+    pm.response.to.have.status(201);
+    var setCookie = postman.getResponseHeader('Set-Cookie')
+    console.log('setCookie=' + setCookie);
+   
+    
+    var setCookieArr = setCookie.split('; '); // note space
+    console.log('setCookieArr.length=' + setCookieArr.length);
+
+    // take name=value pair #1 (first element)
+    var someTokenString = setCookieArr[0];
+    console.log('someTokenString=' + someTokenString);
+    // split by `=`
+    var someTokenStringArr = someTokenString.split('=');
+    var myToken = someTokenStringArr[1];
+    console.log('myToken=' + myToken);
+    
+});
+
+
+================================================================================
