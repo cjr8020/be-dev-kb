@@ -29,6 +29,93 @@ http://davebrimley.com/blog/hazelcast-ldap-security/
 
 ================================================================================
 
+  Java programmatic configuration
+  *******************************
+
+example:
+---------------------
+
+@Configuration
+public class CacheConfiguration {
+
+  /**
+   * Hazelcast map configuration.
+   * @return MapConfig
+   */
+  @Bean
+  public MapConfig accessTokenMapConfig() {
+    return new MapConfig("white-bunnies")
+        .setMaxSizeConfig(new MaxSizeConfig(100, MaxSizePolicy.PER_NODE))
+        .setEvictionPolicy(EvictionPolicy.LFU)
+        .setTimeToLiveSeconds(3600); // auth token lifespan is 1 hour
+  }
+
+  /**
+   * Hazelcast config.
+   * @return Config
+   */
+  @Bean
+  public Config hazelcastConfig() {
+    Config hazelcastConfig = new Config("claims-intake-api-hazelcast-instance");
+    hazelcastConfig.setProperty("hazelcast.phone.home.enabled", "false");
+    hazelcastConfig.addMapConfig(accessTokenMapConfig());  // tokens map
+    // network config
+    NetworkConfig networkConfig = hazelcastConfig.getNetworkConfig();
+    JoinConfig joinConfig = networkConfig.getJoin();
+    joinConfig.getMulticastConfig().setEnabled(false);
+    joinConfig.getTcpIpConfig().setEnabled(false);
+    return hazelcastConfig;
+  }
+}
+
+
+network config
+--------------------
+
+Config config = new Config();
+NetworkConfig networkConfig = config.getNetworkConfig();
+networkConfig.setPort(5701).setPortCount(20);
+networkConfig.setPortAutoIncrement(true);
+
+
+// configuring don't bind to any interface
+config.setProperty("hazelcast.socket.bind.any", "false");
+
+InterfacesConfig interfacesConfig = networkConfig.getInterfaces();
+interfacesConfig.setEnabled(true)
+        .addInterface("127.0.0.1");
+
+
+multicast
+--------------------
+
+JoinConfig join = networkConfig.getJoin();
+join.getMulticastConfig().setEnabled(false);
+
+
+tcpip
+-------------------
+
+join.getTcpIpConfig()
+  .addMember("machine1")
+  .addMember("localhost").setEnabled(true);
+
+
+advanced configuration
+----------------------
+
+https://docs.hazelcast.org/docs/3.0/manual/html/ch12s06.html
+
+
+hazelcast.socket.bind.any
+-------------------------
+
+  By default, Hazelcast binds to all local network interfaces to accept incoming traffic. You can change this behavior using the system property hazelcast.socket.bind.any. If you set this property to false, Hazelcast uses the interfaces specified in the interfaces element (see the Interfaces Configuration section). If no interfaces are provided, then it tries to resolve one interface to bind from the member elements.
+
+
+
+================================================================================
+
 	Serialization
 	*************
 
