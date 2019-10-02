@@ -926,8 +926,64 @@ oauth:
     signingKey: ASDGA$%ADFDASFSDFAG
 
 
+Option 0:  @Configuration + @Bean + @ConfigurationProperties 
 Option 1:  @Component/@ConfigurationProperties class + @Autowired
 Option 2:  @ConfigurationProperties class + @EnableConfigurationProperties(class) + @Autowired
+
+
+
+
+Option 0: @Configuration + @Bean + @ConfigurationProperties
+--------------------------------------------------------------------------------
+
+oauth:
+  oauth-server:
+    scheme: https
+    host: oauth2.company.com
+    port: 443
+  oauth-client:
+    client-id: ead2cd16-d1e9-4508-88b4-763adda70cad
+    client-secret: RWTU1vn93V054iNkP1CRWhntSZ9l6nkRKmu2M
+
+
+1. Create configuration bean classes
+
+
+  public class OAuthServerConfiguration {
+    private String scheme;
+    private String host;
+    private int port;
+    ...
+  }
+
+  public class OAuthClientConfiguration {
+    private String clientId;
+    private String clientSecret;
+    ...
+  }
+
+2. create @Configuration class
+
+
+  @Configuration
+  public class OAuthConfiguration {
+
+    @Bean
+    @ConfigurationProperties(prefix = "oauth.oauth-server")
+    public OAuthServerConfiguration oauthServerConfiguration() {
+      return new OAuthServerConfiguration();
+    }
+
+
+    @Bean
+    @ConfigurationProperties(prefix = "oauth.oauth-client")
+    public OAuthClientConfiguration oauthClientConfiguration() {
+      return new OAuthClientConfiguration();
+    }
+
+  }
+
+
 
 
 Option 1: @Component/@ConfigurationProperties class + @Autowired
