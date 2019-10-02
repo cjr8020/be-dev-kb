@@ -281,5 +281,28 @@ public class AboutClaimValidator implements ConstraintValidator<ValidAboutClaim,
 
 ================================================================================
 
+	DataBinder direct field access
+	******************************
+	
+IllegalStateException: JSR-303 validated property '..' does not have a corresponding accessor for Spring data binding - check your DataBinder's configuration (bean property versus direct field access)
+
+
+Within the Resource or a @ControllerAdvice you can configure the Spring DataBinder to use direct field access.
+
+
+@ControllerAdvice    
+public class CustomControllerAdvice {
+
+    @InitBinder
+    private void activateDirectFieldAccess(DataBinder dataBinder) {
+        dataBinder.initDirectFieldAccess();
+    }
+
+    ...
+}
+
+
+================================================================================
+
 
 
