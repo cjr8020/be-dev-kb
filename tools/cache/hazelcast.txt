@@ -113,6 +113,45 @@ hazelcast.socket.bind.any
   By default, Hazelcast binds to all local network interfaces to accept incoming traffic. You can change this behavior using the system property hazelcast.socket.bind.any. If you set this property to false, Hazelcast uses the interfaces specified in the interfaces element (see the Interfaces Configuration section). If no interfaces are provided, then it tries to resolve one interface to bind from the member elements.
 
 
+standalone mode
+---------------
+
+[com.hazelcast.instance.Node] - [[127.0.0.1]:5701 [dev] [3.12.1] No join method is enabled! Starting standalone.]
+
+  @Bean
+  public MapConfig someMapConfig() { . . . }
+
+  @Bean
+  public Config hazelcastConfig() {
+    Config hazelcastConfig = new Config("test-hazelcast-instance");
+    hazelcastConfig.setProperty("hazelcast.phone.home.enabled", "false");
+    hazelcastConfig.addMapConfig(someMapConfig());  // tokens map
+
+    // network config
+
+    // disable bind to any interface
+    hazelcastConfig.setProperty("hazelcast.socket.bind.any", "false");
+    NetworkConfig networkConfig = hazelcastConfig.getNetworkConfig();
+    InterfacesConfig interfacesConfig = networkConfig.getInterfaces();
+    interfacesConfig.setEnabled(true)
+        .addInterface("127.0.0.1");
+
+    // join config
+    JoinConfig joinConfig = networkConfig.getJoin();
+    joinConfig.getMulticastConfig().setEnabled(false);
+    joinConfig.getTcpIpConfig().setEnabled(false);
+    return hazelcastConfig;
+  }
+
+
+standalone mode - map size
+--------------------------
+
+new MaxSizeConfig(271, MaxSizePolicy.PER_NODE)
+
+
+[2019-10-11 17:00:55,921] [WARN ] [hz.claims-intake-api-hazelcast-instance.partition-operation.thread-3] [com.hazelcast.map.impl.eviction.EvictionChecker] - [[127.0.0.1]:5701 [dev] [3.12.1] The max size configuration for map "access-tokens" does not allow any data in the map. Given the current cluster size of 1 members with 271 partitions, max size should be at least 271. Map size is forced set to 271 for backward compatibility]
+
 
 ================================================================================
 

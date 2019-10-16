@@ -119,6 +119,31 @@ If you need to disable caching altogether in certain environments, force the cac
 
 ================================================================================
 
+	@CacheConfig
+	************
+
+@CacheConfig provides a mechanism for sharing common cache-related settings at the class level. 
+
+When this annotation is present on a given class, it provides a set of default settings for any cache operation defined in that class.
+
+
+example
+--------
+
+	@Service
+	@CacheConfig(cacheNames = "actors")
+	public class ActorService {
+
+	}
+
+The parameter cacheNames of @CacheConfig specifies which Hazelcast IMap to use, 
+in our case `actors`. 
+
+This is strictly not necessary as Spring will find it anyway, however if you have many different maps, it could potentially increase performance.
+
+
+================================================================================
+
 	@Cacheable
 	**********
 

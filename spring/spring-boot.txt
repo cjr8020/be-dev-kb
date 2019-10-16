@@ -2201,3 +2201,82 @@ environment.getActiveProfiles();
 
 
 ================================================================================
+
+  Loading resources from classpath
+  ********************************
+
+1. manually
+
+    return new ClassPathResource("data/employees.dat", this.getClass().getClassLoader());
+
+or thru a specified class
+
+    return new ClassPathResource(
+      "data/employees.dat", 
+      Employee.class.getClassLoader());
+
+
+2. using @Value
+
+
+  @Component
+  public class MyRunner implements CommandLineRunner {
+
+      @Value("classpath:my-resource.txt")
+      private Resource res;
+
+      ...
+  }
+
+3. using ResourceLoader
+
+
+@Component
+public class MyRunner implements CommandLineRunner {
+
+    @Autowired
+    private ResourceLoader resourceLoader;
+
+
+    public void doSomething() throws Exception {
+
+      Resource res = resourceLoader.getResource("classpath:my-resource.txt");
+      Map<String, Integer> words = getWordsCount(res);
+
+
+    }
+
+    public Map<String, Integer> getWordsCount(Resource res) throws IOException {
+
+        Map<String, Integer> wordCount = new HashMap<>();
+
+        List<String> lines = Files.readAllLines(Paths.get(res.getURI()),
+                StandardCharsets.UTF_8);
+
+        for (String line : lines) {
+
+            String[] words = line.split("\\s+");
+
+            for (String word : words) {
+
+                if (word.endsWith(".") || word.endsWith(",")) {
+
+                    word = word.substring(0, word.length() - 1);
+                }
+
+                if (wordCount.containsKey(word)) {
+
+                    wordCount.put(word, wordCount.get(word) + 1);
+
+                } else {
+
+                    wordCount.put(word, 1);
+                }
+            }
+        }
+
+        return wordCount;
+    }
+
+}
+================================================================================
