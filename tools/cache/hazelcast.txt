@@ -318,6 +318,21 @@ https://hazelcast.com/blog/serialize-enumerable-ways/
 https://github.com/hazelcast/hazelcast/issues/6781
 
 
+Example
+--------------------
+
+Example below comes from this issue:
+https://github.com/hazelcast/hazelcast/issues/6781
+
+  NOTE: you must use InputChunked and OutputChunked, rather then Input/Output stream .. 
+  -----
+
+other examples are in the documentation:
+
+Custom Serialization:
+https://docs.hazelcast.org/docs/latest-dev/manual/html-single/index.html#custom-serialization
+
+
 
 GenericHazelCastKryoSerializer.java
 -----------------------------------
