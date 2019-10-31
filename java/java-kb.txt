@@ -554,3 +554,103 @@ negative test
 
 ================================================================================
 
+  correct form of double-checked locking idiom
+  ********************************************
+
+http://www.cs.umd.edu/~pugh/java/memoryModel/DoubleCheckedLocking.html
+https://wiki.sei.cmu.edu/confluence/display/java/LCK10-J.+Use+a+correct+form+of+the+double-checked+locking+idiom
+
+// Broken multithreaded version
+// "Double-Checked Locking" idiom
+class Foo { 
+  private Helper helper = null;
+  public Helper getHelper() {
+    if (helper == null) 
+      synchronized(this) {
+        if (helper == null) 
+          helper = new Helper();
+      }    
+    return helper;
+  }
+  // other functions and members...
+}
+
+Reasons above doesn't work:
+
+1. the writes that initialize the Helper object and the write to the helper field can be done or perceived out of order. Thus, a thread which invokes getHelper() could see a non-null reference to a helper object, but see the default values for fields of the helper object, rather than the values set in the constructor.  Even if the compiler does not reorder those writes, on a multiprocessor the processor or the memory system may reorder those writes, as perceived by a thread running on another processor.
+
+
+static singletons
+------------------
+
+If the singleton you are creating is static (i.e., there will only be one Helper created), as opposed to a property of another object (e.g., there will be one Helper for each Foo object, there is a simple and elegant solution.
+
+Just define the singleton as a static field in a separate class. The semantics of Java guarantee that the field will not be initialized until the field is referenced, and that any thread which accesses the field will see all of the writes resulting from initializing that field.
+
+
+class HelperSingleton {
+  static Helper singleton = new Helper();
+}
+
+
+Fixing double-checked locking using ThreadLocal storage
+-------------------------------------------------------
+
+Alexander Terekhov (TEREKHOV@de.ibm.com) came up clever suggestion for implementing double checked locking using thread local storage. Each thread keeps a thread local flag to determine whether that thread has done the required synchronization.
+
+  class Foo {
+
+    /** 
+      If perThreadInstance.get() returns a non-null value, this thread
+      has done synchronization needed to see initialization
+      of helper 
+     */
+    private final ThreadLocal perThreadInstance = new ThreadLocal();
+    private Helper helper = null;
+    
+    public Helper getHelper() {
+      if (perThreadInstance.get() == null) createHelper();
+        return helper;
+    }
+    
+    private final void createHelper() {
+      synchronized(this) {
+        if (helper == null)
+          helper = new Helper();
+        }
+        // Any non-null value would do as the argument here
+        perThreadInstance.set(perThreadInstance);
+      }
+  }
+
+The performance of this technique depends quite a bit on which JDK implementation you have. In Sun's 1.2 implementation, ThreadLocal's were very slow. They are significantly faster in 1.3, and are expected to be faster still in 1.4
+
+
+Fixing Double-Checked Locking using Volatile
+---------------------------------------------
+
+JDK5 and later extends the semantics for volatile so that the system will not allow a write of a volatile to be reordered with respect to any previous read or write, and a read of a volatile cannot be reordered with respect to any following read or write. See this entry in Jeremy Manson's blog for more details.
+
+With this change, the Double-Checked Locking idiom can be made to work by declaring the helper field to be volatile. This does not work under JDK4 and earlier.
+
+
+  // Works with acquire/release semantics for volatile
+  // Broken under JDK 1.4 and earlier
+  final class Foo {
+    private volatile Helper helper = null;
+   
+    public Helper getHelper() {
+      if (helper == null) {
+        synchronized (this) {
+          if (helper == null) {
+            helper = new Helper();
+          }
+        }
+      }
+      return helper;
+    }
+  }
+
+
+================================================================================
+
