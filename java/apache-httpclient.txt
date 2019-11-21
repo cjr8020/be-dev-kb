@@ -606,6 +606,94 @@ public class SomeServiceClient {
 
 =================================================================================	
 
+
+example of GET request setup
+-----------------------------
+
+
+  HttpGet setupHttpGetRequest(
+      String path,
+      String actor,
+      Optional<Map<String, String>> queryParams
+  ) throws URISyntaxException {
+    URI uri = buildUriForRequest(path, queryParams);
+
+    HttpGet request = new HttpGet(uri);
+    // set headers
+    request.addHeader(org.apache.http.HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+    request.addHeader(
+        TRANSACTION_ID_HEADER_NAME,
+        ExecutionContextHolder.get().getGtid());
+    request.addHeader(EBMR_ACTOR_HEADER_NAME, actor);
+
+    return request;
+  }
+
+
+=================================================================================
+
+	example of setting up HttpClientContext with Basic Authentication
+	------------------------------------------------------------------  
+
+  /**
+   * Set up Http context for a REST request with basic auth.
+   *
+   * @return context HttpClientContext
+   */
+  private HttpClientContext setupHttpClientContext() {
+    // set BasicAuth
+    CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+    credentialsProvider.setCredentials(
+        AuthScope.ANY,
+        new UsernamePasswordCredentials(
+            this.someServiceClientConfiguration.getUser(),
+            this.someServiceClientConfiguration.getPassword()));
+    AuthCache authCache = new BasicAuthCache();
+    HttpHost targetHost = new HttpHost(
+        this.ebmrConfiguration.getHost(),
+        this.ebmrConfiguration.getPort(),
+        this.ebmrConfiguration.getScheme());
+    authCache.put(targetHost, new BasicScheme());
+    // add authcache to the execution context
+    final HttpClientContext context = HttpClientContext.create();
+    context.setCredentialsProvider(credentialsProvider);
+    context.setAuthCache(authCache);
+
+    return context;
+  }
+
+
+================================================================================  
+
+Example of URI setup with URIBuilder
+-------------------------------------
+
+
+  /**
+   * Helper function to build request URI.
+   * @param path is the member update url to be hit
+   * @param queryParams are the parameters needed for the request
+   * @return a URI object
+   * @throws URISyntaxException exception
+   */
+  private URI buildUriForRequest(
+      final String path,
+      final Optional<Map<String, String>> queryParams)
+      throws URISyntaxException {
+
+    final URIBuilder builder = new URIBuilder();
+    builder.setScheme(this.ebmrConfiguration.getScheme())
+        .setHost(this.ebmrConfiguration.getHost())
+        .setPort(this.ebmrConfiguration.getPort())
+        .setPath(path);
+
+    queryParams.ifPresent(queryParamMap -> queryParamMap.forEach(builder::addParameter));
+
+    return builder.build();
+  }
+
+=================================================================================	
+
 	Cookie Management
 	*****************
 
