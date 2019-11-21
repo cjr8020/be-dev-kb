@@ -1,0 +1,660 @@
+
+	**************************
+
+		apache httpclient 
+
+	**************************
+
+
+application.yml
+-----------------
+
+app:
+
+  http-client:
+    # time to wait for connection from pool (ms)
+    connection-request-timeout: 10000
+    # time to wait for connection from pool (ms)
+    connection-timeout: 30000
+    # time to wait for data (ms)
+    connection-socket-timeout: 30000
+    # max total connections in pool
+    connection-pool-max-total: 10
+    # max connections per route
+    connection-pool-max-per-route: 2
+    tls:
+      supported-protocols: SSLv2Hello, TLSv1, TLSv1.1, TLSv1.2
+      key-store: test-keystore.jks
+      key-store-password: <secret>
+      key-store-type: JKS
+      trust-store: test-truststore.jks
+      trust-store-password: <secret>
+      trust-store-type: JKS
+
+
+HttpClientConfiguration.java
+------------------------------
+
+package com.company.cis.configuration;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.PostConstruct;
+import javax.net.ssl.SSLContext;
+import org.apache.http.HeaderElement;
+import org.apache.http.HeaderElementIterator;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.ConnectionKeepAliveStrategy;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.message.BasicHeaderElementIterator;
+import org.apache.http.protocol.HTTP;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.ssl.SSLContexts;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+
+/**
+ * Provides configuration for Apache HTTP client. HTTP client provides connection support for all
+ * REST service client in this application including - TLS support - connection pooling - connection
+ * keep-alive strategy - idle connection monitoring
+ */
+@Configuration
+@EnableScheduling
+public class HttpClientConfiguration {
+
+  private static final Logger logger = LoggerFactory.getLogger(HttpClientConfiguration.class);
+
+  /**
+   * Connection request timeout (ms). The amount of time to wait for a connection from a connection
+   * manager/pool.
+   */
+  @Value("${app.http-client.connection-request-timeout:30000}")
+  private int connectionRequestTimeout;
+
+  /**
+   * Connection timeout (ms). The time to establish the connection with the remote host.
+   */
+  @Value("${app.http-client.connection-timeout:30000}")
+  private int connectionTimeout;
+
+  /**
+   * Connection socket timeout (ms). The time waiting for data – after the connection was
+   * established. The maximum time of inactivity between two data packets.
+   */
+  @Value("${app.http-client.connection-socket-timeout:30000}")
+  private int connectionSocketTimeout;
+
+  /**
+   * Max number of connection in the connection pool for all routes.
+   */
+  @Value("${app.http-client.connection-pool-max-total:20}")
+  private int connectionPoolMaxTotal;
+
+  /**
+   * Max number of connections per route (for a specific server).
+   */
+  @Value("${app.http-client.connection-pool-max-max-per-route:2}")
+  private int connectionPoolMaxPerRoute;
+
+  /**
+   * Wait time (seconds) before closing idle connections.
+   */
+  @Value("${app.http-client.close-idle-connections-wait:30}")
+  private int closeIdleConnectionsWait;
+
+  /**
+   * Default keep-alive time (ms) if Keep-Alive header is not present in the response.
+   */
+  @Value("${app.http-client.connection-keep-alive-default:50000}")
+  private int connectionKeepAliveDefault;
+
+  /**
+   * TLS configuration.
+   */
+  @Value("${app.http-client.tls.supported-protocols}")
+  private String[] supportedProtocols;
+  @Value("${app.http-client.tls.key-store}")
+  private String keyStorePath;
+  @Value("${app.http-client.tls.key-store-password}")
+  private String keyStorePassword;
+  @Value("${app.http-client.tls.key-store-type:JKS}")
+  private String keyStoreType;
+  @Value("${app.http-client.tls.trust-store}")
+  private String trustStorePath;
+  @Value("${app.http-client.tls.trust-store-password}")
+  private String trustStorePassword;
+  @Value("${app.http-client.tls.trust-store-type:JKS}")
+  private String trustStoreType;
+
+
+  /**
+   * Post construct logger.
+   */
+  @PostConstruct
+  public void configurationProperties() {
+    logger.warn("HTTP Client configuration settings:");
+    logger.warn("connectionRequestTimeout = {}ms", connectionRequestTimeout);
+    logger.warn("connectionTimeout = {}ms", connectionTimeout);
+    logger.warn("connectionSocketTimeout = {}ms", connectionSocketTimeout);
+    logger.warn("connectionPoolMaxTotal = {}", connectionPoolMaxTotal);
+    logger.warn("connectionPoolMaxPerRoute = {}", connectionPoolMaxPerRoute);
+    logger.warn("closeIdleConnectionsWait = {}sec", closeIdleConnectionsWait);
+    logger.warn("connectionKeepAliveDefault = {}ms", connectionKeepAliveDefault);
+    // tls
+    logger.warn("supportedProtocols = {}", Arrays.toString(supportedProtocols));
+    logger.warn("keyStorePath = {}", keyStorePath);
+    logger.warn("keyStoreType = {}", keyStoreType);
+    logger.warn("trustStorePath = {}", trustStorePath);
+    logger.warn("trustStoreType = {}", trustStoreType);
+  }
+
+
+  /**
+   * Keep-alive strategy bean.
+   *
+   * @return ConnectionKeepAliveStrategy
+   */
+  @Bean
+  public ConnectionKeepAliveStrategy connectionKeepAliveStrategy() {
+    return new ConnectionKeepAliveStrategy() {
+
+      /**
+       * Returns the duration of time which this connection can be safely kept
+       * idle. If the connection is left idle for longer than this period of time,
+       * it MUST not reused. A value of 0 or less may be returned to indicate that
+       * there is no suitable suggestion.
+       *
+       * <p>When coupled with a {@link org.apache.http.ConnectionReuseStrategy}, if
+       * {@link org.apache.http.ConnectionReuseStrategy#keepAlive(
+       *HttpResponse, HttpContext)} returns true, this allows you to control
+       * how long the reuse will last. If keepAlive returns false, this should
+       * have no meaningful impact.
+       *
+       * @param response
+       *            The last response received over the connection.
+       * @param context
+       *            the context in which the connection is being used.
+       *
+       * @return the duration in ms for which it is safe to keep the connection
+       *         idle, or &lt;=0 if no suggested duration.
+       */
+      @Override
+      public long getKeepAliveDuration(HttpResponse response, HttpContext context) {
+        HeaderElementIterator it
+            = new BasicHeaderElementIterator(response.headerIterator(HTTP.CONN_KEEP_ALIVE));
+        while (it.hasNext()) {
+          HeaderElement he = it.nextElement();
+          String param = he.getName();
+          String value = he.getValue();
+
+          if (value != null && param.equalsIgnoreCase("timeout")) {
+            return Long.parseLong(value) * 1000;
+          }
+        }
+        return connectionKeepAliveDefault;
+      }
+    };
+  }
+
+  /**
+   * Idle connection monitor.
+   *
+   * @param connectionManager PoolingHttpClientConnectionManager
+   * @return Runnable
+   */
+  @Bean
+  public Runnable idleConnectionMonitor(
+      final PoolingHttpClientConnectionManager connectionManager) {
+    return new Runnable() {
+      @Override
+      @Scheduled(fixedDelay = 10000)
+      public void run() {
+        try {
+          if (connectionManager != null) {
+            logger.trace("run IdleConnectionMonitor - Closing expired and idle connections...");
+            connectionManager.closeExpiredConnections();
+            connectionManager.closeIdleConnections(closeIdleConnectionsWait, TimeUnit.SECONDS);
+          } else {
+            logger.trace(
+                "run IdleConnectionMonitor - Http Client Connection manager is not initialised");
+          }
+        } catch (Exception e) {
+          logger
+              .error("run IdleConnectionMonitor - Exception occurred. msg={}, e={}", e.getMessage(),
+                  e);
+        }
+      }
+    };
+  }
+
+
+  /**
+   * ClientConnectionPoolManager maintains a pool of HttpClientConnections and is able to service
+   * connection requests from multiple execution threads.
+   *
+   * @return PoolingHttpClientConnectionManager
+   */
+  @Bean
+  public PoolingHttpClientConnectionManager poolingConnectionManager() {
+
+    SSLConnectionSocketFactory sslSocketFactory = null;
+
+    try {
+      sslSocketFactory = new SSLConnectionSocketFactory(
+          customSslContext(),
+          supportedProtocols,
+          null,
+          SSLConnectionSocketFactory.getDefaultHostnameVerifier()
+      );
+    } catch (IOException
+        | KeyStoreException
+        | CertificateException
+        | NoSuchAlgorithmException
+        | UnrecoverableKeyException
+        | KeyManagementException exception) {
+      throw new IllegalStateException("Error loading key or trust store.", exception);
+    }
+
+    Registry<ConnectionSocketFactory> socketFactoryRegistry
+        = RegistryBuilder.<ConnectionSocketFactory>create()
+        .register("http", PlainConnectionSocketFactory.getSocketFactory())
+        .register("https", sslSocketFactory)
+        .build();
+
+    PoolingHttpClientConnectionManager poolingConnectionManager
+        = new PoolingHttpClientConnectionManager(socketFactoryRegistry);
+    poolingConnectionManager.setMaxTotal(connectionPoolMaxTotal);
+    return poolingConnectionManager;
+  }
+
+
+  /**
+   * Apache HTTP Client implementation.
+   *
+   * @return CloseableHttpClient
+   */
+  @Bean
+  public CloseableHttpClient httpClient() {
+    RequestConfig requestConfig = RequestConfig.custom()
+        .setConnectionRequestTimeout(connectionRequestTimeout)
+        .setConnectTimeout(connectionTimeout)
+        .setSocketTimeout(connectionSocketTimeout).build();
+
+    return HttpClients.custom()
+        .setDefaultRequestConfig(requestConfig)
+        .setConnectionManager(poolingConnectionManager())
+        .setKeepAliveStrategy(connectionKeepAliveStrategy())
+        .build();
+  }
+
+
+
+  /**
+   * Custom SSL Context using provided keystore and truststore.
+   *
+   * @return SSLContext
+   * @throws IOException IOException
+   * @throws KeyStoreException KeyStoreException
+   * @throws CertificateException CertificateException
+   * @throws NoSuchAlgorithmException NoSuchAlgorithmException
+   * @throws UnrecoverableKeyException UnrecoverableKeyException
+   * @throws KeyManagementException KeyManagementException
+   */
+  @Bean
+  public SSLContext customSslContext()
+      throws IOException, KeyStoreException, CertificateException, NoSuchAlgorithmException,
+      UnrecoverableKeyException, KeyManagementException {
+
+    final KeyStore keyStore;
+    final KeyStore trustStore;
+
+    try (
+        FileInputStream keyStoreInputStream = new FileInputStream(new File(keyStorePath));
+        FileInputStream trustStoreInputStream = new FileInputStream(new File(trustStorePath))) {
+      keyStore = KeyStore.getInstance(keyStoreType);
+      keyStore.load(keyStoreInputStream, keyStorePassword.toCharArray());
+      trustStore = KeyStore.getInstance(trustStoreType);
+      trustStore.load(trustStoreInputStream, trustStorePassword.toCharArray());
+    }
+
+    return SSLContexts.custom()
+        .loadKeyMaterial(keyStore, keyStorePassword.toCharArray(), (aliases, socket) -> "keyStore")
+        .loadTrustMaterial(trustStore, (x509Certificates, s) -> false)
+        .build();
+  }
+
+}
+
+
+
+
+
+=================================================================================	
+
+Clieint Configuration
+**********************
+
+package com.company.cis.client.http.someservice;
+
+import java.util.StringJoiner;
+import javax.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+@Component
+@ConfigurationProperties("some-service")
+public class SomeServiceClientConfiguration {
+
+  private static final Logger logger
+      = LoggerFactory.getLogger(SomeServiceClientConfiguration.class);
+
+  private String scheme;
+  private String host;
+  private int port;
+
+  public String getScheme() {
+    return scheme;
+  }
+
+  public void setScheme(String scheme) {
+    this.scheme = scheme;
+  }
+
+  public String getHost() {
+    return host;
+  }
+
+  public void setHost(String host) {
+    this.host = host;
+  }
+
+  public int getPort() {
+    return port;
+  }
+
+  public void setPort(int port) {
+    this.port = port;
+  }
+
+  @PostConstruct
+  public void applicationProperties() {
+    logger.warn(toString());
+  }
+
+  @Override
+  public String toString() {
+    return new StringJoiner(", ", "SomeServiceClientConfiguration=[", "]")
+        .add("scheme='" + scheme + "'")
+        .add("host='" + host + "'")
+        .add("port=" + port)
+        .toString();
+  }
+}
+
+
+=================================================================================	
+
+
+SomeServiceClient
+----------------------------
+
+
+package com.company.cis.client.http.someservice;
+
+import com.company.cis.exception.DownstreamServiceException;
+import com.company.sfg.ess.audit.ExecutionContextHolder;
+import com.company.sfg.ess.audit.springboot.SfgAuditableFactory.Auditor;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.cookie.BasicClientCookie;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StopWatch;
+
+@Component
+public class SomeServiceClient {
+
+  private static final Logger logger = LoggerFactory.getLogger(SomeServiceClient.class);
+
+  private static final String HEADER_X_SFG_GTID_NAME = "x-sfg-gtid";
+  private static final String SOME_RESOURCE = "/account-linking/eb/claimant/register";
+
+  private static final String COOKIE_NAME_NARLY_TOKEN = "sfgToken";
+  private static final String COOKIE_DOMAIN = ".standard.com";
+  private static final String COOKIE_PATH = "/";
+
+  private static final String EXCEPTION_NO_RESPONSE = "No response from account-linking-service";
+
+  private Auditor auditor;
+  private CloseableHttpClient httpClient;
+  private SomeServiceClientConfiguration someServiceClientConfiguration;
+
+  /**
+   * Constructor.
+   * @param Auditor auditor
+   * @param httpClient CloseableHttpClient
+   * @param someServiceClientConfiguration SomeServiceClientConfiguration
+   */
+  public SomeServiceClient(
+      final Auditor auditor,
+      final CloseableHttpClient httpClient,
+      final SomeServiceClientConfiguration someServiceClientConfiguration
+  ) {
+    this.Auditor = auditor;
+    this.httpClient = httpClient;
+    this.someServiceClientConfiguration = someServiceClientConfiguration;
+  }
+
+  /**
+   * Sends request.
+   */
+  public void someSampleMethod() {
+    if (logger.isInfoEnabled()) {
+      logger.info("{}, method=sendFileAClaimAuthRegRequest",
+          auditor.auditableLogMessage(ExecutionContextHolder.get()));
+    }
+
+    final StopWatch sw = new StopWatch();
+
+    try {
+      sw.start();
+      final URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+          .setScheme(someServiceClientConfiguration.getScheme())
+          .setHost(someServiceClientConfiguration.getHost())
+          .setPort(someServiceClientConfiguration.getPort())
+          .setPath(SOME_RESOURCE);
+      // headers
+      Map<String, String> headers = new HashMap<>();
+      headers.put(HEADER_X_SFG_GTID_NAME, ExecutionContextHolder.get().getSfgGtid());
+
+      HttpPost request = setupHttpPostRequest(uriBuilder, Optional.empty(), Optional.of(headers));
+      final HttpClientContext context = HttpClientContext.create();
+
+      // cookie
+      BasicCookieStore cookieStore = new BasicCookieStore();
+      setSfgTokenCookie(cookieStore);
+      context.setAttribute(HttpClientContext.COOKIE_STORE, cookieStore);
+
+
+      // call
+      try (CloseableHttpResponse httpResponse = this.httpClient.execute(request, context)) {
+        if (httpResponse == null) {
+          throw new DownstreamServiceException(EXCEPTION_NO_RESPONSE);
+        }
+
+        int httpStatusCode = httpResponse.getStatusLine().getStatusCode();
+        if (logger.isInfoEnabled()) {
+          logger.info("{}, method=someSampleMethod responseCode={}",
+              auditor.auditableLogMessage(ExecutionContextHolder.get()),
+              httpStatusCode);
+        }
+        if (httpStatusCode == HttpStatus.CREATED.value()) {
+          if (logger.isInfoEnabled()) {
+            logger.info("{}, method=someSampleMethod, registration CREATED.",
+                auditor.auditableLogMessage(ExecutionContextHolder.get()));
+          }
+        } else {
+          logger.info("{}, method=someSampleMethod, registration FAILED.",
+              auditor.auditableLogMessage(ExecutionContextHolder.get()));
+          throw new DownstreamServiceException("File-a-Claim auto-registration failed.");
+        }
+      }
+
+    } catch (URISyntaxException exception) {
+      String message
+          = "method=someSampleMethod, original exception=" + exception;
+      logger.error(
+          "{}, {}",
+          auditor.auditableLogMessage(ExecutionContextHolder.get()),
+          message);
+      throw new IllegalStateException(message);
+    } catch (IOException exception) {
+      String message
+          = "method=someSampleMethod, original exception=" + exception;
+      logger.error(
+          "{}, {}",
+          auditor.auditableLogMessage(ExecutionContextHolder.get()),
+          message);
+      throw new DownstreamServiceException(message);
+    } finally {
+      sw.stop();
+      if (logger.isInfoEnabled()) {
+        logger.info("{}, method=someSampleMethod completed in {}ms",
+            auditor.auditableLogMessage(ExecutionContextHolder.get()), sw.getTotalTimeMillis());
+      }
+    }
+  }
+
+
+  /**
+   * Configures a POST request to OrchIS API server. Sets path, optional query parameters and
+   * optional headers.
+   *
+   * @param builder URIBuilder builder with pre-built URI to which we can add query params if any.
+   * @param queryParams optional query params
+   * @param headers optional header values
+   * @return HttpPut
+   * @throws URISyntaxException exception
+   */
+  private HttpPost setupHttpPostRequest(
+      final URIBuilder builder,
+      final Optional<Map<String, String>> queryParams,
+      final Optional<Map<String, String>> headers) throws URISyntaxException {
+
+    queryParams.ifPresent(queryParamMap -> queryParamMap.forEach(builder::addParameter));
+    URI uri = builder.build();
+    HttpPost request = new HttpPost(uri);
+
+    // set headers
+    headers.ifPresent(headerMap -> headerMap.forEach(request::addHeader));
+
+    return request;
+  }
+
+  /**
+   * Create sfgToken cookie and add to store.
+   * @param cookieStore BasicCookieStore
+   */
+  private void setSfgTokenCookie(final BasicCookieStore cookieStore) {
+    BasicClientCookie sfgTokenCookie
+        = new BasicClientCookie(COOKIE_NAME_NARLY_TOKEN, ExecutionContextHolder.get().getSfgToken());
+    sfgTokenCookie.setDomain(COOKIE_DOMAIN);
+    sfgTokenCookie.setPath(COOKIE_PATH);
+    sfgTokenCookie.setSecure(true);
+    cookieStore.addCookie(sfgTokenCookie);
+  }
+
+}
+
+
+=================================================================================	
+
+	Cookie Management
+	*****************
+
+CookieStore
+------------	
+
+Create a cookie store and set a sample cookie there
+
+	BasicCookieStore cookieStore = new BasicCookieStore();
+	BasicClientCookie cookie = new BasicClientCookie("JSESSIONID", "1234");
+	cookie.setDomain(".github.com");
+	cookie.setPath("/");
+	cookieStore.addCookie(cookie);
+
+
+Setting on HttpClieint
+-------------------------------
+
+    HttpClient client = HttpClientBuilder.create().setDefaultCookieStore(cookieStore).build();
+ 
+    final HttpGet request = new HttpGet("http://www.github.com");
+ 
+    response = client.execute(request);
+
+
+
+Setting Cookie on Request
+-------------------------------
+
+    BasicCookieStore cookieStore = new BasicCookieStore();
+    BasicClientCookie cookie = new BasicClientCookie("JSESSIONID", "1234");
+    cookie.setDomain(".github.com");
+    cookie.setPath("/");
+    cookieStore.addCookie(cookie);
+
+    final HttpClientContext context = HttpClientContext.create();
+    context.setAttribute(HttpClientContext.COOKIE_STORE, cookieStore);
+
+
+
+Setting Cookie on Low Level Request
+-----------------------------------
+
+A low level alternative of setting the cookie on the HTTP Request would be setting it as a raw Header:
+
+    instance = HttpClientBuilder.create().build();
+    HttpGet request = new HttpGet("http://www.github.com");
+    request.setHeader("Cookie", "JSESSIONID=1234");
+ 
+    response = instance.execute(request);
+
+=================================================================================	
