@@ -79,3 +79,14 @@ pm.test("Status code is 201", function () {
 
 
 ================================================================================
+
+    set Cookie 
+    **********
+
+In request Headers, add "Cookie" header and a value of 
+
+    <cookieName>={{yourCookieVariable}}
+
+Cookie                        myCookie={{myCookieVar}}
+
+================================================================================
