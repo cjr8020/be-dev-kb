@@ -23,6 +23,106 @@ https://docs.spring.io/spring-security/site/docs/current/reference/html/jc.html
 
 ================================================================================
 
+  @Lazy
+  -----
+
+http://dolszewski.com/spring/spring-lazy-annotation-use-cases/
+
+
+================================================================================
+
+  startup hooks
+  *************
+http://dolszewski.com/spring/running-code-on-spring-boot-startup/
+
+execute method on bean initialization
+-------------------------------------
+
+@Component + @PostConstruct
+
+Just create a class, mark it as a Spring component, and put the app initialization code in a method with the @PostConstruct annotation. In theory, you could use a constructor instead of a separate method but it’s a good practice to separate the object’s construction from its real responsibility.
+
+  @Component
+  class AppInitializator {
+   
+      private static final Logger log = LoggerFactory.getLogger(AppInitializator.class);
+   
+      @PostConstruct
+      private void init() {
+          log.info("AppInitializator initialization logic ...");
+          // ...
+      }
+   
+  }
+
+You can also create a method with the @PostConstruct annotation inside your main Spring Boot application class. Don’t forget that the main class is also a component managed by the framework.
+
+  @SpringBootApplication
+  public class InitDemoApplication {
+   
+      // ...
+   
+      @PostConstruct
+      private void init() {
+          log.info("InitDemoApplication initialization logic ...");
+          // ...
+      }
+   
+  }
+
+
+spring-boot startup hooks
+-------------------------
+
+As every Java program, you start execution of such application in the static main method of your entry application class. That’s the point in which you can hook into Spring Boot initialization process.
+
+
+public static void main(String[] args) {
+    SpringApplication application = new SpringApplication(InitDemoApplication.class);
+    addInitHooks(application);
+    application.run(args);
+}
+
+static void addInitHooks(SpringApplication application) {
+   application.addListeners((ApplicationListener<ApplicationEnvironmentPreparedEvent>) event -> {
+       String version = event.getEnvironment().getProperty("java.runtime.version");
+       log.info("Running with Java {}", version);
+   });
+}
+
+
+event types
+--------------
+
+Here’s the list of possible events sorted by the order in which events are published by Spring Boot on the startup:
+
+ApplicationStartingEvent
+ApplicationEnvironmentPreparedEvent
+ApplicationContextInitializedEvent
+ApplicationPreparedEvent
+ApplicationStartedEvent
+ApplicationReadyEvent
+
+
+Run code on startup without embedded Tomcat
+--------------------------------------------
+
+if you deploy your application as a WAR file 
+
+  public class InitDemoWarInitializer extends SpringBootServletInitializer {
+ 
+    @Override
+    protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
+        InitDemoApplication.addInitHooks(builder.application());
+        return builder.sources(InitDemoApplication.class);
+    }
+ 
+  }
+
+
+
+================================================================================
+
   common application properties
   *****************************
 
