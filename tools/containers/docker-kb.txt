@@ -621,3 +621,67 @@ docker-compose -f financial-portal.yaml -p fp down
 
 
 ================================================================================
+
+	angular with docker
+	*******************
+
+https://medium.com/@nishancw/quick-start-guide-for-docker-with-angular-on-windows-492263edeaf8
+
+$ ng new
+
+create Dockerfile
+create docker-compose.yml
+
+package.json:
+
+	"start": "ng serve --host 0.0.0.0 --poll 500"
+
+NOTE:  --host 0.0.0.0  <--- must have it
+
+--poll 
+	is telling the client to check every 500 milliseconds if there are any new changes made. This is the fix that I was talking about (for Windows). Terns out without this, live reloading do not work. Some say it’s because host OS is windows and image is Linux, whatever the cause is now it should work. 
+
+--host 
+	says to listen on all incoming connections for requests.
+
+Dockerfile
+------------
+
+FROM node:12 (whatever is current)
+WORKDIR /app
+COPY package.json .
+RUN npm install
+COPY . .
+EXPOSE 4200 49153
+CMD npm run start  (or whatever you npm script is to run your app)
+
+docker-compose.yml
+-------------------
+
+version: "3.7"
+services:
+  dashboard:
+    build: .
+    ports:
+      - "4200:4200"
+      - "49153:49153"
+    volumes:
+      - "/app/node_modules"
+      - ".:/app"
+
+
+tell docker to forward port 4200 and 49153 to the same ports in the host OS, Windows in my case. 
+
+
+On windows, install Docker Desktop.
+Add yourself to `docker-users` group or it will not run.
+
+make sure the windows service is running.
+
+
+$ docker-compose up
+$ docker-compose down
+
+
+
+================================================================================
